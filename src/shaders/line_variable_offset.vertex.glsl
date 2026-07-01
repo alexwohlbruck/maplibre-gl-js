@@ -10,7 +10,10 @@ in vec2 a_pos_normal;
 in vec4 a_data;
 // Per-vertex offset (pixels) from the ext buffer, evaluated from a `line-progress`
 // expression on `line-offset`. Shares the ext buffer with a_uv_x / a_split_index.
-in highp float a_line_offset;
+// NOTE: no precision qualifier here — the shader codegen's static-attribute regex only
+// captures `attribute <type> <name>`, so `in highp float a_line_offset` would register the
+// wrong name ("float") and the attribute would never be bound (offset reads as 0).
+in float a_line_offset;
 
 uniform mat4 u_matrix;
 uniform mediump float u_ratio;

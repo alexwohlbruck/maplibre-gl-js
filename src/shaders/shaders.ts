@@ -39,6 +39,7 @@ import hillshadeFrag from './hillshade.fragment.glsl.g';
 import hillshadeVert from './hillshade.vertex.glsl.g';
 import lineFrag from './line.fragment.glsl.g';
 import lineVert from './line.vertex.glsl.g';
+import lineVariableOffsetVert from './line_variable_offset.vertex.glsl.g';
 import lineGradientFrag from './line_gradient.fragment.glsl.g';
 import lineGradientVert from './line_gradient.vertex.glsl.g';
 import linePatternFrag from './line_pattern.fragment.glsl.g';
@@ -82,6 +83,7 @@ export const shaders = {
     hillshadePrepare: compile(hillshadePrepareFrag, hillshadePrepareVert),
     hillshade: compile(hillshadeFrag, hillshadeVert),
     line: compile(lineFrag, lineVert),
+    lineVariableOffset: compile(lineFrag, lineVariableOffsetVert),
     lineGradient: compile(lineGradientFrag, lineGradientVert),
     linePattern: compile(linePatternFrag, linePatternVert),
     lineSDF: compile(lineSDFFrag, lineSDFVert),

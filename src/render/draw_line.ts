@@ -34,10 +34,16 @@ export function drawLine(painter: Painter, sourceCache: SourceCache, layer: Line
     const gradient = layer.paint.get('line-gradient');
     const crossfade = layer.getCrossfadeParameters();
 
+    // A `line-progress`-driven `line-offset` varies the offset per-vertex; it needs a dedicated
+    // shader variant that reads `a_line_offset` from the ext buffer. Only applies when the line
+    // isn't already a pattern/SDF/gradient variant (those have their own vertex shaders).
+    const variableOffset = layer.hasVariableOffset();
+
     const programId =
         image ? 'linePattern' :
             dasharray ? 'lineSDF' :
-                gradient ? 'lineGradient' : 'line';
+                gradient ? 'lineGradient' :
+                    variableOffset ? 'lineVariableOffset' : 'line';
 
     const context = painter.context;
     const gl = context.gl;

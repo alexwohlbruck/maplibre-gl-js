@@ -30,6 +30,7 @@ export const programUniforms = {
     hillshade: hillshadeUniforms,
     hillshadePrepare: hillshadePrepareUniforms,
     line: lineUniforms,
+    lineVariableOffset: lineUniforms,
     lineGradient: lineGradientUniforms,
     linePattern: linePatternUniforms,
     lineSDF: lineSDFUniforms,

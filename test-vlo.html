@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <link href="./dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="./dist/maplibre-gl.js?build=4"></script>
+  <style>
+    body { margin: 0; }
+    #map { position: absolute; inset: 0; }
+    #info { position: absolute; top: 8px; left: 8px; z-index: 1; font: 13px sans-serif; background: #fff; padding: 6px 10px; border-radius: 4px; white-space: pre; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="info">loading…</div>
+  <script>
+    // Densified straight horizontal line: many vertices so line-progress takes
+    // intermediate values (a 2-point line only has progress 0 and 1 → a variable
+    // offset ramp can't express itself and renders straight even when correct).
+    const N = 80;
+    const coords = [];
+    for (let i = 0; i <= N; i++) coords.push([-0.25 + (0.5 * i) / N, 0]);
+    const line = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } };
+    const map = new maplibregl.Map({
+      container: 'map', center: [0, 0], zoom: 8.5,
+      style: {
+        version: 8,
+        // tolerance:0 disables geojson-vt Douglas-Peucker simplification, which would
+        // otherwise collapse our straight densified line back to its 2 endpoints (both at
+        // line-progress 0/1 → offset 0) and hide the variable offset. Real transit lines
+        // have genuine curvature so they keep their vertices; a synthetic straight test does not.
+        sources: { l: { type: 'geojson', lineMetrics: true, tolerance: 0, data: line } },
+        layers: [
+          { id: 'bg', type: 'background', paint: { 'background-color': '#eef1f4' } },
+          { id: 'ref', type: 'line', source: 'l', paint: { 'line-color': '#8a8f98', 'line-width': 2 } },
+          // GREEN: CONSTANT offset 50 — should shift uniformly (control for base offset rendering)
+          { id: 'const', type: 'line', source: 'l', paint: { 'line-color': '#0a0', 'line-width': 4, 'line-offset': 50 } },
+          // RED: line-progress ramp 0 -> 60 -> 0 — should BOW OUT (the feature under test)
+          { id: 'vlo', type: 'line', source: 'l',
+            paint: { 'line-color': '#e0201b', 'line-width': 5,
+              'line-offset': ['interpolate', ['linear'], ['line-progress'], 0, 0, 0.5, 60, 1, 0] } },
+        ],
+      },
+    });
+    window.map = map;
+    map.on('load', () => {
+      // Introspect: what did the offset expression parse to, and does the layer report variable offset?
+      const layer = map.getLayer('vlo');
+      const paint = map.style._layers['vlo'].paint;
+      const offVal = paint.get('line-offset');
+      window.__diag = {
+        version: maplibregl.version,
+        offsetKind: offVal && offVal.kind,
+        hasVariableOffset: typeof map.style._layers['vlo'].hasVariableOffset === 'function'
+          ? map.style._layers['vlo'].hasVariableOffset() : 'no-method',
+        offsetExprFn: typeof map.style._layers['vlo'].offsetExpression === 'function',
+      };
+      document.getElementById('info').textContent = JSON.stringify(window.__diag, null, 1);
+      window.__ready = true;
+    });
+    map.on('error', (e) => { window.__err = e.error && e.error.message; document.getElementById('info').textContent = 'ERR ' + window.__err; });
+  </script>
+</body>
+</html>

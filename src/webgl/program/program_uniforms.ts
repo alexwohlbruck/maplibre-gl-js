@@ -38,6 +38,7 @@ export const programUniforms: {
     hillshadePrepare: (context: Context, locations: UniformLocations) => HillshadePrepareUniformsType;
     colorRelief: (context: Context, locations: UniformLocations) => ColorReliefUniformsType;
     line: (context: Context, locations: UniformLocations) => LineUniformsType;
+    lineVariableOffset: (context: Context, locations: UniformLocations) => LineUniformsType;
     lineGradient: (context: Context, locations: UniformLocations) => LineGradientUniformsType;
     linePattern: (context: Context, locations: UniformLocations) => LinePatternUniformsType;
     lineSDF: (context: Context, locations: UniformLocations) => LineSDFUniformsType;
@@ -73,6 +74,7 @@ export const programUniforms: {
     hillshadePrepare: hillshadePrepareUniforms,
     colorRelief: colorReliefUniforms,
     line: lineUniforms,
+    lineVariableOffset: lineUniforms,
     lineGradient: lineGradientUniforms,
     linePattern: linePatternUniforms,
     lineSDF: lineSDFUniforms,

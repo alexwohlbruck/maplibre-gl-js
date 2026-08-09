@@ -600,10 +600,15 @@ export class LineBucket implements Bucket {
 
             // Evaluate the `line-progress`-driven offset at this vertex's progress. Zero when no
             // variable offset is active, so the ext buffer stays valid for all line variants.
+            // NOTE: the expression gets `scaledDistance` — the GLOBAL 0..1 progress across the
+            // whole original line (already mapped through the feature's clip range) — never
+            // `uvX`, which is realigned 0..1 per tile piece: with uvX every tile replays the
+            // whole ramp and the offset jumps at each tile boundary. uvX stays as-is for the
+            // gradient texture path.
             let lineOffset = 0;
             if (this.variableOffsetExpression) {
                 this.evaluationGlobals.zoom = this.zoom;
-                this.evaluationGlobals.lineProgress = uvX;
+                this.evaluationGlobals.lineProgress = this.scaledDistance;
                 lineOffset = (this.variableOffsetExpression.evaluate(
                     this.evaluationGlobals, this.currentLineFeature) as number) || 0;
             }

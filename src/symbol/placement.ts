@@ -168,6 +168,9 @@ type TileLayerParameters = {
     layout: PossiblyEvaluated<SymbolLayoutProps, SymbolLayoutPropsPossiblyEvaluated>;
     translationText: [number, number];
     translationIcon: [number, number];
+    // px→tile-unit conversion basis for symbol-anchor-offset, honoring the
+    // layer's alignment (same machinery as text-translate-anchor)
+    anchorOffsetBasis: [[number, number], [number, number]];
     unwrappedTileID: UnwrappedTileID;
     posMatrix: mat4;
     textLabelPlaneMatrix: mat4;
@@ -292,6 +295,14 @@ export class Placement {
             paint.get('icon-translate'),
             paint.get('icon-translate-anchor'),);
 
+        // symbol-anchor-offset is data-driven, so only the px→tile basis is
+        // per-tile; the per-instance vector combines it in placeSymbol
+        const anchorOffsetAnchor = layout.get('symbol-anchor-offset-alignment');
+        const anchorOffsetBasis: [[number, number], [number, number]] = [
+            this.collisionIndex.mapProjection.translatePosition(this.transform, tile, [1, 0], anchorOffsetAnchor),
+            this.collisionIndex.mapProjection.translatePosition(this.transform, tile, [0, 1], anchorOffsetAnchor),
+        ];
+
         const textLabelPlaneMatrix = projection.getLabelPlaneMatrix(posMatrix,
             pitchWithMap,
             rotateWithMap,
@@ -326,6 +337,7 @@ export class Placement {
             layout,
             translationText,
             translationIcon,
+            anchorOffsetBasis,
             posMatrix,
             unwrappedTileID,
             textLabelPlaneMatrix,
@@ -449,8 +461,9 @@ export class Placement {
         const {
             bucket,
             layout,
-            translationText,
-            translationIcon,
+            translationText: translationTextBase,
+            translationIcon: translationIconBase,
+            anchorOffsetBasis,
             posMatrix,
             unwrappedTileID,
             textLabelPlaneMatrix,
@@ -499,6 +512,24 @@ export class Placement {
 
         const placeSymbol = (symbolInstance: SymbolInstance, collisionArrays: CollisionArrays, symbolIndex: number) => {
             if (seenCrossTileIDs[symbolInstance.crossTileID]) return;
+
+            // symbol-anchor-offset: shift this instance's collision/query
+            // boxes exactly as the shader shifts its quads — expressed as a
+            // per-instance addition to the translate vector, so every
+            // downstream placeCollisionBox sees it
+            let translationText = translationTextBase;
+            let translationIcon = translationIconBase;
+            {
+                const aox = symbolInstance.anchorOffsetX;
+                const aoy = symbolInstance.anchorOffsetY;
+                if (aox !== 0 || aoy !== 0) {
+                    const [bx, by] = anchorOffsetBasis;
+                    const sx = aox * bx[0] + aoy * by[0];
+                    const sy = aox * bx[1] + aoy * by[1];
+                    translationText = [translationTextBase[0] + sx, translationTextBase[1] + sy];
+                    translationIcon = [translationIconBase[0] + sx, translationIconBase[1] + sy];
+                }
+            }
             if (holdingForFade) {
                 // Mark all symbols from this tile as "not placed", but don't add to seenCrossTileIDs, because we don't
                 // know yet if we have a duplicate in a parent tile that _should_ be placed.

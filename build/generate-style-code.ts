@@ -2,6 +2,7 @@
 
 import * as fs from 'fs';
 
+import '../src/style-spec/fork_extensions'; // fork spec additions must be visible to codegen
 import {v8} from '@maplibre/maplibre-gl-style-spec';
 
 function camelCase(str: string): string {

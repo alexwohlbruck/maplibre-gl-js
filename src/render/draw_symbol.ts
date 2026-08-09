@@ -400,21 +400,23 @@ function drawLayerSymbols(
 
         const hasHalo = isSDF && layer.paint.get(isText ? 'text-halo-width' : 'icon-halo-width').constantOr(1) !== 0;
 
+        const anchorOffsetIsMap = layer.layout.get('symbol-anchor-offset-alignment') === 'map';
+
         let uniformValues: UniformValues<SymbolSDFUniformsType | SymbolIconUniformsType>;
         if (isSDF) {
             if (!bucket.iconsInText) {
                 uniformValues = symbolSDFUniformValues(sizeData.kind,
                     size, rotateInShader, pitchWithMap, alongLine, shaderVariableAnchor, painter, matrix,
-                    uLabelPlaneMatrix, uglCoordMatrix, translation, isText, texSize, true, pitchedTextRescaling);
+                    uLabelPlaneMatrix, uglCoordMatrix, translation, isText, texSize, true, pitchedTextRescaling, anchorOffsetIsMap);
             } else {
                 uniformValues = symbolTextAndIconUniformValues(sizeData.kind,
                     size, rotateInShader, pitchWithMap, alongLine, shaderVariableAnchor, painter, matrix,
-                    uLabelPlaneMatrix, uglCoordMatrix, translation, texSize, texSizeIcon, pitchedTextRescaling);
+                    uLabelPlaneMatrix, uglCoordMatrix, translation, texSize, texSizeIcon, pitchedTextRescaling, anchorOffsetIsMap);
             }
         } else {
             uniformValues = symbolIconUniformValues(sizeData.kind,
                 size, rotateInShader, pitchWithMap, alongLine, shaderVariableAnchor, painter, matrix,
-                uLabelPlaneMatrix, uglCoordMatrix, translation, isText, texSize, pitchedTextRescaling);
+                uLabelPlaneMatrix, uglCoordMatrix, translation, isText, texSize, pitchedTextRescaling, anchorOffsetIsMap);
         }
 
         const state = {

@@ -1,3 +1,4 @@
+import './style-spec/fork_extensions'; // must run before any style-layer properties module reads the spec
 import packageJSON from '../package.json' with {type: 'json'};
 import {Map, type MapOptions, type MissingStyleImageResolver, type StyleImageSource, type WebGLContextAttributesWithType} from './ui/map.ts';
 import {NavigationControl, type NavigationControlOptions} from './ui/control/navigation_control.ts';

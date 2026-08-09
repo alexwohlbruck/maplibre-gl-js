@@ -699,6 +699,10 @@ function addSymbol(bucket: SymbolBucket,
     const variableAnchorOffset = getTextVariableAnchorOffset(layer, feature, canonical);
     const [textAnchorOffsetStartIndex, textAnchorOffsetEndIndex] = addTextVariableAnchorOffsets(bucket.textAnchorOffsets, variableAnchorOffset);
 
+    // symbol-anchor-offset, in px — stored on the instance so placement can
+    // shift collision/query boxes the same way the shader shifts the quads
+    const instanceAnchorOffset = layer.layout.get('symbol-anchor-offset').evaluate(feature, {}, canonical) || [0, 0];
+
     bucket.symbolInstances.emplaceBack(
         anchor.x,
         anchor.y,
@@ -727,7 +731,9 @@ function addSymbol(bucket: SymbolBucket,
         textBoxScale,
         collisionCircleDiameter,
         textAnchorOffsetStartIndex,
-        textAnchorOffsetEndIndex);
+        textAnchorOffsetEndIndex,
+        instanceAnchorOffset[0],
+        instanceAnchorOffset[1]);
 }
 
 function anchorIsTooClose(bucket: SymbolBucket, text: string, repeatDistance: number, anchor: Point) {

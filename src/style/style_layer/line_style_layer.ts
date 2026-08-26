@@ -72,7 +72,7 @@ export class LineStyleLayer extends StyleLayer {
         return this._transitionablePaint._values['line-gradient'].value.expression;
     }
 
-    offsetExpression() {
+    offsetExpression(): StylePropertyExpression {
         return this._transitionablePaint._values['line-offset'].value.expression;
     }
 

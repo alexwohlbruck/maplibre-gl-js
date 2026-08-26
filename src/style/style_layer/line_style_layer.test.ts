@@ -56,7 +56,7 @@ describe('LineStyleLayer', () => {
                 source: 'line',
                 id: 'line',
                 paint: offset === undefined ? {} : {'line-offset': offset}
-            }) as LineStyleLayer;
+            }, {}) as LineStyleLayer;
             return layer;
         }
 

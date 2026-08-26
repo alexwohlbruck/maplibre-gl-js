@@ -1,13 +1,16 @@
+import {describe, test, expect} from 'vitest';
 import Point from '@mapbox/point-geometry';
-import {LineBucket} from '../../../src/data/bucket/line_bucket';
-import {LineStyleLayer} from '../../../src/style/style_layer/line_style_layer';
-import {EvaluationParameters} from '../../../src/style/evaluation_parameters';
-import {shaders} from '../../../src/shaders/shaders';
+import {GEOJSONVT_CLIP_END, GEOJSONVT_CLIP_START} from '@maplibre/geojson-vt';
+import {LineBucket} from '../../../src/data/bucket/line_bucket.ts';
+import {LineStyleLayer} from '../../../src/style/style_layer/line_style_layer.ts';
+import {EvaluationParameters} from '../../../src/style/evaluation_parameters.ts';
+import {shaders} from '../../../src/shaders/shaders.ts';
 import type {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
-import type {BucketFeature, BucketParameters} from '../../../src/data/bucket';
+import type {BucketFeature, BucketParameters} from '../../../src/data/bucket.ts';
+import {SubdivisionGranularitySetting} from '../../../src/render/subdivision_granularity_settings.ts';
 
 function makeLayer(paint: any): LineStyleLayer {
-    const layer = new LineStyleLayer({id: 'test', type: 'line', paint} as LayerSpecification);
+    const layer = new LineStyleLayer({id: 'test', type: 'line', paint} as LayerSpecification, {});
     layer.recalculate({zoom: 12, zoomHistory: {}} as EvaluationParameters, []);
     return layer;
 }
@@ -21,7 +24,7 @@ function makeBucket(layer: LineStyleLayer): LineBucket {
 function lineMetricsFeature(): BucketFeature {
     return {
         type: 2,
-        properties: {mapbox_clip_start: 0, mapbox_clip_end: 1},
+        properties: {[GEOJSONVT_CLIP_START]: 0, [GEOJSONVT_CLIP_END]: 1},
     } as unknown as BucketFeature;
 }
 
@@ -60,7 +63,7 @@ describe('LineBucket variable line-offset', () => {
     test('ext buffer gets non-zero a_line_offset for a lineMetrics feature', () => {
         const layer = makeLayer({'line-offset': ['interpolate', ['linear'], ['line-progress'], 0, 0, 0.5, 60, 1, 0]});
         const bucket = makeBucket(layer);
-        bucket.addFeature(lineMetricsFeature(), geometry, 0, undefined, {});
+        bucket.addFeature(lineMetricsFeature(), geometry, 0, undefined, {}, {}, SubdivisionGranularitySetting.noSubdivision);
 
         // ext buffer must be populated (one entry per layout vertex)
         expect(bucket.layoutVertexArray2.length).toBeGreaterThan(0);
@@ -80,7 +83,7 @@ describe('LineBucket variable line-offset', () => {
     test('ext buffer a_line_offset stays 0 for a constant line-offset', () => {
         const layer = makeLayer({'line-offset': 50});
         const bucket = makeBucket(layer);
-        bucket.addFeature(lineMetricsFeature(), geometry, 0, undefined, {});
+        bucket.addFeature(lineMetricsFeature(), geometry, 0, undefined, {}, {}, SubdivisionGranularitySetting.noSubdivision);
 
         const f32 = bucket.layoutVertexArray2.float32;
         for (let i = 0; i < bucket.layoutVertexArray2.length; i++) {

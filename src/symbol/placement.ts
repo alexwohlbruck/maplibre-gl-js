@@ -280,8 +280,8 @@ export class Placement {
         // per-tile; the per-instance vector combines it in placeSymbol
         const anchorOffsetAnchor = layout.get('symbol-anchor-offset-alignment');
         const anchorOffsetBasis: [[number, number], [number, number]] = [
-            this.collisionIndex.mapProjection.translatePosition(this.transform, tile, [1, 0], anchorOffsetAnchor),
-            this.collisionIndex.mapProjection.translatePosition(this.transform, tile, [0, 1], anchorOffsetAnchor),
+            translatePosition(this.collisionIndex.transform, tile, [1, 0], anchorOffsetAnchor),
+            translatePosition(this.collisionIndex.transform, tile, [0, 1], anchorOffsetAnchor),
         ];
 
         const pitchedLabelPlaneMatrix = projection.getPitchedLabelPlaneMatrix(rotateWithMap, this.transform, pixelsToTiles);

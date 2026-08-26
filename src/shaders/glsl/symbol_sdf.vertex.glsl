@@ -145,7 +145,6 @@ void main() {
     }
 #endif
 
-    vec4 finalPos = u_coord_matrix * vec4(projected_pos.xy / projected_pos.w + rotation_matrix * (a_offset / 32.0 * max(a_minFontScale, fontScale) + a_pxoffset) * projectionScaling, z, 1.0);
     // symbol-anchor-offset: shift the projected ANCHOR by a pixel vector,
     // independent of icon-rotate. Map alignment: the vector is map-aligned
     // (+x east, +y south) and tile axes ARE map-aligned, so project a
@@ -164,7 +163,7 @@ void main() {
             anchor_shift = vec2(cos(anchor_shift_angle), -sin(anchor_shift_angle)) * anchor_shift_len;
         }
     }
-    vec4 finalPos = u_coord_matrix * vec4(projected_pos.xy / projected_pos.w + rotation_matrix * (a_offset / 32.0 * fontScale + a_pxoffset) * projectionScaling + anchor_shift, z, 1.0);
+    vec4 finalPos = u_coord_matrix * vec4(projected_pos.xy / projected_pos.w + rotation_matrix * (a_offset / 32.0 * max(a_minFontScale, fontScale) + a_pxoffset) * projectionScaling + anchor_shift, z, 1.0);
     if(u_pitch_with_map) {
         finalPos = projectTileWithElevation(finalPos.xy, finalPos.z);
     }

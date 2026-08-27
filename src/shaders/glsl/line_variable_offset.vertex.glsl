@@ -6,24 +6,25 @@
 // #define scale 63.0
 #define scale 0.015873016
 
-in vec2 a_pos_normal;
-in vec4 a_data;
-// Per-vertex offset (pixels) from the ext buffer, evaluated from a `line-progress`
-// expression on `line-offset`. Shares the ext buffer with a_uv_x / a_split_index.
-// NOTE: no precision qualifier here — the shader codegen's static-attribute regex only
-// captures `attribute <type> <name>`, so `in highp float a_line_offset` would register the
-// wrong name ("float") and the attribute would never be bound (offset reads as 0).
-in float a_line_offset;
+layout(location = 0) in ivec2 a_pos_normal;
+layout(location = 1) in uvec4 a_data;
+// PARCHMENT: per-vertex offset in pixels, from the ext buffer, evaluated from a
+// `line-progress` expression on `line-offset`. Location 4 is that buffer's third
+// member, after a_uv_x and a_split_index; see line_attributes_ext.ts.
+layout(location = 4) in float a_line_offset;
 
-uniform mat4 u_matrix;
+uniform vec2 u_translation;
 uniform mediump float u_ratio;
 uniform vec2 u_units_to_pixels;
 uniform lowp float u_device_pixel_ratio;
 
 out vec2 v_normal;
-out vec2 v_width2;
+flat out vec2 v_width2;
 out float v_gamma_scale;
 out highp float v_linesofar;
+#ifdef GLOBE
+out float v_depth;
+#endif
 
 #pragma maplibre: define highp vec4 color
 #pragma maplibre: define lowp float blur
@@ -40,25 +41,31 @@ void main() {
     #pragma maplibre: initialize lowp float offset
     #pragma maplibre: initialize mediump float width
 
-    // Override the per-feature offset with the per-vertex offset supplied by the
-    // `line-progress`-driven expression, so the offset varies along the line.
+    // PARCHMENT: override the per-feature offset with the per-vertex one, so the
+    // offset varies along the line rather than being constant per feature.
     offset = a_line_offset;
+
+    // Move vertex outside clip space to discard triangle when opacity is negligible
+    if (opacity < 0.01) {
+        gl_Position = vec4(-2.0, -2.0, -2.0, 1.0);
+        return;
+    }
 
     // the distance over which the line edge fades out.
     // Retina devices need a smaller distance to avoid aliasing.
     float ANTIALIASING = 1.0 / u_device_pixel_ratio / 2.0;
 
-    vec2 a_extrude = a_data.xy - 128.0;
-    float a_direction = mod(a_data.z, 4.0) - 1.0;
+    vec2 a_extrude = vec2(ivec2(a_data.xy) - 128);
+    float a_direction = float(int(a_data.z & 3u) - 1);
 
-    v_linesofar = (floor(a_data.z / 4.0) + a_data.w * 64.0) * 2.0;
+    v_linesofar = float((a_data.z >> 2u) + a_data.w * 64u) * 2.0;
 
-    vec2 pos = floor(a_pos_normal * 0.5);
+    vec2 pos = vec2(a_pos_normal >> 1);
 
     // x is 1 if it's a round cap, 0 otherwise
     // y is 1 if the normal points up, and -1 if it points down
     // We store these in the least significant bit of a_pos_normal
-    mediump vec2 normal = a_pos_normal - 2.0 * pos;
+    mediump vec2 normal = vec2(a_pos_normal & 1);
     normal.y = normal.y * 2.0 - 1.0;
     v_normal = normal;
 
@@ -83,15 +90,20 @@ void main() {
     mediump float t = 1.0 - abs(u);
     mediump vec2 offset2 = offset * a_extrude * scale * normal.y * mat2(t, -u, u, t);
 
-    vec4 projected_extrude = u_matrix * vec4(dist / u_ratio, 0.0, 0.0);
-    gl_Position = u_matrix * vec4(pos + offset2 / u_ratio, 0.0, 1.0) + projected_extrude;
+    float adjustedThickness = projectLineThickness(pos.y);
+    vec4 projected_no_extrude = projectTile(pos + offset2 / u_ratio * adjustedThickness + u_translation);
+    vec4 projected_with_extrude = projectTile(pos + offset2 / u_ratio * adjustedThickness + u_translation + dist / u_ratio * adjustedThickness);
+    gl_Position = projected_with_extrude;
+    #ifdef GLOBE
+    v_depth = gl_Position.z / gl_Position.w;
+    #endif
 
     // calculate how much the perspective view squishes or stretches the extrude
     #ifdef TERRAIN3D
         v_gamma_scale = 1.0; // not needed, because this is done automatically via the mesh
     #else
         float extrude_length_without_perspective = length(dist);
-        float extrude_length_with_perspective = length(projected_extrude.xy / gl_Position.w * u_units_to_pixels);
+        float extrude_length_with_perspective = length((projected_with_extrude.xy - projected_no_extrude.xy) / projected_with_extrude.w * u_units_to_pixels);
         v_gamma_scale = extrude_length_without_perspective / extrude_length_with_perspective;
     #endif
 

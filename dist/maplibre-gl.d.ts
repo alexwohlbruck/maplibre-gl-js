@@ -6653,10 +6653,16 @@ declare class CollisionGroups {
   collisionGroups: {
     [groupName: string]: CollisionGroup;
   };
+  isolatedGroups: {
+    [layerID: string]: CollisionGroup;
+  };
   maxGroupID: number;
   crossSourceCollisions: boolean;
-  constructor(crossSourceCollisions: boolean);
-  get(sourceID: string): CollisionGroup;
+  isolatedLayers: ReadonlySet<string>;
+  shared: CollisionGroup;
+  constructor(crossSourceCollisions: boolean, isolatedLayers?: ReadonlySet<string>);
+  get(sourceID: string, layerID?: string): CollisionGroup;
+  _next(): CollisionGroup;
 }
 type VariableOffset = {
   textOffset: [number, number];
@@ -6715,7 +6721,7 @@ declare class Placement {
     text: number[];
     icon: number[];
   }>>;
-  constructor(transform: ITransform, terrain: Terrain, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement);
+  constructor(transform: ITransform, terrain: Terrain, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement, isolatedCollisionLayers?: ReadonlySet<string>);
   private _getTerrainElevationFunc;
   getBucketParts(results: BucketPart[], styleLayer: StyleLayer, tile: Tile, sortAcrossTiles: boolean): void;
   attemptAnchorPlacement(textAnchorOffset: TextAnchorOffset, textBox: SingleCollisionBox, width: number, height: number, textBoxScale: number, rotateWithMap: boolean, pitchWithMap: boolean, textPixelRatio: number, tileID: OverscaledTileID, unwrappedTileID: UnwrappedTileID, collisionGroup: CollisionGroup, textOverlapMode: OverlapMode, symbolInstance: SymbolInstance, bucket: SymbolBucket, orientation: number, translationText: [number, number], translationIcon: [number, number], iconBox?: SingleCollisionBox | null, getElevation?: (x: number, y: number) => number, simpleProjectionMatrix?: mat4): {
@@ -9102,7 +9108,7 @@ declare class PauseablePlacement {
   _forceFullPlacement: boolean;
   _showCollisionBoxes: boolean;
   _inProgressLayer: LayerPlacement;
-  constructor(transform: ITransform, terrain: Terrain, order: string[], forceFullPlacement: boolean, showCollisionBoxes: boolean, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement);
+  constructor(transform: ITransform, terrain: Terrain, order: string[], forceFullPlacement: boolean, showCollisionBoxes: boolean, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement, isolatedCollisionLayers?: ReadonlySet<string>);
   isDone(): boolean;
   continuePlacement(order: string[], layers: {
     [_: string]: StyleLayer;
@@ -9568,7 +9574,7 @@ declare class Style extends Evented<MapEventType> {
   _reloadSource(id: string): void;
   _updateSources(transform: ITransform): void;
   _generateCollisionBoxes(): void;
-  _updatePlacement(transform: ITransform, showCollisionBoxes: boolean, fadeDuration: number, crossSourceCollisions: boolean, forceFullPlacement?: boolean): boolean;
+  _updatePlacement(transform: ITransform, showCollisionBoxes: boolean, fadeDuration: number, crossSourceCollisions: boolean, forceFullPlacement?: boolean, isolatedCollisionLayers?: ReadonlySet<string>): boolean;
   _releaseSymbolFadeTiles(): void;
   getImages(mapId: string | number, params: GetImagesParameters): Promise<GetImagesResponse>;
   getGlyphs(mapId: string | number, params: GetGlyphsParameters): Promise<GetGlyphsResponse>;
@@ -12320,6 +12326,11 @@ type MapOptions = {
    */
   crossSourceCollisions?: boolean;
   /**
+   * Symbol layers whose symbols collide only with each other: they neither hide nor are hidden by any other layer's symbols.
+   * @defaultValue []
+   */
+  isolatedCollisionLayers?: string[];
+  /**
    * If `true`, Resource Timing API information will be collected for requests made by GeoJSON and Vector Tile web workers (this information is normally inaccessible from the main Javascript thread). Information will be returned in a `resourceTiming` property of relevant `data` events.
    * @defaultValue false
    */
@@ -12542,6 +12553,7 @@ declare class Map$1 extends Evented<MapEventType> {
   _delegatedListeners: Record<keyof MapEventType, DelegatedListener[]>;
   _fadeDuration: number;
   _crossSourceCollisions: boolean;
+  _isolatedCollisionLayers: ReadonlySet<string>;
   _crossFadingFactor: number;
   _collectResourceTiming: boolean;
   _renderTaskQueue: TaskQueue;

@@ -1809,7 +1809,7 @@ export class Style extends Evented<MapEventType> {
         }
     }
 
-    _updatePlacement(transform: ITransform, showCollisionBoxes: boolean, fadeDuration: number, crossSourceCollisions: boolean, forceFullPlacement: boolean = false): boolean {
+    _updatePlacement(transform: ITransform, showCollisionBoxes: boolean, fadeDuration: number, crossSourceCollisions: boolean, forceFullPlacement: boolean = false, isolatedCollisionLayers?: ReadonlySet<string>): boolean {
         let symbolBucketsChanged = false;
         let placementCommitted = false;
 
@@ -1840,7 +1840,7 @@ export class Style extends Evented<MapEventType> {
         forceFullPlacement ||= this._layerOrderChanged || fadeDuration === 0;
 
         if (forceFullPlacement || !this.pauseablePlacement || (this.pauseablePlacement.isDone() && !this.placement.stillRecent(now(), transform.zoom))) {
-            this.pauseablePlacement = new PauseablePlacement(transform, this.map.terrain, this._order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, this.placement);
+            this.pauseablePlacement = new PauseablePlacement(transform, this.map.terrain, this._order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, this.placement, isolatedCollisionLayers);
             this._layerOrderChanged = false;
         }
 

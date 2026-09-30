@@ -313,6 +313,11 @@ export type MapOptions = {
      */
     crossSourceCollisions?: boolean;
     /**
+     * Symbol layers whose symbols collide only with each other: they neither hide nor are hidden by any other layer's symbols.
+     * @defaultValue []
+     */
+    isolatedCollisionLayers?: string[];
+    /**
      * If `true`, Resource Timing API information will be collected for requests made by GeoJSON and Vector Tile web workers (this information is normally inaccessible from the main Javascript thread). Information will be returned in a `resourceTiming` property of relevant `data` events.
      * @defaultValue false
      */
@@ -625,6 +630,7 @@ export class Map extends Evented<MapEventType> {
     _delegatedListeners: Record<keyof MapEventType, DelegatedListener[]>;
     _fadeDuration: number;
     _crossSourceCollisions: boolean;
+    _isolatedCollisionLayers: ReadonlySet<string>;
     _crossFadingFactor = 1;
     _collectResourceTiming: boolean;
     _renderTaskQueue: TaskQueue = new TaskQueue();
@@ -782,6 +788,7 @@ export class Map extends Evented<MapEventType> {
         this._refreshExpiredTiles = resolvedOptions.refreshExpiredTiles === true;
         this._fadeDuration = resolvedOptions.fadeDuration;
         this._crossSourceCollisions = resolvedOptions.crossSourceCollisions === true;
+        this._isolatedCollisionLayers = new Set(resolvedOptions.isolatedCollisionLayers ?? []);
         this._collectResourceTiming = resolvedOptions.collectResourceTiming === true;
         this._locale = {...defaultLocale, ...resolvedOptions.locale};
         this._clickTolerance = resolvedOptions.clickTolerance;
@@ -4306,7 +4313,7 @@ export class Map extends Evented<MapEventType> {
             }
         }
 
-        this._placementDirty = this.style?._updatePlacement(this._camera.transform, this.showCollisionBoxes, fadeDuration, this._crossSourceCollisions, globeRenderingChanged);
+        this._placementDirty = this.style?._updatePlacement(this._camera.transform, this.showCollisionBoxes, fadeDuration, this._crossSourceCollisions, globeRenderingChanged, this._isolatedCollisionLayers);
 
         // Actually draw
         this.painter.render(this.style, {

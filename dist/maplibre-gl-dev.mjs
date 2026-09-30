@@ -7345,26 +7345,30 @@ var RetainedQueryData = class {
 	}
 };
 var CollisionGroups = class {
-	constructor(crossSourceCollisions) {
+	constructor(crossSourceCollisions, isolatedLayers = /* @__PURE__ */ new Set()) {
 		this.crossSourceCollisions = crossSourceCollisions;
+		this.isolatedLayers = isolatedLayers;
 		this.maxGroupID = 0;
 		this.collisionGroups = {};
-	}
-	get(sourceID) {
-		if (!this.crossSourceCollisions) {
-			if (!this.collisionGroups[sourceID]) {
-				const nextGroupID = ++this.maxGroupID;
-				this.collisionGroups[sourceID] = {
-					ID: nextGroupID,
-					predicate: (key) => {
-						return key.collisionGroupID === nextGroupID;
-					}
-				};
-			}
-			return this.collisionGroups[sourceID];
-		} else return {
+		this.isolatedGroups = {};
+		this.shared = isolatedLayers.size ? {
+			ID: 0,
+			predicate: (key) => key.collisionGroupID === 0
+		} : {
 			ID: 0,
 			predicate: null
+		};
+	}
+	get(sourceID, layerID) {
+		if (layerID !== void 0 && this.isolatedLayers.has(layerID)) return this.isolatedGroups[layerID] ??= this._next();
+		if (!this.crossSourceCollisions) return this.collisionGroups[sourceID] ??= this._next();
+		return this.shared;
+	}
+	_next() {
+		const ID = ++this.maxGroupID;
+		return {
+			ID,
+			predicate: (key) => key.collisionGroupID === ID
 		};
 	}
 };
@@ -7375,7 +7379,7 @@ function calculateVariableLayoutShift(anchor, width, height, textOffset, textBox
 	return new Point(shiftX + textOffset[0] * textBoxScale, shiftY + textOffset[1] * textBoxScale);
 }
 var Placement = class {
-	constructor(transform, terrain, fadeDuration, crossSourceCollisions, prevPlacement) {
+	constructor(transform, terrain, fadeDuration, crossSourceCollisions, prevPlacement, isolatedCollisionLayers) {
 		this.transform = transform.clone();
 		this.terrain = terrain;
 		this.collisionIndex = new CollisionIndex(this.transform);
@@ -7386,7 +7390,7 @@ var Placement = class {
 		this.commitTime = 0;
 		this.fadeDuration = fadeDuration;
 		this.retainedQueryData = {};
-		this.collisionGroups = new CollisionGroups(crossSourceCollisions);
+		this.collisionGroups = new CollisionGroups(crossSourceCollisions, isolatedCollisionLayers);
 		this.collisionCircleArrays = {};
 		this.collisionBoxArrays = /* @__PURE__ */ new Map();
 		this.prevPlacement = prevPlacement;
@@ -7429,7 +7433,7 @@ var Placement = class {
 			holdingForFade: tile.holdingForSymbolFade(),
 			collisionBoxArray,
 			partiallyEvaluatedTextSize: evaluateSizeForZoom(symbolBucket.textSizeData, this.transform.zoom),
-			collisionGroup: this.collisionGroups.get(symbolBucket.sourceID)
+			collisionGroup: this.collisionGroups.get(symbolBucket.sourceID, styleLayer.id)
 		};
 		if (sortAcrossTiles) for (const range of symbolBucket.sortKeyRanges) {
 			const { sortKey, symbolInstanceStart, symbolInstanceEnd } = range;
@@ -8025,8 +8029,8 @@ var LayerPlacement = class {
 	}
 };
 var PauseablePlacement = class {
-	constructor(transform, terrain, order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, prevPlacement) {
-		this.placement = new Placement(transform, terrain, fadeDuration, crossSourceCollisions, prevPlacement);
+	constructor(transform, terrain, order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, prevPlacement, isolatedCollisionLayers) {
+		this.placement = new Placement(transform, terrain, fadeDuration, crossSourceCollisions, prevPlacement, isolatedCollisionLayers);
 		this._currentPlacementIndex = order.length - 1;
 		this._forceFullPlacement = forceFullPlacement;
 		this._showCollisionBoxes = showCollisionBoxes;
@@ -14327,7 +14331,7 @@ var Style = class extends Evented {
 	_generateCollisionBoxes() {
 		for (const id in this.tileManagers) this._reloadSource(id);
 	}
-	_updatePlacement(transform, showCollisionBoxes, fadeDuration, crossSourceCollisions, forceFullPlacement = false) {
+	_updatePlacement(transform, showCollisionBoxes, fadeDuration, crossSourceCollisions, forceFullPlacement = false, isolatedCollisionLayers) {
 		let symbolBucketsChanged = false;
 		let placementCommitted = false;
 		const layerTiles = {};
@@ -14344,7 +14348,7 @@ var Style = class extends Evented {
 		this.crossTileSymbolIndex.pruneUnusedLayers(this._order);
 		forceFullPlacement ||= this._layerOrderChanged || fadeDuration === 0;
 		if (forceFullPlacement || !this.pauseablePlacement || this.pauseablePlacement.isDone() && !this.placement.stillRecent(now(), transform.zoom)) {
-			this.pauseablePlacement = new PauseablePlacement(transform, this.map.terrain, this._order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, this.placement);
+			this.pauseablePlacement = new PauseablePlacement(transform, this.map.terrain, this._order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, this.placement, isolatedCollisionLayers);
 			this._layerOrderChanged = false;
 		}
 		if (this.pauseablePlacement.isDone()) this.placement.setStale();
@@ -23188,6 +23192,7 @@ var Map$1 = class extends Evented {
 		this._refreshExpiredTiles = resolvedOptions.refreshExpiredTiles === true;
 		this._fadeDuration = resolvedOptions.fadeDuration;
 		this._crossSourceCollisions = resolvedOptions.crossSourceCollisions === true;
+		this._isolatedCollisionLayers = new Set(resolvedOptions.isolatedCollisionLayers ?? []);
 		this._collectResourceTiming = resolvedOptions.collectResourceTiming === true;
 		this._locale = {
 			...defaultLocale,
@@ -26117,7 +26122,7 @@ var Map$1 = class extends Evented {
 			this._camera.transform.setMinElevationForCurrentTile(0);
 			if (this.getCenterClampedToGround()) this._camera.transform.setElevation(0);
 		}
-		this._placementDirty = this.style?._updatePlacement(this._camera.transform, this.showCollisionBoxes, fadeDuration, this._crossSourceCollisions, globeRenderingChanged);
+		this._placementDirty = this.style?._updatePlacement(this._camera.transform, this.showCollisionBoxes, fadeDuration, this._crossSourceCollisions, globeRenderingChanged, this._isolatedCollisionLayers);
 		this.painter.render(this.style, {
 			showTileBoundaries: this.showTileBoundaries,
 			showOverdrawInspector: this._showOverdrawInspector,

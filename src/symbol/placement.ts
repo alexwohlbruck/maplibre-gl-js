@@ -91,35 +91,42 @@ type CollisionGroup = {
     predicate?: (key: FeatureKey) => boolean;
 };
 
-class CollisionGroups {
+export class CollisionGroups {
     collisionGroups: {[groupName: string]: CollisionGroup};
+    isolatedGroups: {[layerID: string]: CollisionGroup};
     maxGroupID: number;
     crossSourceCollisions: boolean;
+    isolatedLayers: ReadonlySet<string>;
+    shared: CollisionGroup;
 
-    constructor(crossSourceCollisions: boolean) {
+    constructor(crossSourceCollisions: boolean, isolatedLayers: ReadonlySet<string> = new Set()) {
         this.crossSourceCollisions = crossSourceCollisions;
+        this.isolatedLayers = isolatedLayers;
         this.maxGroupID = 0;
         this.collisionGroups = {};
+        this.isolatedGroups = {};
+        // With no isolated layers the shared group collides with everything, as upstream.
+        this.shared = isolatedLayers.size ?
+            {ID: 0, predicate: (key) => key.collisionGroupID === 0} :
+            {ID: 0, predicate: null};
     }
 
-    get(sourceID: string): CollisionGroup {
+    get(sourceID: string, layerID?: string): CollisionGroup {
+        if (layerID !== undefined && this.isolatedLayers.has(layerID)) {
+            return this.isolatedGroups[layerID] ??= this._next();
+        }
         // The predicate/groupID mechanism allows for arbitrary grouping,
         // but the current interface defines one source == one group when
         // crossSourceCollisions == true.
         if (!this.crossSourceCollisions) {
-            if (!this.collisionGroups[sourceID]) {
-                const nextGroupID = ++this.maxGroupID;
-                this.collisionGroups[sourceID] = {
-                    ID: nextGroupID,
-                    predicate: (key) => {
-                        return key.collisionGroupID === nextGroupID;
-                    }
-                };
-            }
-            return this.collisionGroups[sourceID];
-        } else {
-            return {ID: 0, predicate: null};
+            return this.collisionGroups[sourceID] ??= this._next();
         }
+        return this.shared;
+    }
+
+    _next(): CollisionGroup {
+        const ID = ++this.maxGroupID;
+        return {ID, predicate: (key) => key.collisionGroupID === ID};
     }
 }
 
@@ -213,7 +220,7 @@ export class Placement {
         icon: number[];
     }>>;
 
-    constructor(transform: ITransform, terrain: Terrain, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement) {
+    constructor(transform: ITransform, terrain: Terrain, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement, isolatedCollisionLayers?: ReadonlySet<string>) {
         this.transform = transform.clone();
         this.terrain = terrain;
         this.collisionIndex = new CollisionIndex(this.transform);
@@ -224,7 +231,7 @@ export class Placement {
         this.commitTime = 0;
         this.fadeDuration = fadeDuration;
         this.retainedQueryData = {};
-        this.collisionGroups = new CollisionGroups(crossSourceCollisions);
+        this.collisionGroups = new CollisionGroups(crossSourceCollisions, isolatedCollisionLayers);
         this.collisionCircleArrays = {};
         this.collisionBoxArrays = new Map<number, Map<number, {
             text: number[];
@@ -309,7 +316,7 @@ export class Placement {
             holdingForFade: tile.holdingForSymbolFade(),
             collisionBoxArray,
             partiallyEvaluatedTextSize: symbolSize.evaluateSizeForZoom(symbolBucket.textSizeData, this.transform.zoom),
-            collisionGroup: this.collisionGroups.get(symbolBucket.sourceID)
+            collisionGroup: this.collisionGroups.get(symbolBucket.sourceID, styleLayer.id)
         };
 
         if (sortAcrossTiles) {

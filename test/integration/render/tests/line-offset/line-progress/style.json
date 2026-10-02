@@ -1,0 +1,62 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "description": "line-offset accepts a [\"line-progress\"] expression: the offset varies per-vertex along the line. Requires the source to have lineMetrics: true.",
+      "width": 200,
+      "height": 100
+    }
+  },
+  "zoom": 3,
+  "sources": {
+    "line": {
+      "type": "geojson",
+      "data": {
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [-30, 0],
+            [30, 0]
+          ]
+        }
+      },
+      "lineMetrics": true
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "white"
+      }
+    },
+    {
+      "id": "reference",
+      "type": "line",
+      "source": "line",
+      "paint": {
+        "line-width": 20,
+        "line-color": "#ccc"
+      }
+    },
+    {
+      "id": "variable-offset",
+      "type": "line",
+      "source": "line",
+      "paint": {
+        "line-width": 4,
+        "line-color": "red",
+        "line-offset": [
+          "interpolate",
+          ["linear"],
+          ["line-progress"],
+          0, -10,
+          1, 10
+        ]
+      }
+    }
+  ]
+}

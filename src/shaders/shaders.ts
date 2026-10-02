@@ -41,6 +41,7 @@ import hillshadeFrag from './glsl/hillshade.fragment.glsl.g.ts';
 import hillshadeVert from './glsl/hillshade.vertex.glsl.g.ts';
 import lineFrag from './glsl/line.fragment.glsl.g.ts';
 import lineVert from './glsl/line.vertex.glsl.g.ts';
+import lineVariableOffsetVert from './glsl/line_variable_offset.vertex.glsl.g.ts';
 import lineGradientFrag from './glsl/line_gradient.fragment.glsl.g.ts';
 import lineGradientVert from './glsl/line_gradient.vertex.glsl.g.ts';
 import linePatternFrag from './glsl/line_pattern.fragment.glsl.g.ts';
@@ -103,6 +104,7 @@ export const shaders: {
     hillshadePrepare: PreparedShader;
     hillshade: PreparedShader;
     line: PreparedShader;
+    lineVariableOffset: PreparedShader;
     lineGradient: PreparedShader;
     linePattern: PreparedShader;
     lineSDF: PreparedShader;
@@ -140,6 +142,7 @@ export const shaders: {
     hillshadePrepare: prepare(hillshadePrepareFrag, hillshadePrepareVert),
     hillshade: prepare(hillshadeFrag, hillshadeVert),
     line: prepare(lineFrag, lineVert),
+    lineVariableOffset: prepare(lineFrag, lineVariableOffsetVert),
     lineGradient: prepare(lineGradientFrag, lineGradientVert),
     linePattern: prepare(linePatternFrag, linePatternVert),
     lineSDF: prepare(lineSDFFrag, lineSDFVert),

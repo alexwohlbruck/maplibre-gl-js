@@ -4,6 +4,7 @@ layout(location = 2) in vec4 a_pixeloffset;
 layout(location = 3) in vec3 a_projected_pos;
 layout(location = 4) in uint a_fade_opacity;
 layout(location = 5) in float a_height_offset;
+layout(location = 6) in vec2 a_anchoroffset;
 
 // contents of a_size vary based on the type of property value
 // used for {text,icon}-size.
@@ -28,6 +29,7 @@ uniform vec2 u_translation;
 uniform float u_pitched_scale;
 uniform bool u_is_offset;
 uniform bool u_height_anchor_ground;
+uniform bool u_anchor_offset_is_map;
 
 out vec2 v_data0;
 out vec3 v_data1;
@@ -142,7 +144,25 @@ void main() {
     }
 #endif
 
-    vec4 finalPos = u_coord_matrix * vec4(projected_pos.xy / projected_pos.w + rotation_matrix * (a_offset / 32.0 * max(a_minFontScale, fontScale) + a_pxoffset) * projectionScaling, z, 1.0);
+    // symbol-anchor-offset: shift the projected ANCHOR by a pixel vector,
+    // independent of icon-rotate. Map alignment: the vector is map-aligned
+    // (+x east, +y south) and tile axes ARE map-aligned, so project a
+    // one-tile-unit probe along the vector and measure its on-screen angle
+    // at the anchor (the exact pattern u_rotate_symbol uses) — the shift
+    // then tracks bearing and pitch. Under pitch-with-map the label plane
+    // is itself map-aligned and the raw vector applies directly.
+    vec2 anchor_shift = a_anchoroffset / 16.0;
+    if (u_anchor_offset_is_map && !u_pitch_with_map) {
+        highp float anchor_shift_len = length(anchor_shift);
+        if (anchor_shift_len > 0.0) {
+            vec4 anchorOffsetProjectedPoint = projectTileWithElevation(translated_a_pos + anchor_shift / anchor_shift_len, ele);
+            vec2 sa = projectedPoint.xy / projectedPoint.w;
+            vec2 sb = anchorOffsetProjectedPoint.xy / anchorOffsetProjectedPoint.w;
+            highp float anchor_shift_angle = atan((sb.y - sa.y) / u_aspect_ratio, sb.x - sa.x);
+            anchor_shift = vec2(cos(anchor_shift_angle), -sin(anchor_shift_angle)) * anchor_shift_len;
+        }
+    }
+    vec4 finalPos = u_coord_matrix * vec4(projected_pos.xy / projected_pos.w + rotation_matrix * (a_offset / 32.0 * max(a_minFontScale, fontScale) + a_pxoffset) * projectionScaling + anchor_shift, z, 1.0);
     if(u_pitch_with_map) {
         finalPos = projectTileWithElevation(finalPos.xy, finalPos.z);
     }

@@ -22,6 +22,7 @@ export type SymbolIconUniformsType = {
     'u_texture': Uniform1i;
     'u_translation': Uniform2f;
     'u_pitched_scale': Uniform1f;
+    'u_anchor_offset_is_map': Uniform1i;
     'u_is_offset': Uniform1i;
     'u_height_anchor_ground': Uniform1i;
 };
@@ -45,6 +46,7 @@ export type SymbolSDFUniformsType = {
     'u_is_plain': Uniform1i;
     'u_translation': Uniform2f;
     'u_pitched_scale': Uniform1f;
+    'u_anchor_offset_is_map': Uniform1i;
     'u_is_offset': Uniform1i;
     'u_height_anchor_ground': Uniform1i;
 };
@@ -69,6 +71,7 @@ export type symbolTextAndIconUniformsType = {
     'u_is_halo': Uniform1i;
     'u_translation': Uniform2f;
     'u_pitched_scale': Uniform1f;
+    'u_anchor_offset_is_map': Uniform1i;
     'u_is_offset': Uniform1i;
     'u_height_anchor_ground': Uniform1i;
 };
@@ -89,6 +92,7 @@ const symbolIconUniforms = (context: Context, locations: UniformLocations): Symb
     'u_texture': new Uniform1i(context, locations.u_texture),
     'u_translation': new Uniform2f(context, locations.u_translation),
     'u_pitched_scale': new Uniform1f(context, locations.u_pitched_scale),
+    'u_anchor_offset_is_map': new Uniform1i(context, locations.u_anchor_offset_is_map),
     'u_is_offset': new Uniform1i(context, locations.u_is_offset),
     'u_height_anchor_ground': new Uniform1i(context, locations.u_height_anchor_ground),
 });
@@ -112,6 +116,7 @@ const symbolSDFUniforms = (context: Context, locations: UniformLocations): Symbo
     'u_is_plain': new Uniform1i(context, locations.u_is_plain),
     'u_translation': new Uniform2f(context, locations.u_translation),
     'u_pitched_scale': new Uniform1f(context, locations.u_pitched_scale),
+    'u_anchor_offset_is_map': new Uniform1i(context, locations.u_anchor_offset_is_map),
     'u_is_offset': new Uniform1i(context, locations.u_is_offset),
     'u_height_anchor_ground': new Uniform1i(context, locations.u_height_anchor_ground),
 });
@@ -136,6 +141,7 @@ const symbolTextAndIconUniforms = (context: Context, locations: UniformLocations
     'u_is_halo': new Uniform1i(context, locations.u_is_halo),
     'u_translation': new Uniform2f(context, locations.u_translation),
     'u_pitched_scale': new Uniform1f(context, locations.u_pitched_scale),
+    'u_anchor_offset_is_map': new Uniform1i(context, locations.u_anchor_offset_is_map),
     'u_is_offset': new Uniform1i(context, locations.u_is_offset),
     'u_height_anchor_ground': new Uniform1i(context, locations.u_height_anchor_ground),
 });
@@ -158,7 +164,8 @@ const symbolIconUniformValues = (
     texSize: [number, number],
     pitchedScale: number,
     isOffset: boolean,
-    heightAnchorGround: boolean
+    heightAnchorGround: boolean,
+    anchorOffsetIsMap: boolean = false
 ): UniformValues<SymbolIconUniformsType> => {
     return {
         'u_is_size_zoom_constant': +(functionType === 'constant' || functionType === 'source'),
@@ -178,6 +185,7 @@ const symbolIconUniformValues = (
         'u_pitched_scale': pitchedScale,
         'u_is_offset': isOffset,
         'u_height_anchor_ground': +heightAnchorGround,
+        'u_anchor_offset_is_map': +anchorOffsetIsMap,
     };
 };
 
@@ -200,13 +208,14 @@ const symbolSDFUniformValues = (
     isHalo: boolean,
     pitchedScale: number,
     isOffset: boolean,
-    heightAnchorGround: boolean
+    heightAnchorGround: boolean,
+    anchorOffsetIsMap: boolean = false
 ): UniformValues<SymbolSDFUniformsType> => {
     const transform = painter.transform;
 
     return extend(symbolIconUniformValues(functionType, size,
         rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, painter, labelPlaneMatrix,
-        glCoordMatrix, translation, isText, texSize, pitchedScale, isOffset, heightAnchorGround), {
+        glCoordMatrix, translation, isText, texSize, pitchedScale, isOffset, heightAnchorGround, anchorOffsetIsMap), {
         'u_gamma_scale': (pitchWithMap ? Math.cos(transform.pitch * Math.PI / 180.0) * transform.cameraToCenterDistance : 1),
         'u_is_halo': isHalo ? 1 : 0,
         'u_is_plain': 1
@@ -231,11 +240,12 @@ const symbolTextAndIconUniformValues = (
     texSizeIcon: [number, number],
     pitchedScale: number,
     isOffset: boolean,
-    heightAnchorGround: boolean
+    heightAnchorGround: boolean,
+    anchorOffsetIsMap: boolean = false
 ): UniformValues<SymbolIconUniformsType> => {
     return extend(symbolSDFUniformValues(functionType, size,
         rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, painter, labelPlaneMatrix,
-        glCoordMatrix, translation, true, texSizeSDF, true, pitchedScale, isOffset, heightAnchorGround), {
+        glCoordMatrix, translation, true, texSizeSDF, true, pitchedScale, isOffset, heightAnchorGround, anchorOffsetIsMap), {
         'u_texsize_icon': texSizeIcon,
         'u_texture_icon': 1
     });

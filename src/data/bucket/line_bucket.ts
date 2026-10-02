@@ -36,6 +36,7 @@ import type {ImagePosition} from '../../render/image_atlas.ts';
 import type {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
 import type {DashEntry} from '../../render/line_atlas.ts';
 import type {VectorTileLayerLike} from '@maplibre/vt-pbf';
+import type {StylePropertyExpression} from '@maplibre/maplibre-gl-style-spec';
 
 // NOTE ON EXTRUDE SCALE:
 // scale the extrusion vector so that the normal length is this value.
@@ -122,6 +123,15 @@ export class LineBucket implements Bucket {
     segments: SegmentVector;
     uploaded: boolean;
 
+    // When any layer in the bucket has a `line-progress`-driven `line-offset`, this holds
+    // the style property expression so the offset can be evaluated per-vertex and packed
+    // into the ext buffer (`a_line_offset`). Requires the source to have `lineMetrics: true`.
+    variableOffsetExpression?: StylePropertyExpression;
+    // Reused per-vertex evaluation globals object (avoids per-vertex allocation).
+    evaluationGlobals: {zoom: number; lineProgress: number};
+    // The feature currently being added, so `addHalfVertex` can evaluate data-driven offsets.
+    currentLineFeature: BucketFeature;
+
     constructor(options: BucketParameters<LineStyleLayer>) {
         this.zoom = options.zoom;
         this.overscaling = options.overscaling;
@@ -142,6 +152,17 @@ export class LineBucket implements Bucket {
         this.programConfigurations = new ProgramConfigurationSet(options.layers, options.zoom);
         this.segments = new SegmentVector();
         this.maxLineLength = 0;
+        this.evaluationGlobals = {zoom: this.zoom, lineProgress: 0};
+
+        // Detect a `line-progress`-driven `line-offset` on any layer in the bucket. When present,
+        // the offset is evaluated per-vertex and packed into the ext buffer. The first matching
+        // layer wins (mirrors how the gradient path picks a single expression per bucket).
+        for (const layer of this.layers) {
+            if (layer.hasVariableOffset()) {
+                this.variableOffsetExpression = layer.offsetExpression() as unknown as StylePropertyExpression;
+                break;
+            }
+        }
 
         this.stateDependentLayerIds = this.layers.filter((l) => l.isStateDependent()).map((l) => l.id);
     }
@@ -263,6 +284,8 @@ export class LineBucket implements Bucket {
         const miterLimit = layout.get('line-miter-limit').evaluate(feature, {});
         const roundLimit = layout.get('line-round-limit').evaluate(feature, {});
         this.lineClips = this.lineFeatureClips(feature);
+        // Retained so `addHalfVertex` can evaluate a data-driven `line-offset` per vertex.
+        this.currentLineFeature = feature;
 
         for (const line of geometry) {
             this.addLine(line, feature, join, cap, miterLimit, roundLimit, canonical, subdivisionGranularity);
@@ -575,7 +598,23 @@ export class LineBucket implements Bucket {
             const progressRealigned = this.scaledDistance - this.lineClips.start;
             const endClipRealigned = this.lineClips.end - this.lineClips.start;
             const uvX = progressRealigned / endClipRealigned;
-            this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length);
+
+            // Evaluate the `line-progress`-driven offset at this vertex's progress. Zero when no
+            // variable offset is active, so the ext buffer stays valid for all line variants.
+            // NOTE: the expression gets `scaledDistance` — the GLOBAL 0..1 progress across the
+            // whole original line (already mapped through the feature's clip range) — never
+            // `uvX`, which is realigned 0..1 per tile piece: with uvX every tile replays the
+            // whole ramp and the offset jumps at each tile boundary. uvX stays as-is for the
+            // gradient texture path.
+            let lineOffset = 0;
+            if (this.variableOffsetExpression) {
+                this.evaluationGlobals.zoom = this.zoom;
+                this.evaluationGlobals.lineProgress = this.scaledDistance;
+                lineOffset = (this.variableOffsetExpression.evaluate(
+                    this.evaluationGlobals, this.currentLineFeature) as number) || 0;
+            }
+
+            this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length, lineOffset);
         }
 
         const e = segment.vertexLength++;
@@ -651,4 +690,4 @@ export class LineBucket implements Bucket {
     }
 }
 
-register('LineBucket', LineBucket, {omit: ['layers', 'patternFeatures']});
+register('LineBucket', LineBucket, {omit: ['layers', 'patternFeatures', 'variableOffsetExpression', 'currentLineFeature']});

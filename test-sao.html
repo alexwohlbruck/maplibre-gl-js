@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>symbol-anchor-offset test</title>
+<link rel="stylesheet" href="dist/maplibre-gl.css">
+<style>html,body{margin:0;height:100%}#map{width:100%;height:100%}#hud{position:absolute;top:8px;left:8px;background:#fffc;padding:6px 10px;font:13px monospace;z-index:9;white-space:pre}</style>
+</head>
+<body>
+<div id="map"></div><div id="hud">loading…</div>
+<script src="dist/maplibre-gl-dev.js"></script>
+<script>
+const CENTER = [-73.98, 40.75];
+const map = new maplibregl.Map({
+    container: 'map',
+    style: {version: 8, sources: {}, layers: [{id: 'bg', type: 'background', paint: {'background-color': '#e8e4dc'}}]},
+    center: CENTER, zoom: 15, fadeDuration: 0, preserveDrawingBuffer: true, attributionControl: false,
+});
+// hidden-pane guard: keep frames coming even when the tab is backgrounded
+setInterval(() => map.triggerRepaint(), 200);
+
+function bulletImage(hex, label) {
+    const d = 28, cv = document.createElement('canvas');
+    cv.width = d; cv.height = d;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = hex;
+    ctx.beginPath(); ctx.arc(d / 2, d / 2, d / 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, d / 2, d / 2 + 1);
+    return ctx.getImageData(0, 0, d, d);
+}
+
+// a geographic reference line heading due EAST from the anchor — the
+// map-aligned bullet row must stay glued to it at every bearing/pitch
+const eastPt = (m) => [CENTER[0] + m / (111320 * Math.cos(CENTER[1] * Math.PI / 180)), CENTER[1]];
+const refLine = {type: 'Feature', properties: {}, geometry: {type: 'LineString', coordinates: [CENTER, eastPt(400)]}};
+
+// six bullets anchored at ONE point, offset along map-east in px steps —
+// a caterpillar in miniature. Plus one viewport-aligned control bullet.
+const mapPts = [];
+for (let k = 0; k < 6; k++) {
+    mapPts.push({type: 'Feature', properties: {img: `b${k}`, off: [40 + k * 34, 0]}, geometry: {type: 'Point', coordinates: CENTER}});
+}
+const vpPt = {type: 'Feature', properties: {img: 'bv', off: [0, -80]}, geometry: {type: 'Point', coordinates: CENTER}};
+
+map.on('load', () => {
+    const colors = ['#EE352E', '#00933C', '#0039A6', '#FF6319', '#FCCC0A', '#996633'];
+    for (let k = 0; k < 6; k++) map.addImage(`b${k}`, bulletImage(colors[k], String(k + 1)));
+    map.addImage('bv', bulletImage('#333333', 'V'));
+    map.addSource('ref', {type: 'geojson', data: refLine});
+    map.addSource('pts', {type: 'geojson', data: {type: 'FeatureCollection', features: mapPts}});
+    map.addSource('vp', {type: 'geojson', data: vpPt});
+    map.addLayer({id: 'ref', type: 'line', source: 'ref', paint: {'line-color': '#999', 'line-width': 2}});
+    map.addLayer({
+        id: 'bullets', type: 'symbol', source: 'pts',
+        layout: {
+            'icon-image': ['get', 'img'],
+            'icon-allow-overlap': true, 'icon-ignore-placement': true,
+            'symbol-anchor-offset': ['get', 'off'],
+            'symbol-anchor-offset-alignment': 'map',
+        },
+    });
+    map.addLayer({
+        id: 'vp-bullet', type: 'symbol', source: 'vp',
+        layout: {
+            'icon-image': ['get', 'img'],
+            'icon-allow-overlap': true, 'icon-ignore-placement': true,
+            'symbol-anchor-offset': ['get', 'off'],
+            'symbol-anchor-offset-alignment': 'viewport',
+        },
+    });
+    document.getElementById('hud').textContent = 'ready';
+    window.mapReady = true;
+});
+
+// screen direction of map-east at the anchor, via the map's own projection
+function eastDirOnScreen() {
+    const a = map.project(CENTER);
+    const b = map.project(eastPt(50));
+    const dx = b.x - a.x, dy = b.y - a.y, n = Math.hypot(dx, dy);
+    return {x: dx / n, y: dy / n};
+}
+
+function samplePx(x, y) {
+    const gl = map.painter.context.gl;
+    const cv = map.getCanvas();
+    const px = new Uint8Array(4);
+    const ratio = cv.width / cv.clientWidth;
+    gl.readPixels(Math.round(x * ratio), Math.round(cv.height - y * ratio), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    return [px[0], px[1], px[2]];
+}
+
+// checks: sample an 8-point ring at radius 9 around each expected bullet
+// center (dead center is the white numeral) — every ring point must match
+// the bullet color. Map-aligned bullets ride the east ray at their px
+// distance; the viewport bullet sits 80 px straight up on screen.
+window.runChecks = async (bearing, pitch) => {
+    map.jumpTo({bearing, pitch});
+    await new Promise(r => map.once('idle', r));
+    map.triggerRepaint();
+    await new Promise(r => map.once('render', r));
+    const near = (g, w, tol) => Math.abs(g[0] - w[0]) < tol && Math.abs(g[1] - w[1]) < tol && Math.abs(g[2] - w[2]) < tol;
+    const ringMatch = (cx, cy, want) => {
+        let hits = 0;
+        for (let i = 0; i < 8; i++) {
+            const th = i * Math.PI / 4;
+            if (near(samplePx(cx + 9 * Math.cos(th), cy + 9 * Math.sin(th)), want, 45)) hits++;
+        }
+        return hits;
+    };
+    const a = map.project(CENTER);
+    const dir = eastDirOnScreen();
+    const expected = [[238, 53, 46], [0, 147, 60], [0, 57, 166], [255, 99, 25], [252, 204, 10], [153, 102, 51]];
+    const out = {bearing, pitch, ok: true, hits: [], vpHits: 0};
+    for (let k = 0; k < 6; k++) {
+        const h = ringMatch(a.x + dir.x * (40 + k * 34), a.y + dir.y * (40 + k * 34), expected[k]);
+        out.hits.push(h);
+        out.ok = out.ok && h >= 4;
+    }
+    out.vpHits = ringMatch(a.x, a.y - 80, [51, 51, 51]);
+    out.ok = out.ok && out.vpHits >= 4;
+    document.getElementById('hud').textContent = `bearing ${bearing} pitch ${pitch}: ${out.ok ? 'PASS' : 'FAIL'}`;
+    return out;
+};
+</script>
+</body>
+</html>

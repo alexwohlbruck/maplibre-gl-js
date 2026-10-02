@@ -1,6 +1,8 @@
 'use strict';
 
 import * as fs from 'fs';
+
+import '../src/style-spec/fork_extensions.ts'; // fork spec additions must be visible to codegen
 import {latest, type StylePropertySpecification} from '@maplibre/maplibre-gl-style-spec';
 
 /**

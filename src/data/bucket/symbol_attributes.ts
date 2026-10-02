@@ -4,7 +4,11 @@ export const symbolLayoutAttributes: StructArrayLayout = createLayout([
     {name: 'a_pos_offset',  components: 4, type: 'Int16'},
     {name: 'a_data',        components: 4, type: 'Uint16'},
     {name: 'a_pixeloffset',        components: 4, type: 'Int16'},
-    {name: 'a_height_offset',   components: 1, type: 'Float32'}
+    {name: 'a_height_offset',   components: 1, type: 'Float32'},
+    // symbol-anchor-offset, 1/16 px units. Applied to the projected anchor
+    // (never rotated by icon-rotate); interpreted map- or viewport-aligned
+    // per the layer's symbol-anchor-offset-alignment.
+    {name: 'a_anchoroffset',       components: 2, type: 'Int16'}
 ], 4);
 
 export const dynamicLayoutAttributes: StructArrayLayout = createLayout([
@@ -106,7 +110,10 @@ export const symbolInstance: StructArrayLayout = createLayout([
     {type: 'Float32', name: 'collisionCircleDiameter'},
     {type: 'Uint16', name: 'textAnchorOffsetStartIndex'},
     {type: 'Uint16', name: 'textAnchorOffsetEndIndex'},
-    {type: 'Float32', name: 'heightOffset'}
+    {type: 'Float32', name: 'heightOffset'},
+    // symbol-anchor-offset in pixels, for collision/query box shifting
+    {type: 'Float32', name: 'anchorOffsetX'},
+    {type: 'Float32', name: 'anchorOffsetY'}
 ]);
 
 export const glyphOffset: StructArrayLayout = createLayout([

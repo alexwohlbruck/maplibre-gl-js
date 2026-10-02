@@ -1903,7 +1903,7 @@ export class Style extends Evented<MapEventType> {
             !mat4.exactEquals(lastPlacement.placement.transform.modelViewProjectionMatrix, transform.modelViewProjectionMatrix);
     }
 
-    _updatePlacement(transform: ITransform, showCollisionBoxes: boolean, fadeDuration: number, crossSourceCollisions: boolean, forceFullPlacement: boolean = false): boolean {
+    _updatePlacement(transform: ITransform, showCollisionBoxes: boolean, fadeDuration: number, crossSourceCollisions: boolean, forceFullPlacement: boolean = false, isolatedCollisionLayers?: ReadonlySet<string>): boolean {
         let symbolBucketsChanged = false;
         let placementCommitted = false;
 
@@ -1940,7 +1940,7 @@ export class Style extends Evented<MapEventType> {
         if (forceFullPlacement || !this.pauseablePlacement || (placementSettled && (placementInputsChanged || this.placement.stale))) {
             this._symbolPlacementTriggered = false;
             this._placedProjectionTransition = this.projection?.transitionState;
-            this.pauseablePlacement = new PauseablePlacement(transform, this.map.terrain, this._order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, this.placement);
+            this.pauseablePlacement = new PauseablePlacement(transform, this.map.terrain, this._order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, this.placement, isolatedCollisionLayers);
             this._layerOrderChanged = false;
         }
 

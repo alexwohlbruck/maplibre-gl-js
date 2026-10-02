@@ -1,3 +1,4 @@
+import '../style-spec/fork_extensions.ts'; // must run before any style-layer properties module reads the spec
 import {Actor, type ActorTarget, type IActor} from '../util/actor.ts';
 import {StyleLayerIndex} from '../style/style_layer_index.ts';
 import {VectorTileWorkerSource} from './vector_tile_worker_source.ts';

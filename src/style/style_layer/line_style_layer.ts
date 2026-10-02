@@ -72,6 +72,20 @@ export class LineStyleLayer extends StyleLayer {
         return this._transitionablePaint._values['line-gradient'].value.expression;
     }
 
+    offsetExpression(): StylePropertyExpression {
+        return this._transitionablePaint._values['line-offset'].value.expression;
+    }
+
+    /**
+     * True when `line-offset` is driven by a `["line-progress"]` expression, i.e. the offset
+     * varies per-vertex along the line. Such an expression is treated as a global-property
+     * constant by the possibly-evaluated pipeline (like `zoom`), so it must be detected by
+     * inspecting the underlying expression AST rather than checking `paint.get(...).kind`.
+     */
+    hasVariableOffset(): boolean {
+        return expressionReferencesLineProgress(this.offsetExpression());
+    }
+
     recalculate(parameters: EvaluationParameters, availableImages: string[]): void {
         super.recalculate(parameters, availableImages);
         (this.paint._values as any)['line-floorwidth'] =
@@ -117,6 +131,33 @@ export class LineStyleLayer extends StyleLayer {
     isTileClipped(): boolean {
         return true;
     }
+}
+
+/**
+ * Walk a style property expression AST and report whether it references the `line-progress`
+ * expression anywhere. Mirrors how the style-spec classifies `line-progress` in
+ * `isGlobalPropertyConstant`, but that helper is not exported, so we inspect the AST directly.
+ */
+function expressionReferencesLineProgress(styleExpression: any): boolean {
+    if (!styleExpression) return false;
+    // Unwrap ZoomConstantExpression / ZoomDependentExpression -> StyleExpression -> AST root.
+    const root = styleExpression._styleExpression && styleExpression._styleExpression.expression;
+    if (!root) return false;
+
+    let found = false;
+    const walk = (node: any) => {
+        if (found || !node) return;
+        // Compound expressions carry their operator in `name`; `line-progress` is one of them.
+        if (node.name === 'line-progress') {
+            found = true;
+            return;
+        }
+        if (typeof node.eachChild === 'function') {
+            node.eachChild(walk);
+        }
+    };
+    walk(root);
+    return found;
 }
 
 function getLineWidth(lineWidth: number, lineGapWidth: number): number {

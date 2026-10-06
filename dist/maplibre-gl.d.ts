@@ -5203,6 +5203,7 @@ type LineLayoutProps = {
   "line-miter-limit": DataDrivenProperty<number>;
   "line-round-limit": DataDrivenProperty<number>;
   "line-sort-key": DataDrivenProperty<number>;
+  "line-rounded-corner-distance": DataConstantProperty<number>;
 };
 type LineLayoutPropsPossiblyEvaluated = {
   "line-cap": PossiblyEvaluatedPropertyValue<"butt" | "round" | "square">;
@@ -5210,6 +5211,7 @@ type LineLayoutPropsPossiblyEvaluated = {
   "line-miter-limit": PossiblyEvaluatedPropertyValue<number>;
   "line-round-limit": PossiblyEvaluatedPropertyValue<number>;
   "line-sort-key": PossiblyEvaluatedPropertyValue<number>;
+  "line-rounded-corner-distance": number;
 };
 type LinePaintProps = {
   "line-opacity": DataDrivenProperty<number>;

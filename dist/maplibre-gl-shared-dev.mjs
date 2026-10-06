@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.1/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.2/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -9753,6 +9753,19 @@ function createVisibility(visibility, rootKey, globalState) {
 * to reference/v8.json there.
 */
 const layoutSymbol = latest.layout_symbol;
+const layoutLine = latest.layout_line;
+if (!layoutLine["line-rounded-corner-distance"]) layoutLine["line-rounded-corner-distance"] = {
+	"type": "number",
+	"default": 0,
+	"minimum": 0,
+	"units": "meters",
+	"doc": "Rounds the corners of polygon outlines by this distance, matching `fill-extrusion-rounded-corner-distance`. Has no effect on line geometry.",
+	"expression": {
+		"interpolated": false,
+		"parameters": []
+	},
+	"property-type": "data-constant"
+};
 if (!layoutSymbol["symbol-anchor-offset"]) {
 	layoutSymbol["symbol-anchor-offset"] = {
 		"type": "array",
@@ -22169,7 +22182,7 @@ var LineBucket = class {
 				type: feature.type,
 				sourceLayerIndex,
 				index,
-				geometry: needGeometry ? evaluationFeature.geometry : loadGeometry(feature),
+				geometry: roundOutline(needGeometry ? evaluationFeature.geometry : loadGeometry(feature), feature.type, this.layers[0], canonical),
 				patterns: {},
 				dashes: {},
 				sortKey
@@ -22462,6 +22475,12 @@ register("LineBucket", LineBucket, { omit: [
 	"variableOffsetExpression",
 	"currentLineFeature"
 ] });
+/** Polygon outlines take `line-rounded-corner-distance`; real lines are left alone. */
+function roundOutline(geometry, type, layer, canonical) {
+	const meters = layer.layout.get("line-rounded-corner-distance");
+	if (!meters || type !== 3) return geometry;
+	return roundPolygonCornersIfNeeded(geometry, getTileUnitsForMeters(meters, canonical));
+}
 //#endregion
 //#region src/style/style_layer/line_style_layer_properties.g.ts
 let layout$1;
@@ -22470,7 +22489,8 @@ const getLayout$1 = () => layout$1 = layout$1 || new Properties({
 	"line-join": new DataDrivenProperty(latest["layout_line"]["line-join"], "line-join"),
 	"line-miter-limit": new DataDrivenProperty(latest["layout_line"]["line-miter-limit"], "line-miter-limit"),
 	"line-round-limit": new DataDrivenProperty(latest["layout_line"]["line-round-limit"], "line-round-limit"),
-	"line-sort-key": new DataDrivenProperty(latest["layout_line"]["line-sort-key"], "line-sort-key")
+	"line-sort-key": new DataDrivenProperty(latest["layout_line"]["line-sort-key"], "line-sort-key"),
+	"line-rounded-corner-distance": new DataConstantProperty(latest["layout_line"]["line-rounded-corner-distance"], "line-rounded-corner-distance")
 });
 let paint$2;
 const getPaint$2 = () => paint$2 = paint$2 || new Properties({

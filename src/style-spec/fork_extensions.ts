@@ -14,6 +14,25 @@
 import {v8} from '@maplibre/maplibre-gl-style-spec';
 
 const layoutSymbol = (v8 as any).layout_symbol;
+const layoutLine = (v8 as any).layout_line;
+
+if (!layoutLine['line-rounded-corner-distance']) {
+    // The line counterpart of `fill-extrusion-rounded-corner-distance`: polygon
+    // outlines are rounded with the same code and in the same units, so an
+    // outline drawn over a rounded extrusion follows its corners exactly.
+    layoutLine['line-rounded-corner-distance'] = {
+        'type': 'number',
+        'default': 0,
+        'minimum': 0,
+        'units': 'meters',
+        'doc': 'Rounds the corners of polygon outlines by this distance, matching `fill-extrusion-rounded-corner-distance`. Has no effect on line geometry.',
+        'expression': {
+            'interpolated': false,
+            'parameters': []
+        },
+        'property-type': 'data-constant'
+    };
+}
 
 if (!layoutSymbol['symbol-anchor-offset']) {
     // A pixel offset applied to the symbol's ANCHOR — not the image frame.

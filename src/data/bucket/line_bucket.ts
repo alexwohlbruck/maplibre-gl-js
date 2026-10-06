@@ -10,6 +10,7 @@ import {VectorTileFeature} from '@mapbox/vector-tile';
 import {register} from '../../util/web_worker_transfer.ts';
 import {hasPattern, addPatternDependencies} from './pattern_bucket_features.ts';
 import {loadGeometry} from '../load_geometry.ts';
+import {roundPolygonCornersIfNeeded, getTileUnitsForMeters} from './round_polygon_corners.ts';
 import {toEvaluationFeature} from '../evaluation_feature.ts';
 import {EvaluationParameters} from '../../style/evaluation_parameters.ts';
 import {subdivideVertexLine} from '../../render/subdivision.ts';
@@ -190,7 +191,7 @@ export class LineBucket implements Bucket {
                 type: feature.type,
                 sourceLayerIndex,
                 index,
-                geometry: needGeometry ? evaluationFeature.geometry : loadGeometry(feature),
+                geometry: roundOutline(needGeometry ? evaluationFeature.geometry : loadGeometry(feature), feature.type, this.layers[0], canonical),
                 patterns: {},
                 dashes: {},
                 sortKey
@@ -691,3 +692,10 @@ export class LineBucket implements Bucket {
 }
 
 register('LineBucket', LineBucket, {omit: ['layers', 'patternFeatures', 'variableOffsetExpression', 'currentLineFeature']});
+
+/** Polygon outlines take `line-rounded-corner-distance`; real lines are left alone. */
+export function roundOutline(geometry: Point[][], type: number, layer: LineStyleLayer, canonical: CanonicalTileID): Point[][] {
+    const meters = (layer.layout as any).get('line-rounded-corner-distance');
+    if (!meters || type !== 3) return geometry;
+    return roundPolygonCornersIfNeeded(geometry, getTileUnitsForMeters(meters, canonical));
+}

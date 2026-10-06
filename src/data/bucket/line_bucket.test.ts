@@ -1,7 +1,7 @@
 import {beforeAll, describe, test, expect, vi} from 'vitest';
 import Point from '@mapbox/point-geometry';
 import {SegmentVector} from '../segment.ts';
-import {LineBucket} from './line_bucket.ts';
+import {LineBucket, roundOutline} from './line_bucket.ts';
 import {LineStyleLayer} from '../../style/style_layer/line_style_layer.ts';
 import {SubdivisionGranularitySetting} from '../../render/subdivision_granularity_settings.ts';
 import {type CreateBucketParameters, createPopulateOptions, getFeaturesFromLayer, loadVectorTile} from '../../../test/unit/lib/tile.ts';
@@ -224,5 +224,24 @@ describe('LineBucket', () => {
         ], polygon, undefined, undefined, undefined, undefined, undefined, noSubdivision);
 
         expect(bucket.isEmpty()).toBe(true);
+    });
+});
+
+describe('roundOutline', () => {
+    const square = () => [[new Point(0, 0), new Point(4096, 0), new Point(4096, 4096), new Point(0, 4096), new Point(0, 0)]];
+    const layerWith = (meters?: number) => {
+        const layer = new LineStyleLayer({id: 'o', type: 'line', source: 's', layout: meters === undefined ? {} : {'line-rounded-corner-distance': meters}} as LayerSpecification, {});
+        layer.recalculate({zoom: 16, zoomHistory: {} as ZoomHistory} as EvaluationParameters, []);
+        return layer;
+    };
+    const tile = {z: 16, x: 19296, y: 24640} as any;
+
+    test('rounds polygon outlines when set', () => {
+        expect(roundOutline(square(), 3, layerWith(1.5), tile)[0].length).toBeGreaterThan(5);
+    });
+
+    test('leaves lines and unset layers alone', () => {
+        expect(roundOutline(square(), 2, layerWith(1.5), tile)[0]).toHaveLength(5);
+        expect(roundOutline(square(), 3, layerWith(), tile)[0]).toHaveLength(5);
     });
 });

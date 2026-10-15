@@ -6303,8 +6303,11 @@ declare class Painter {
   glyphManager: GlyphManager;
   renderContext: RenderContext;
   currentStencilSource: string;
-  /** The tile set the stencil currently holds masks for; see `renderTileClippingMasks`. */
-  _currentStencilTiles: string;
+  /** Stencil ref of every tile area whose clipping mask is still whole in the stencil buffer. */
+  _intactClippingMasks: Map<string, {
+    tileID: OverscaledTileID;
+    ref: number;
+  }>;
   nextStencilID: number;
   id: string;
   _showOverdrawInspector: boolean;

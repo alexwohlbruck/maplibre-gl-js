@@ -1,10 +1,10 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.3/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.4/LICENSE.txt
 */
 import { $ as projectToWorldCoordinates, $n as getRollPitchBearing, $r as rotateZ$1, $t as Transitionable, A as evaluateSizeForZoom, Ai as isOffscreenCanvasDistorted, An as arrayBufferToImageBitmap, Ar as create$3, At as toEvaluationFeature, B as isCluster, Bi as ValidationError, Bn as defaultEasing, Br as scale$2, Bt as SegmentVector, C as addDynamicAttributes, Ci as translate, Cn as AbortError, Cr as translatePosition, Ct as HEATMAP_FULL_RENDER_FBO_KEY, Di as determinant, Dn as MAX_VALID_LATITUDE, Dr as zoomScale, Dt as RGBAImage, E as TextAnchorEnum, Ei as create$2, Er as wrap, Et as AlphaImage, F as potpack, Fi as featureFilter, Fn as createIdentityMat4f64, Fr as fromEuler, Ft as Uniform4f, Gn as evaluateZoomSnap, Gr as distance, Gt as PosArray, Hi as derefLayers, Hn as differenceOfAnglesDegrees, Hr as add, Ht as CollisionCircleLayoutArray, I as isStyleImageWebGLData, In as createMat4f64, Ir as fromValues, It as UniformColor, J as cameraDirectionFromPitchBearing, Jn as findLineIntersection, Jr as length, Jt as TriangleIndexArray, K as isFillExtrusionStyleLayer, Kn as extend, Kr as dot, Kt as QuadTriangleArray, L as renderStyleImage, Li as interpolateFactory, Ln as createVec3f64, Lr as multiply$1, Lt as UniformColorArray, M as getAnchorAlignment, Mi as Point, Mn as clamp, Mr as scale$3, Mt as Uniform1i, Ni as emptyStyle, Nn as clone$2, Nr as sqrLen, Nt as Uniform2f, O as clipLine, Oi as invert, On as angleToRotateBetweenVectors2D, Or as pixelsToTileUnits, Ot as isCircleStyleLayer, P as ImagePosition, Pn as createIdentityMat4f32, Pr as zero, Pt as Uniform3f, Q as maxMercatorHorizonAngle, Qr as rotateY, Qt as Properties, R as parseGlyphPbf, Ri as ProjectionDefinition, Rn as createVec4f64, Rr as slerp, Rt as UniformFloatArray, S as SymbolBucket, Si as scale, Sn as config, Sr as threePlaneIntersection, St as isHillshadeStyleLayer, T as getAnchorJustification, Ti as fromRotation, Tn as throwIfAborted, Tr as warnOnce, Tt as renderColorRamp, U as collisionCircleLayout, Ui as latest, Un as distanceOfAnglesRadians, Ur as clone, Ut as LineStripIndexArray, V as codePointUsesLocalIdeographFontFamily, Vi as diff, Vn as degreesToRadians, Vr as transformMat4, Vt as CollisionBoxArray, W as isLineStyleLayer, Wn as ensureError, Wr as cross, Wt as Pos3dArray, X as cameraMercatorCoordinateFromCenterAndRotation, Xn as getAngleDelta, Xr as normalize, Xt as isRasterStyleLayer, Y as cameraMercatorCoordinate, Yn as getAABB, Yr as negate, Yt as createLayout, Z as getMercatorHorizon, Zn as getEdgeTiles, Zr as rotateX$1, Zt as DataConstantProperty, _ as createStyleLayer, _i as ortho, _n as makeRequest, _r as rollPitchBearingEqual, _t as SubdivisionGranularityExpression, a as GeoJSONFeature, ai as transformMat4$1, an as validateAndEmit, ar as isWorker, at as lngFromMercatorX, b as isBackgroundStyleLayer, bi as rotateY$1, bn as getProtocol, br as sphericalToCartesian, ci as clone$1, cn as ErrorEvent, cr as mod, ct as mercatorZfromAltitude, d as OverscaledTileID, di as equals, dn as AJAXError, dr as pick, ei as scale$1, en as EvaluationParameters, er as isImageBitmap, et as tileCoordinatesToMercatorCoordinates, f as UnwrappedTileID, fi as exactEquals, fn as GLOBAL_DISPATCHER_ID, fr as pointPlaneSignedDistance, ft as EXTENT_BOUNDS, g as Actor, gi as multiply, gn as getVideo, gr as remapSaturate, gt as SOUTH_POLE_Y, h as isInBoundsForZoomLngLat, hi as invert$1, hn as getReferrer, hr as readImageUsingVideoFrame, ht as NORTH_POLE_Y, ii as transformMat3, in as emitValidationErrors, ir as isTouchableOrPointableType, it as latFromMercatorY, ji as offscreenCanvasSupported, jn as bezier, jr as length$1, jt as Uniform1f, k as evaluateSizeForFeature, ki as rotate, kn as arrayBufferToImage, kr as EXTENT, kt as polygonIntersectsPolygon, li as copy, ln as Event, lr as nextPowerOfTwo, lt as LngLat, m as compareTileId, mi as identity, mn as getJSON, mr as rayPlaneIntersection, mt as isFillStyleLayer, n as TileCache, ni as sub, nr as isSafari, nt as MercatorCoordinate, oi as transformQuat, on as validateStyle, or as lerp, ot as mercatorXfromLng, p as calculateTileKey, pi as fromScaling, pn as getArrayBuffer, pr as radiansToDegrees, pt as Bounds, q as calculateTileMatrix, qn as filterObject, qr as len, qt as RasterBoundsArray, ri as subtract, rn as SPEC_SOURCE_TYPES, rr as isTouchableEvent, rt as altitudeFromMercatorZ, s as GEOJSON_TILE_LAYER_NAME, si as zero$1, sn as validateStyleAndEmit, sr as mapObject, st as mercatorYfromLat, ti as scaleAndAdd, tn as ZoomHistory, tr as isPointableEvent, tt as unprojectFromWorldCoordinates, u as CanonicalTileID, ui as create$1, un as Evented, ur as parseCacheControl, ut as earthRadius, v as isCustomStyleLayer, vi as perspective, vn as sameOrigin, vr as rollPitchBearingToQuat, vt as SubdivisionGranularitySetting, w as getOverlapMode, wi as create$4, wn as isAbortError, wr as uniqueId, wt as isHeatmapStyleLayer, x as isSymbolStyleLayer, xi as rotateZ, xn as removeProtocol, xr as subscribe, xt as Texture, y as validateCustomStyleLayer, yi as rotateX, yn as addProtocol, yr as scaleZoom, yt as isColorReliefStyleLayer, zi as Color, zn as deepEqual, zr as mul, zt as UniformMatrix4f } from "./maplibre-gl-shared-dev.mjs";
 //#region package.json
-var version$2 = "6.11.2-transit.3";
+var version$2 = "6.11.2-transit.4";
 //#endregion
 //#region src/util/browser.ts
 let linkEl;
@@ -20065,25 +20065,35 @@ var Painter = class Painter {
 	}
 	renderTileClippingMasks(layer, tileIDs) {
 		if (this.currentStencilSource === layer.source || !layer.isTileClipped() || !tileIDs?.length) return;
-		const tiles = clippingMaskKey(tileIDs);
-		if (this.currentStencilSource !== void 0 && tiles === this._currentStencilTiles) {
-			this.currentStencilSource = layer.source;
-			return;
-		}
+		const intact = this._intactClippingMasks ??= /* @__PURE__ */ new Map();
+		if (this.currentStencilSource === void 0) intact.clear();
 		this.currentStencilSource = layer.source;
-		this._currentStencilTiles = tiles;
-		if (this.nextStencilID + tileIDs.length > 256) {
+		let missing = tileIDs.filter((tileID) => !intact.has(clippingMaskArea(tileID)));
+		if (missing.length && (this.style.projection.useSubdivision || hasOverlappingTiles(tileIDs))) missing = tileIDs;
+		if (this.nextStencilID + missing.length > 256) {
 			this.clearStencil();
 			this.currentStencilSource = layer.source;
+			intact.clear();
+			missing = tileIDs;
 		}
+		const stencilRefs = {};
+		for (const tileID of tileIDs) stencilRefs[tileID.key] = intact.get(clippingMaskArea(tileID))?.ref;
+		this._tileClippingMaskIDs = stencilRefs;
+		if (!missing.length) return;
 		const context = this.context;
 		context.setColorMode(ColorMode.disabled);
 		context.setDepthMode(DepthMode.disabled);
-		const stencilRefs = {};
-		for (const tileID of tileIDs) stencilRefs[tileID.key] = this.nextStencilID++;
-		if (this.style.projection.useSubdivision) this._renderTileMasks(stencilRefs, tileIDs, true);
-		this._renderTileMasks(stencilRefs, tileIDs, false);
-		this._tileClippingMaskIDs = stencilRefs;
+		for (const tileID of missing) {
+			const ref = this.nextStencilID++;
+			stencilRefs[tileID.key] = ref;
+			for (const [area, mask] of intact) if (tilesOverlap(mask.tileID, tileID)) intact.delete(area);
+			intact.set(clippingMaskArea(tileID), {
+				tileID,
+				ref
+			});
+		}
+		if (this.style.projection.useSubdivision) this._renderTileMasks(stencilRefs, missing, true);
+		this._renderTileMasks(stencilRefs, missing, false);
 	}
 	_renderTileMasks(tileStencilRefs, tileIDs, useBorders) {
 		const context = this.context;
@@ -20555,10 +20565,18 @@ var Painter = class Painter {
 	}
 };
 /** Identifies a set of tiles for clipping-mask reuse; order matters, since stencil refs follow it. */
-function clippingMaskKey(tileIDs) {
-	let key = "";
-	for (const tileID of tileIDs) key += `${tileID.key},`;
-	return key;
+function clippingMaskArea(tileID) {
+	const { z, x, y } = tileID.canonical;
+	return `${tileID.wrap}/${z}/${x}/${y}`;
+}
+function tilesOverlap(a, b) {
+	if (a.wrap !== b.wrap) return false;
+	const z = Math.min(a.canonical.z, b.canonical.z);
+	return a.canonical.x >> a.canonical.z - z === b.canonical.x >> b.canonical.z - z && a.canonical.y >> a.canonical.z - z === b.canonical.y >> b.canonical.z - z;
+}
+function hasOverlappingTiles(tileIDs) {
+	for (let i = 0; i < tileIDs.length; i++) for (let j = i + 1; j < tileIDs.length; j++) if (tilesOverlap(tileIDs[i], tileIDs[j])) return true;
+	return false;
 }
 //#endregion
 //#region src/util/gpu_initialization_error.ts

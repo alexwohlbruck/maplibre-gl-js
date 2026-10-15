@@ -81,6 +81,9 @@ export class TileManager extends Evented<SourceEventType> {
     _timers: Record<string, ReturnType<typeof setTimeout>>;
     _maxTileCacheSize: number;
     _maxTileCacheZoomLevels: number;
+    /** Bumped by `relayout`; a cached tile laid out under an older one is laid out again when it returns. */
+    _layoutGeneration: number = 0;
+    _cachedLayout: WeakMap<Tile, number> = new WeakMap();
     _paused: boolean;
     _shouldReloadOnResume: boolean;
     transform: ITransform;
@@ -116,7 +119,13 @@ export class TileManager extends Evented<SourceEventType> {
         this._source = createSource(id, options, dispatcher, this);
 
         this._inViewTiles = new InViewTiles();
-        this._outOfViewCache = new TileCache(0, (tile) => this._unloadTile(tile));
+        this._outOfViewCache = new TileCache(0, (tile) => {
+            if (tile.state === 'reloading') {
+                tile.aborted = true;
+                this._abortTile(tile);
+            }
+            this._unloadTile(tile);
+        });
         this._timers = {};
         this._maxTileCacheSize = null;
         this._maxTileCacheZoomLevels = null;
@@ -269,7 +278,24 @@ export class TileManager extends Evented<SourceEventType> {
         }
 
         this._outOfViewCache.reset();
+        this._reloadInView(sourceDataChanged, shouldReloadTileOptions);
+    }
 
+    /**
+     * Lay tiles out again after a style layer changed (a filter, a layout property): tiles in view now, and cached
+     * ones when they come back into view, showing their previous layout until then. The data is unchanged, so
+     * unlike `reload` this keeps the cache.
+     */
+    relayout(): void {
+        if (this._paused) {
+            this._shouldReloadOnResume = true;
+            return;
+        }
+        this._layoutGeneration++;
+        this._reloadInView();
+    }
+
+    _reloadInView(sourceDataChanged?: boolean, shouldReloadTileOptions: any = undefined): void {
         for (const id of this._inViewTiles.getAllIds()) {
             const tile = this._inViewTiles.getTileById(id);
             if (shouldReloadTileOptions && !this._source.shouldReloadTile(tile, shouldReloadTileOptions)) {
@@ -734,6 +760,7 @@ export class TileManager extends Evented<SourceEventType> {
             return tile;
 
         tile = this._outOfViewCache.getAndRemove(tileID);
+        const stale = !!tile && this._cachedLayout.get(tile) !== this._layoutGeneration;
         if (tile) {
             //reset fading logic to remove stale fading data from cache
             tile.resetFadeLogic();
@@ -755,6 +782,7 @@ export class TileManager extends Evented<SourceEventType> {
 
         tile.uses++;
         this._inViewTiles.setTile(tileID.key, tile);
+        if (stale) this._reloadTile(tileID.key, 'reloading');
         if (!cached) {
             this._source.fire(new MapSourceDataEvent('dataloading', {tile, coord: tile.tileID}));
         }
@@ -827,7 +855,10 @@ export class TileManager extends Evented<SourceEventType> {
         if (tile.uses > 0)
             return;
 
-        if (tile.hasData() && tile.state !== 'reloading') {
+        // A tile still being laid out again is kept too: it shows its previous layout if it comes back before the new
+        // one arrives, and the cache aborts the reload if it evicts the tile first.
+        if (tile.hasData()) {
+            this._cachedLayout.set(tile, this._layoutGeneration);
             this._outOfViewCache.add(tile.tileID, tile, tile.getExpiryTimeout());
         } else {
             tile.aborted = true;
@@ -849,7 +880,12 @@ export class TileManager extends Evented<SourceEventType> {
             return;
         }
 
-        if (e.sourceDataType !== 'content' || !this._sourceLoaded || this._paused) {
+        if (e.sourceDataType !== 'content' || !this._sourceLoaded) {
+            return;
+        }
+        if (this._paused) {
+            // The data changed, so `resume` reloads everything, the cache too, rather than only relaying out.
+            this._shouldReloadOnResume = true;
             return;
         }
 

@@ -1860,7 +1860,7 @@ export class Style extends Evented<MapEventType> {
 
     _reloadSource(id: string): void {
         this.tileManagers[id].resume();
-        this.tileManagers[id].reload();
+        this.tileManagers[id].relayout();
     }
 
     _updateSources(transform: ITransform): void {

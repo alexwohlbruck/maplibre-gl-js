@@ -2802,3 +2802,60 @@ describe('TileManager content elevation', () => {
             }
         });
 });
+
+describe('TileManager.relayout', () => {
+    const cachedTile = () => {
+        const tileID = new OverscaledTileID(0, 0, 0, 0, 0);
+        const tileManager = createTileManager();
+        let loads = 0;
+        tileManager._source.loadTile = async (tile) => {
+            tile.state = 'loaded';
+            loads++;
+        };
+        const tr = new MercatorTransform();
+        tr.resize(512, 512);
+        tileManager.updateCacheSize(tr);
+        const tile = tileManager._addTile(tileID);
+        tileManager._removeTile(tileID.key);
+        return {tileID, tile, tileManager, loads: () => loads};
+    };
+
+    test('keeps cached tiles, and lays one out again when it returns', () => {
+        const {tileID, tile, tileManager, loads} = cachedTile();
+
+        tileManager.relayout();
+        expect(tileManager._outOfViewCache.has(tileID)).toBeTruthy();
+
+        expect(tileManager._addTile(tileID)).toBe(tile);
+        expect(loads()).toBe(2);
+    });
+
+    test('returns a cached tile as it is when nothing changed since it was cached', () => {
+        const {tileID, tile, tileManager, loads} = cachedTile();
+
+        expect(tileManager._addTile(tileID)).toBe(tile);
+        expect(loads()).toBe(1);
+    });
+
+    test('keeps a tile that leaves the view mid-reload, and aborts the reload if the cache drops it', () => {
+        const {tileID, tile, tileManager} = cachedTile();
+        tileManager._addTile(tileID);
+        tile.state = 'reloading';
+        const abort = vi.spyOn(tileManager, '_abortTile');
+
+        tileManager._removeTile(tileID.key);
+        expect(tileManager._outOfViewCache.has(tileID)).toBeTruthy();
+        expect(abort).not.toHaveBeenCalled();
+
+        tileManager._outOfViewCache.reset();
+        expect(abort).toHaveBeenCalledWith(tile);
+        expect(tile.aborted).toBe(true);
+    });
+
+    test('a full reload still drops the cache', () => {
+        const {tileID, tileManager} = cachedTile();
+
+        tileManager.reload();
+        expect(tileManager._outOfViewCache.has(tileID)).toBeFalsy();
+    });
+});

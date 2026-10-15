@@ -1911,16 +1911,16 @@ describe('Style.setGlobalState', () => {
         await style.once('style.load');
 
         style.tileManagers['circle-source-id'].resume = vi.fn();
-        style.tileManagers['circle-source-id'].reload = vi.fn();
+        style.tileManagers['circle-source-id'].relayout = vi.fn();
         style.tileManagers['fill-source-id'].resume = vi.fn();
-        style.tileManagers['fill-source-id'].reload = vi.fn();
+        style.tileManagers['fill-source-id'].relayout = vi.fn();
 
         style.setGlobalState({showCircles: {default: true}, showFill: {default: false}});
 
         expect(style.tileManagers['circle-source-id'].resume).toHaveBeenCalled();
-        expect(style.tileManagers['circle-source-id'].reload).toHaveBeenCalled();
+        expect(style.tileManagers['circle-source-id'].relayout).toHaveBeenCalled();
         expect(style.tileManagers['fill-source-id'].resume).toHaveBeenCalled();
-        expect(style.tileManagers['fill-source-id'].reload).toHaveBeenCalled();
+        expect(style.tileManagers['fill-source-id'].relayout).toHaveBeenCalled();
     });
 
     test('reloads sources when state property is used in layout property', async () => {
@@ -1941,12 +1941,12 @@ describe('Style.setGlobalState', () => {
 
         await style.once('style.load');
         style.tileManagers['line-source-id'].resume = vi.fn();
-        style.tileManagers['line-source-id'].reload = vi.fn();
+        style.tileManagers['line-source-id'].relayout = vi.fn();
 
         style.setGlobalState({lineJoin: {default: 'bevel'}});
 
         expect(style.tileManagers['line-source-id'].resume).toHaveBeenCalled();
-        expect(style.tileManagers['line-source-id'].reload).toHaveBeenCalled();
+        expect(style.tileManagers['line-source-id'].relayout).toHaveBeenCalled();
     });
 
     test('reloads sources when a new state property is used in a paint property that affects layout', async () => {
@@ -1969,13 +1969,13 @@ describe('Style.setGlobalState', () => {
         await style.once('style.load');
 
         style.tileManagers['circle-source-id'].resume = vi.fn();
-        style.tileManagers['circle-source-id'].reload = vi.fn();
+        style.tileManagers['circle-source-id'].relayout = vi.fn();
 
         style.setGlobalState({circleColor: {default: 'red'}});
         style.update({} as EvaluationParameters);
 
         expect(style.tileManagers['circle-source-id'].resume).toHaveBeenCalled();
-        expect(style.tileManagers['circle-source-id'].reload).toHaveBeenCalled();
+        expect(style.tileManagers['circle-source-id'].relayout).toHaveBeenCalled();
     });
 
     test('does not reload sources when state property is set to the same value as current one', async () => {
@@ -2001,12 +2001,12 @@ describe('Style.setGlobalState', () => {
         await style.once('style.load');
 
         style.tileManagers['circle-source-id'].resume = vi.fn();
-        style.tileManagers['circle-source-id'].reload = vi.fn();
+        style.tileManagers['circle-source-id'].relayout = vi.fn();
 
         style.setGlobalState({showCircles: {default: true}});
 
         expect(style.tileManagers['circle-source-id'].resume).not.toHaveBeenCalled();
-        expect(style.tileManagers['circle-source-id'].reload).not.toHaveBeenCalled();
+        expect(style.tileManagers['circle-source-id'].relayout).not.toHaveBeenCalled();
     });
 
     test('does not reload sources when new state property is used in paint property', async () => {
@@ -2029,13 +2029,13 @@ describe('Style.setGlobalState', () => {
         await style.once('style.load');
 
         style.tileManagers['circle-source-id'].resume = vi.fn();
-        style.tileManagers['circle-source-id'].reload = vi.fn();
+        style.tileManagers['circle-source-id'].relayout = vi.fn();
 
         style.setGlobalState({circleColor: {default: 'red'}});
         style.update({} as EvaluationParameters);
 
         expect(style.tileManagers['circle-source-id'].resume).not.toHaveBeenCalled();
-        expect(style.tileManagers['circle-source-id'].reload).not.toHaveBeenCalled();
+        expect(style.tileManagers['circle-source-id'].relayout).not.toHaveBeenCalled();
     });
 
     test('does not reload sources when a new state property is used in a paint property while state property used in filter is unchanged', async() => {
@@ -2058,13 +2058,13 @@ describe('Style.setGlobalState', () => {
         await style.once('style.load');
 
         style.tileManagers['circle-source-id'].resume = vi.fn();
-        style.tileManagers['circle-source-id'].reload = vi.fn();
+        style.tileManagers['circle-source-id'].relayout = vi.fn();
 
         style.setGlobalState({circleColor: {default: 'red'}});
         style.update({} as EvaluationParameters);
 
         expect(style.tileManagers['circle-source-id'].resume).not.toHaveBeenCalled();
-        expect(style.tileManagers['circle-source-id'].reload).not.toHaveBeenCalled();
+        expect(style.tileManagers['circle-source-id'].relayout).not.toHaveBeenCalled();
     });
 
     test('does not reload sources when new state property is used in paint property while state property used in layout is unchanged', async () => {
@@ -2089,12 +2089,12 @@ describe('Style.setGlobalState', () => {
         await style.once('style.load');
 
         style.tileManagers['line-source-id'].resume = vi.fn();
-        style.tileManagers['line-source-id'].reload = vi.fn();
+        style.tileManagers['line-source-id'].relayout = vi.fn();
 
         style.setGlobalState({lineColor: {default: 'red'}});
 
         expect(style.tileManagers['line-source-id'].resume).not.toHaveBeenCalled();
-        expect(style.tileManagers['line-source-id'].reload).not.toHaveBeenCalled();
+        expect(style.tileManagers['line-source-id'].relayout).not.toHaveBeenCalled();
     });
 });
 
@@ -2260,23 +2260,23 @@ describe('Style.setGlobalStateProperty', () => {
         await style.once('style.load');
 
         style.tileManagers['circle-1-source-id'].resume = vi.fn();
-        style.tileManagers['circle-1-source-id'].reload = vi.fn();
+        style.tileManagers['circle-1-source-id'].relayout = vi.fn();
         style.tileManagers['circle-2-source-id'].resume = vi.fn();
-        style.tileManagers['circle-2-source-id'].reload = vi.fn();
+        style.tileManagers['circle-2-source-id'].relayout = vi.fn();
         style.tileManagers['fill-source-id'].resume = vi.fn();
-        style.tileManagers['fill-source-id'].reload = vi.fn();
+        style.tileManagers['fill-source-id'].relayout = vi.fn();
 
         style.setGlobalStateProperty('showCircles', true);
 
         // The circle sources should be reloaded
         expect(style.tileManagers['circle-1-source-id'].resume).toHaveBeenCalled();
-        expect(style.tileManagers['circle-1-source-id'].reload).toHaveBeenCalled();
+        expect(style.tileManagers['circle-1-source-id'].relayout).toHaveBeenCalled();
         expect(style.tileManagers['circle-2-source-id'].resume).toHaveBeenCalled();
-        expect(style.tileManagers['circle-2-source-id'].reload).toHaveBeenCalled();
+        expect(style.tileManagers['circle-2-source-id'].relayout).toHaveBeenCalled();
 
         // The fill source should not be reloaded
         expect(style.tileManagers['fill-source-id'].resume).not.toHaveBeenCalled();
-        expect(style.tileManagers['fill-source-id'].reload).not.toHaveBeenCalled();
+        expect(style.tileManagers['fill-source-id'].relayout).not.toHaveBeenCalled();
     });
 
     test('reloads sources when state property is used in layout property', async () => {
@@ -2318,22 +2318,22 @@ describe('Style.setGlobalStateProperty', () => {
         await style.once('style.load');
 
         style.tileManagers['line-1-source-id'].resume = vi.fn();
-        style.tileManagers['line-1-source-id'].reload = vi.fn();
+        style.tileManagers['line-1-source-id'].relayout = vi.fn();
         style.tileManagers['line-2-source-id'].resume = vi.fn();
-        style.tileManagers['line-2-source-id'].reload = vi.fn();
+        style.tileManagers['line-2-source-id'].relayout = vi.fn();
         style.tileManagers['line-3-source-id'].resume = vi.fn();
-        style.tileManagers['line-3-source-id'].reload = vi.fn();
+        style.tileManagers['line-3-source-id'].relayout = vi.fn();
 
         style.setGlobalStateProperty('lineJoin', 'bevel');
 
         // sources line-1 and line-2 should be reloaded
         expect(style.tileManagers['line-1-source-id'].resume).toHaveBeenCalled();
-        expect(style.tileManagers['line-1-source-id'].reload).toHaveBeenCalled();
+        expect(style.tileManagers['line-1-source-id'].relayout).toHaveBeenCalled();
         expect(style.tileManagers['line-2-source-id'].resume).toHaveBeenCalled();
-        expect(style.tileManagers['line-2-source-id'].reload).toHaveBeenCalled();
+        expect(style.tileManagers['line-2-source-id'].relayout).toHaveBeenCalled();
         // source line-3 should not be reloaded
         expect(style.tileManagers['line-3-source-id'].resume).not.toHaveBeenCalled();
-        expect(style.tileManagers['line-3-source-id'].reload).not.toHaveBeenCalled();
+        expect(style.tileManagers['line-3-source-id'].relayout).not.toHaveBeenCalled();
     });
 
     test('reloads sources when state property is used in a paint property that affects layout', async () => {
@@ -2355,13 +2355,13 @@ describe('Style.setGlobalStateProperty', () => {
         await style.once('style.load');
 
         style.tileManagers['circle-source-id'].resume = vi.fn();
-        style.tileManagers['circle-source-id'].reload = vi.fn();
+        style.tileManagers['circle-source-id'].relayout = vi.fn();
 
         style.setGlobalStateProperty('circleColor', 'red');
         style.update({} as EvaluationParameters);
 
         expect(style.tileManagers['circle-source-id'].resume).toHaveBeenCalled();
-        expect(style.tileManagers['circle-source-id'].reload).toHaveBeenCalled();
+        expect(style.tileManagers['circle-source-id'].relayout).toHaveBeenCalled();
     });
 
     test('reloads sources when state property is used in visibility', async() => {
@@ -2383,13 +2383,13 @@ describe('Style.setGlobalStateProperty', () => {
         await style.once('style.load');
 
         style.tileManagers['circle-source-id'].resume = vi.fn();
-        style.tileManagers['circle-source-id'].reload = vi.fn();
+        style.tileManagers['circle-source-id'].relayout = vi.fn();
 
         style.setGlobalStateProperty('visibility', true);
         style.update({} as EvaluationParameters);
 
         expect(style.tileManagers['circle-source-id'].resume).toHaveBeenCalled();
-        expect(style.tileManagers['circle-source-id'].reload).toHaveBeenCalled();
+        expect(style.tileManagers['circle-source-id'].relayout).toHaveBeenCalled();
     });
 
     test('does not reload sources when state property is set to the same value as current one', async () => {
@@ -2416,12 +2416,12 @@ describe('Style.setGlobalStateProperty', () => {
         await style.once('style.load');
 
         style.tileManagers['circle'].resume = vi.fn();
-        style.tileManagers['circle'].reload = vi.fn();
+        style.tileManagers['circle'].relayout = vi.fn();
 
         style.setGlobalStateProperty('showCircle', true);
 
         expect(style.tileManagers['circle'].resume).not.toHaveBeenCalled();
-        expect(style.tileManagers['circle'].reload).not.toHaveBeenCalled();
+        expect(style.tileManagers['circle'].relayout).not.toHaveBeenCalled();
     });
 
     test('does not reload sources when state property is only used in paint properties', async () => {
@@ -2443,13 +2443,13 @@ describe('Style.setGlobalStateProperty', () => {
         await style.once('style.load');
 
         style.tileManagers['circle-source-id'].resume = vi.fn();
-        style.tileManagers['circle-source-id'].reload = vi.fn();
+        style.tileManagers['circle-source-id'].relayout = vi.fn();
 
         style.setGlobalStateProperty('circleColor', 'red');
         style.update({} as EvaluationParameters);
 
         expect(style.tileManagers['circle-source-id'].resume).not.toHaveBeenCalled();
-        expect(style.tileManagers['circle-source-id'].reload).not.toHaveBeenCalled();
+        expect(style.tileManagers['circle-source-id'].relayout).not.toHaveBeenCalled();
     });
 
     test('does not reload sources when state property is used in paint property while a different state property used in filter is unchanged', async() => {
@@ -2472,13 +2472,13 @@ describe('Style.setGlobalStateProperty', () => {
         await style.once('style.load');
 
         style.tileManagers['circle-source-id'].resume = vi.fn();
-        style.tileManagers['circle-source-id'].reload = vi.fn();
+        style.tileManagers['circle-source-id'].relayout = vi.fn();
 
         style.setGlobalStateProperty('circleColor', 'red');
         style.update({} as EvaluationParameters);
 
         expect(style.tileManagers['circle-source-id'].resume).not.toHaveBeenCalled();
-        expect(style.tileManagers['circle-source-id'].reload).not.toHaveBeenCalled();
+        expect(style.tileManagers['circle-source-id'].relayout).not.toHaveBeenCalled();
     });
 
     test('does not reload sources when state property is used in paint property while a different state property used in layout is unchanged', async () => {
@@ -2503,12 +2503,12 @@ describe('Style.setGlobalStateProperty', () => {
         await style.once('style.load');
 
         style.tileManagers['line-source-id'].resume = vi.fn();
-        style.tileManagers['line-source-id'].reload = vi.fn();
+        style.tileManagers['line-source-id'].relayout = vi.fn();
 
         style.setGlobalStateProperty('lineColor', 'red');
 
         expect(style.tileManagers['line-source-id'].resume).not.toHaveBeenCalled();
-        expect(style.tileManagers['line-source-id'].reload).not.toHaveBeenCalled();
+        expect(style.tileManagers['line-source-id'].relayout).not.toHaveBeenCalled();
     });
 });
 
@@ -2635,7 +2635,7 @@ describe('Style.addLayer', () => {
         await waitForEvent(style, 'data', (e) => e.dataType === 'source' && e.sourceDataType === 'content');
 
         const spy = vi.fn();
-        style.tileManagers['mapLibre'].reload = spy;
+        style.tileManagers['mapLibre'].relayout = spy;
         style.addLayer(layer);
         style.update({} as EvaluationParameters);
         expect(spy).toHaveBeenCalled();
@@ -2668,7 +2668,7 @@ describe('Style.addLayer', () => {
 
         await waitForEvent(style, 'data', (e) => e.dataType === 'source' && e.sourceDataType === 'content');
         const spy = vi.fn();
-        style.tileManagers['mapLibre'].reload = spy;
+        style.tileManagers['mapLibre'].relayout = spy;
         style.tileManagers['mapLibre'].clearTiles = () => { throw new Error('test failed'); };
         style.removeLayer('my-layer');
         style.addLayer(layer);
@@ -2702,7 +2702,7 @@ describe('Style.addLayer', () => {
         }as LayerSpecification;
         await waitForEvent(style, 'data', (e) => e.dataType === 'source' && e.sourceDataType === 'content');
         const spy = vi.fn();
-        style.tileManagers['mapLibre'].reload =  () => { throw new Error('test failed'); };
+        style.tileManagers['mapLibre'].relayout =  () => { throw new Error('test failed'); };
         style.tileManagers['mapLibre'].clearTiles = spy;
         style.removeLayer('my-layer');
         style.addLayer(layer);

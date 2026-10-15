@@ -140,6 +140,8 @@ export class Painter {
     glyphManager: GlyphManager;
     renderContext: RenderContext;
     currentStencilSource: string;
+    /** The tile set the stencil currently holds masks for; see `renderTileClippingMasks`. */
+    _currentStencilTiles: string;
     nextStencilID: number;
     id: string;
     _showOverdrawInspector: boolean;
@@ -296,11 +298,22 @@ export class Painter {
             return;
         }
 
+        // A clipping mask depends only on the tiles, not on which source they belong to: two sources
+        // covering the same tile set (a basemap and an overlay at the same zoom) would draw an
+        // identical stencil. Reuse it unless something cleared it, which always resets the source.
+        const tiles = clippingMaskKey(tileIDs);
+        if (this.currentStencilSource !== undefined && tiles === this._currentStencilTiles) {
+            this.currentStencilSource = layer.source;
+            return;
+        }
+
         this.currentStencilSource = layer.source;
+        this._currentStencilTiles = tiles;
 
         if (this.nextStencilID + tileIDs.length > 256) {
             // we'll run out of fresh IDs so we need to clear and start from scratch
             this.clearStencil();
+            this.currentStencilSource = layer.source;
         }
 
         const context = this.context;
@@ -965,4 +978,11 @@ export class Painter {
         const {drawingBufferWidth, drawingBufferHeight} = this.context.gl;
         return this.width !== drawingBufferWidth || this.height !== drawingBufferHeight;
     }
+}
+
+/** Identifies a set of tiles for clipping-mask reuse; order matters, since stencil refs follow it. */
+export function clippingMaskKey(tileIDs: OverscaledTileID[]): string {
+    let key = '';
+    for (const tileID of tileIDs) key += `${tileID.key},`;
+    return key;
 }

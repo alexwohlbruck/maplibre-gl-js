@@ -6,6 +6,7 @@ import {Style} from '../style/style.ts';
 import {CustomStyleLayer} from '../style/style_layer/custom_style_layer.ts';
 import {StubMap} from '../util/test/util.ts';
 import {Texture} from '../webgl/texture.ts';
+import {OverscaledTileID} from '../tile/tile_id.ts';
 import {createNullGL} from '../util/test/null_gl.ts';
 import {restoreNow, setNow} from '../util/time_control.ts';
 
@@ -253,5 +254,43 @@ describe('RTT pool', () => {
         const destroyed = objs.filter(o => o.texture.destroy.mock.calls.length > 0).length;
         expect(destroyed).toBe(10);
         expect(painter._rttSharedFbo).toBeNull();
+    });
+});
+
+describe('tile clipping masks', () => {
+    let painter: Painter;
+    const clipped = (source: string) => ({source, isTileClipped: () => true}) as any;
+
+    beforeEach(() => {
+        const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 60, renderWorldCopies: true});
+        transform.resize(512, 512);
+        painter = new Painter(createNullGL(), transform);
+        const map = new StubMap() as any;
+        painter.style = new Style(map);
+        painter.style._setProjectionInternal('mercator');
+    });
+
+    test('are reused across sources covering the same tiles', () => {
+        const draw = vi.spyOn(painter, '_renderTileMasks').mockImplementation(() => {});
+        const tiles = [new OverscaledTileID(16, 0, 16, 1, 2), new OverscaledTileID(16, 0, 16, 2, 2)];
+
+        painter.renderTileClippingMasks(clipped('basemap'), tiles);
+        painter.renderTileClippingMasks(clipped('detail'), tiles);
+
+        expect(draw).toHaveBeenCalledTimes(1);
+        expect(painter.currentStencilSource).toBe('detail');
+    });
+
+    test('are redrawn for a different tile set, and after the stencil is cleared', () => {
+        const draw = vi.spyOn(painter, '_renderTileMasks').mockImplementation(() => {});
+        const tiles = [new OverscaledTileID(16, 0, 16, 1, 2)];
+
+        painter.renderTileClippingMasks(clipped('basemap'), tiles);
+        painter.renderTileClippingMasks(clipped('detail'), [new OverscaledTileID(15, 0, 15, 0, 1)]);
+        expect(draw).toHaveBeenCalledTimes(2);
+
+        painter.currentStencilSource = undefined;
+        painter.renderTileClippingMasks(clipped('basemap'), [new OverscaledTileID(15, 0, 15, 0, 1)]);
+        expect(draw).toHaveBeenCalledTimes(3);
     });
 });

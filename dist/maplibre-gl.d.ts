@@ -3824,6 +3824,9 @@ declare class TileManager extends Evented<SourceEventType> {
   _timers: Record<string, ReturnType<typeof setTimeout>>;
   _maxTileCacheSize: number;
   _maxTileCacheZoomLevels: number;
+  /** Bumped by `relayout`; a cached tile laid out under an older one is laid out again when it returns. */
+  _layoutGeneration: number;
+  _cachedLayout: WeakMap<Tile, number>;
   _paused: boolean;
   _shouldReloadOnResume: boolean;
   transform: ITransform;
@@ -3867,6 +3870,13 @@ declare class TileManager extends Evented<SourceEventType> {
    * @param shouldReloadTileOptions - Set of options associated with a `MapSourceDataChangedEvent` that can be passed back to the associated `Source` determine whether a tile should be reloaded.
    */
   reload(sourceDataChanged?: boolean, shouldReloadTileOptions?: any): void;
+  /**
+   * Lay tiles out again after a style layer changed (a filter, a layout property): tiles in view now, and cached
+   * ones when they come back into view, showing their previous layout until then. The data is unchanged, so
+   * unlike `reload` this keeps the cache.
+   */
+  relayout(): void;
+  _reloadInView(sourceDataChanged?: boolean, shouldReloadTileOptions?: any): void;
   _reloadTile(id: string, state: TileState): Promise<void>;
   _tileLoaded(tile: Tile, id: string, previousState: TileState, hadData: boolean, result: LoadTileResult): void;
   /**

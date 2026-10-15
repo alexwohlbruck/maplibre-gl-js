@@ -268,29 +268,65 @@ describe('tile clipping masks', () => {
         const map = new StubMap() as any;
         painter.style = new Style(map);
         painter.style._setProjectionInternal('mercator');
+        painter.nextStencilID = 1;
     });
+
+    const tile = (z: number, x: number, y: number, overscaledZ = z) => new OverscaledTileID(overscaledZ, 0, z, x, y);
+    const drawn = (draw) => draw.mock.calls.map(([, tileIDs]) => tileIDs.map((t: OverscaledTileID) => t.key));
 
     test('are reused across sources covering the same tiles', () => {
         const draw = vi.spyOn(painter, '_renderTileMasks').mockImplementation(() => {});
-        const tiles = [new OverscaledTileID(16, 0, 16, 1, 2), new OverscaledTileID(16, 0, 16, 2, 2)];
+        const tiles = [tile(16, 1, 2), tile(16, 2, 2)];
 
         painter.renderTileClippingMasks(clipped('basemap'), tiles);
+        const refs = painter._tileClippingMaskIDs;
         painter.renderTileClippingMasks(clipped('detail'), tiles);
 
         expect(draw).toHaveBeenCalledTimes(1);
+        expect(painter._tileClippingMaskIDs).toEqual(refs);
         expect(painter.currentStencilSource).toBe('detail');
     });
 
-    test('are redrawn for a different tile set, and after the stencil is cleared', () => {
+    test('are reused for an overscaled tile over the same area', () => {
         const draw = vi.spyOn(painter, '_renderTileMasks').mockImplementation(() => {});
-        const tiles = [new OverscaledTileID(16, 0, 16, 1, 2)];
 
-        painter.renderTileClippingMasks(clipped('basemap'), tiles);
-        painter.renderTileClippingMasks(clipped('detail'), [new OverscaledTileID(15, 0, 15, 0, 1)]);
-        expect(draw).toHaveBeenCalledTimes(2);
+        painter.renderTileClippingMasks(clipped('detail'), [tile(14, 1, 2)]);
+        painter.renderTileClippingMasks(clipped('basemap'), [tile(14, 1, 2, 16)]);
+
+        expect(draw).toHaveBeenCalledTimes(1);
+        expect(painter._tileClippingMaskIDs[tile(14, 1, 2, 16).key]).toBe(1);
+    });
+
+    test('are drawn only for tiles the stencil lacks', () => {
+        const draw = vi.spyOn(painter, '_renderTileMasks').mockImplementation(() => {});
+
+        painter.renderTileClippingMasks(clipped('basemap'), [tile(16, 1, 2)]);
+        painter.renderTileClippingMasks(clipped('detail'), [tile(16, 1, 2), tile(16, 2, 2)]);
+
+        expect(drawn(draw)).toEqual([[tile(16, 1, 2).key], [tile(16, 2, 2).key]]);
+        expect(painter._tileClippingMaskIDs).toEqual({[tile(16, 1, 2).key]: 1, [tile(16, 2, 2).key]: 2});
+    });
+
+    test('are redrawn once a tile over the same area has overwritten them', () => {
+        const draw = vi.spyOn(painter, '_renderTileMasks').mockImplementation(() => {});
+
+        painter.renderTileClippingMasks(clipped('basemap'), [tile(15, 0, 1)]);
+        painter.renderTileClippingMasks(clipped('detail'), [tile(16, 1, 2)]);
+        painter.renderTileClippingMasks(clipped('basemap'), [tile(15, 0, 1)]);
+
+        expect(draw).toHaveBeenCalledTimes(3);
+        expect(painter._tileClippingMaskIDs).toEqual({[tile(15, 0, 1).key]: 3});
+    });
+
+    test('are all redrawn when the tiles overlap each other, or after the stencil is cleared', () => {
+        const draw = vi.spyOn(painter, '_renderTileMasks').mockImplementation(() => {});
+
+        painter.renderTileClippingMasks(clipped('basemap'), [tile(16, 1, 2)]);
+        painter.renderTileClippingMasks(clipped('detail'), [tile(15, 0, 1), tile(16, 1, 2)]);
+        expect(drawn(draw)[1]).toEqual([tile(15, 0, 1).key, tile(16, 1, 2).key]);
 
         painter.currentStencilSource = undefined;
-        painter.renderTileClippingMasks(clipped('basemap'), [new OverscaledTileID(15, 0, 15, 0, 1)]);
+        painter.renderTileClippingMasks(clipped('basemap'), [tile(16, 1, 2)]);
         expect(draw).toHaveBeenCalledTimes(3);
     });
 });

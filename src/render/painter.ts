@@ -140,8 +140,8 @@ export class Painter {
     glyphManager: GlyphManager;
     renderContext: RenderContext;
     currentStencilSource: string;
-    /** The tile set the stencil currently holds masks for; see `renderTileClippingMasks`. */
-    _currentStencilTiles: string;
+    /** Stencil ref of every tile area whose clipping mask is still whole in the stencil buffer. */
+    _intactClippingMasks: Map<string, {tileID: OverscaledTileID; ref: number}>;
     nextStencilID: number;
     id: string;
     _showOverdrawInspector: boolean;
@@ -298,46 +298,55 @@ export class Painter {
             return;
         }
 
-        // A clipping mask depends only on the tiles, not on which source they belong to: two sources
-        // covering the same tile set (a basemap and an overlay at the same zoom) would draw an
-        // identical stencil. Reuse it unless something cleared it, which always resets the source.
-        const tiles = clippingMaskKey(tileIDs);
-        if (this.currentStencilSource !== undefined && tiles === this._currentStencilTiles) {
-            this.currentStencilSource = layer.source;
-            return;
+        // A clipping mask depends only on a tile's area, not on its source, so masks another source
+        // left behind are reused. Anything else that touches the stencil resets currentStencilSource.
+        const intact = this._intactClippingMasks ??= new Map();
+        if (this.currentStencilSource === undefined) intact.clear();
+        this.currentStencilSource = layer.source;
+
+        let missing = tileIDs.filter(tileID => !intact.has(clippingMaskArea(tileID)));
+        if (missing.length && (this.style.projection.useSubdivision || hasOverlappingTiles(tileIDs))) {
+            missing = tileIDs;
         }
 
-        this.currentStencilSource = layer.source;
-        this._currentStencilTiles = tiles;
-
-        if (this.nextStencilID + tileIDs.length > 256) {
+        if (this.nextStencilID + missing.length > 256) {
             // we'll run out of fresh IDs so we need to clear and start from scratch
             this.clearStencil();
             this.currentStencilSource = layer.source;
+            intact.clear();
+            missing = tileIDs;
         }
+
+        const stencilRefs = {};
+        for (const tileID of tileIDs) {
+            stencilRefs[tileID.key] = intact.get(clippingMaskArea(tileID))?.ref;
+        }
+        this._tileClippingMaskIDs = stencilRefs;
+        if (!missing.length) return;
 
         const context = this.context;
         context.setColorMode(ColorMode.disabled);
         context.setDepthMode(DepthMode.disabled);
 
-        const stencilRefs = {};
-
         // Set stencil ref values for all tiles
-        for (const tileID of tileIDs) {
-            stencilRefs[tileID.key] = this.nextStencilID++;
+        for (const tileID of missing) {
+            const ref = this.nextStencilID++;
+            stencilRefs[tileID.key] = ref;
+            for (const [area, mask] of intact) {
+                if (tilesOverlap(mask.tileID, tileID)) intact.delete(area);
+            }
+            intact.set(clippingMaskArea(tileID), {tileID, ref});
         }
 
         // A two-pass approach is needed for subdivided projections. See comment in draw_raster.ts
         // for more details. In non-subdivided projections the border flag does not change the mesh,
         // so one pass produces the same stencil mask.
         if (this.style.projection.useSubdivision) {
-            this._renderTileMasks(stencilRefs, tileIDs, true);
+            this._renderTileMasks(stencilRefs, missing, true);
         }
 
         // Final pass - draw borderless tiles with GL_ALWAYS
-        this._renderTileMasks(stencilRefs, tileIDs, false);
-
-        this._tileClippingMaskIDs = stencilRefs;
+        this._renderTileMasks(stencilRefs, missing, false);
     }
 
     _renderTileMasks(tileStencilRefs: {[_: string]: number}, tileIDs: OverscaledTileID[], useBorders: boolean): void {
@@ -981,8 +990,23 @@ export class Painter {
 }
 
 /** Identifies a set of tiles for clipping-mask reuse; order matters, since stencil refs follow it. */
-export function clippingMaskKey(tileIDs: OverscaledTileID[]): string {
-    let key = '';
-    for (const tileID of tileIDs) key += `${tileID.key},`;
-    return key;
+function clippingMaskArea(tileID: OverscaledTileID): string {
+    const {z, x, y} = tileID.canonical;
+    return `${tileID.wrap}/${z}/${x}/${y}`;
+}
+
+function tilesOverlap(a: OverscaledTileID, b: OverscaledTileID): boolean {
+    if (a.wrap !== b.wrap) return false;
+    const z = Math.min(a.canonical.z, b.canonical.z);
+    return a.canonical.x >> (a.canonical.z - z) === b.canonical.x >> (b.canonical.z - z) &&
+        a.canonical.y >> (a.canonical.z - z) === b.canonical.y >> (b.canonical.z - z);
+}
+
+function hasOverlappingTiles(tileIDs: OverscaledTileID[]): boolean {
+    for (let i = 0; i < tileIDs.length; i++) {
+        for (let j = i + 1; j < tileIDs.length; j++) {
+            if (tilesOverlap(tileIDs[i], tileIDs[j])) return true;
+        }
+    }
+    return false;
 }

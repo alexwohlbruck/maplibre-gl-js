@@ -6303,6 +6303,8 @@ declare class Painter {
   glyphManager: GlyphManager;
   renderContext: RenderContext;
   currentStencilSource: string;
+  /** The tile set the stencil currently holds masks for; see `renderTileClippingMasks`. */
+  _currentStencilTiles: string;
   nextStencilID: number;
   id: string;
   _showOverdrawInspector: boolean;

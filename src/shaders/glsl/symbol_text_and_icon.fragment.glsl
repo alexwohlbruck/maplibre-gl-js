@@ -9,7 +9,7 @@ uniform sampler2D u_texture;
 uniform sampler2D u_texture_icon;
 uniform highp float u_gamma_scale;
 in vec4 v_data0;
-in vec3 v_data1;
+in highp vec3 v_data1;
 flat in float v_is_sdf;
 
 #pragma maplibre: define highp vec4 fill_color
@@ -39,7 +39,7 @@ void main() {
 
     float EDGE_GAMMA = 0.105 / u_device_pixel_ratio;
 
-    float gamma_scale = v_data1.x;
+    highp float gamma_scale = v_data1.x;
     float size = v_data1.y;
 
     float fontScale = size / 24.0;

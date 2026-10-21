@@ -32,7 +32,7 @@ uniform bool u_height_anchor_ground;
 uniform bool u_anchor_offset_is_map;
 
 out vec4 v_data0;
-out vec3 v_data1;
+out highp vec3 v_data1;
 flat out float v_is_sdf;
 
 #pragma maplibre: define highp vec4 fill_color

@@ -7,7 +7,7 @@ uniform highp float u_gamma_scale;
 uniform bool u_is_text;
 
 in vec2 v_data0;
-in vec3 v_data1;
+in highp vec3 v_data1;
 
 #pragma maplibre: define highp vec4 fill_color
 #pragma maplibre: define highp vec4 halo_color
@@ -23,7 +23,7 @@ void main() {
     float EDGE_GAMMA = 0.105 / u_device_pixel_ratio;
 
     vec2 tex = v_data0.xy;
-    float gamma_scale = v_data1.x;
+    highp float gamma_scale = v_data1.x;
     float size = v_data1.y;
     float total_opacity = v_data1[2];
 
@@ -42,8 +42,8 @@ void main() {
         color_alpha_out_text = total_opacity * alpha * fill_color;
     }
     if (u_is_halo) {
-        float gamma_halo = (halo_blur * 1.19 / SDF_PX + EDGE_GAMMA) / (fontScale * u_gamma_scale);
-        float inner_edge_halo = inner_edge + gamma_halo * gamma_scale;
+        highp float gamma_halo = (halo_blur * 1.19 / SDF_PX + EDGE_GAMMA) / (fontScale * u_gamma_scale);
+        highp float inner_edge_halo = inner_edge + gamma_halo * gamma_scale;
         highp float gamma_scaled_halo = gamma_halo * gamma_scale;
         highp float alpha_halo = smoothstep(inner_edge_halo - gamma_scaled_halo, inner_edge_halo + gamma_scaled_halo, dist);
 

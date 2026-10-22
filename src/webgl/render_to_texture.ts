@@ -69,6 +69,8 @@ export class RenderToTexture {
      * a list of all layer-ids which should be rendered
      */
     _renderableLayerIds: string[];
+    /** With `drapeBeneath`, this frame's visible draped layers, in style order; else null. */
+    _drapedLayerIds: string[] | null = null;
     /**
      * the zoom of the previous prepareForRender call
      */
@@ -85,10 +87,11 @@ export class RenderToTexture {
      * extrusions with lines and fills pays that many times over; over terrain they draw above the draped
      * ground either way.
      */
-    drapeBeneath: boolean = false;
-    constructor(painter: Painter, terrain: Terrain) {
+    readonly drapeBeneath: boolean;
+    constructor(painter: Painter, terrain: Terrain, drapeBeneath = false) {
         this.painter = painter;
         this.terrain = terrain;
+        this.drapeBeneath = drapeBeneath;
         this.rttSize = terrain.tileManager.tileSize * terrain.qualityFactor;
     }
 
@@ -113,7 +116,9 @@ export class RenderToTexture {
         this._rttTiles = [];
         this._renderableTiles = this.terrain.tileManager.getRenderableTiles();
         this._renderableLayerIds = style._order.filter(id => !style._layers[id].isHidden(zoom));
-        const visibleLayerIds = this._renderableLayerIds.join();
+        // Draped beneath, a texture holds only the draped layers: a label entering its zoom range leaves it as it is.
+        this._drapedLayerIds = this.drapeBeneath ? this._renderableLayerIds.filter(id => LAYERS_TO_TEXTURES[style._layers[id].type]) : null;
+        const visibleLayerIds = (this._drapedLayerIds ?? this._renderableLayerIds).join();
 
         const rttSourceIds = new Set<string>();
         for (const layerId of this._renderableLayerIds) {
@@ -196,12 +201,13 @@ export class RenderToTexture {
         if (layer.isHidden(this.painter.transform.zoom)) return false;
 
         const type = layer.type;
-        if (this.drapeBeneath) {
-            if (!LAYERS_TO_TEXTURES[type]) return false;
-            if (this._stacks.length) return true;
-            this._stacks.push(this._renderableLayerIds.filter(id => LAYERS_TO_TEXTURES[this.painter.style._layers[id].type]));
-            this._renderStack(renderContext);
-            return true;
+        if (this._drapedLayerIds) {
+            // Draped on the first visible layer, whatever its type, so nothing is drawn under the terrain pass.
+            if (!this._stacks.length && this._drapedLayerIds.length) {
+                this._stacks.push(this._drapedLayerIds);
+                this._renderStack(renderContext);
+            }
+            return !!LAYERS_TO_TEXTURES[type];
         }
         const painter = this.painter;
         const isLastLayer = this._renderableLayerIds[this._renderableLayerIds.length - 1] === layer.id;

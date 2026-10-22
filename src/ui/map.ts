@@ -278,10 +278,11 @@ export type MapOptions = {
      */
     maxTileCacheZoomLevels?: number;
     /**
-     * With terrain, drape every background, fill, line, raster and hillshade layer beneath all other layers, in
-     * style order among themselves, rather than in as many textures and terrain passes as there are runs of them
-     * between other layers. Symbols, circles, extrusions and custom layers then draw above all of the draped
-     * ground. Much cheaper for a style that interleaves them.
+     * With terrain, drape every background, fill, line, raster, hillshade and color-relief layer beneath all
+     * other layers, in style order among themselves, rather than in as many textures and terrain passes as there
+     * are runs of them between other layers. Symbols, circles, extrusions and custom layers then draw above all of
+     * the draped ground, and a layer entering or leaving its zoom range re-renders the textures only if it is draped.
+     * Much cheaper for a style that interleaves them.
      * @defaultValue false
      */
     drapeBeneath?: boolean;
@@ -3003,8 +3004,7 @@ export class Map extends Evented<MapEventType> {
                 this.terrain.destroy();
             }
             this.terrain = new Terrain(this.painter, tileManager, options, this._terrainSkirtLength);
-            this.painter.renderToTexture = new RenderToTexture(this.painter, this.terrain);
-            this.painter.renderToTexture.drapeBeneath = this._drapeBeneath;
+            this.painter.renderToTexture = new RenderToTexture(this.painter, this.terrain, this._drapeBeneath);
             this._camera.setTerrain(this.terrain);
             this._terrainDataCallback = e => this._handleTerrainDataEvent(e, options.source);
             this.style.on('data', this._terrainDataCallback);

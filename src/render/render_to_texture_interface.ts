@@ -14,7 +14,7 @@ export interface IRenderToTexture {
      */
     needsFollowUpFrame: boolean;
     /** Whether every render-to-texture layer is draped in one texture beneath all other layers; see `MapOptions.drapeBeneath`. */
-    drapeBeneath: boolean;
+    readonly drapeBeneath: boolean;
     prepareForRender(style: Style, zoom: number): void;
     renderLayer(layer: StyleLayer, renderContext: RenderContext): boolean;
     getTexture(tile: Tile): any;

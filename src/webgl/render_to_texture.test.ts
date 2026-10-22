@@ -223,6 +223,26 @@ describe('render to texture', () => {
         expect(layersDrawn).toBe(2);
     });
 
+    test('drapes every rtt layer in one stack and one terrain pass beneath the symbols between them', () => {
+        style._order = ['maine-background', 'maine-fill', 'maine-symbol', 'maine-line', 'maine-symbol'];
+        rtt.drapeBeneath = true;
+        rtt.prepareForRender(style, 0);
+        layersDrawn = 0;
+        const renderLayerSpy = vi.spyOn(painter, 'renderLayer');
+        renderLayerSpy.mockClear();
+        const renderContext = createRenderContext(painter.transform, undefined, terrain);
+        expect(rtt.renderLayer(backgroundLayer, renderContext)).toBeTruthy();
+        expect(rtt._stacks).toStrictEqual([['maine-background', 'maine-fill', 'maine-line']]);
+        expect(renderLayerSpy.mock.calls.map(c => c[2].id)).toStrictEqual(['maine-background', 'maine-fill', 'maine-line']);
+        expect(rtt.renderLayer(fillLayer, renderContext)).toBeTruthy();
+        expect(rtt.renderLayer(symbolLayer, renderContext)).toBeFalsy();
+        expect(rtt.renderLayer(lineLayer, renderContext)).toBeTruthy();
+        expect(rtt.renderLayer(symbolLayer, renderContext)).toBeFalsy();
+        expect(layersDrawn).toBe(1);
+        expect(renderLayerSpy).toHaveBeenCalledTimes(3);
+        rtt.drapeBeneath = false;
+    });
+
     test('render more symbols between rtt layers', () => {
         style._order = ['maine-background', 'maine-symbol', 'maine-hillshade', 'maine-symbol', 'maine-line', 'maine-symbol'];
         rtt.prepareForRender(style, 0);

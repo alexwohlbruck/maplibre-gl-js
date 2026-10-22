@@ -13,6 +13,8 @@ export interface IRenderToTexture {
      * textures rendered at another zoom, and stale textures beyond the per-frame budget.
      */
     needsFollowUpFrame: boolean;
+    /** Whether every render-to-texture layer is draped in one texture beneath all other layers; see `MapOptions.drapeBeneath`. */
+    drapeBeneath: boolean;
     prepareForRender(style: Style, zoom: number): void;
     renderLayer(layer: StyleLayer, renderContext: RenderContext): boolean;
     getTexture(tile: Tile): any;

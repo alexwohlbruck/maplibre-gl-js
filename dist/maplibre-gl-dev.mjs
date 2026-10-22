@@ -24340,6 +24340,7 @@ const LAYERS_TO_TEXTURES = {
 var RenderToTexture = class {
 	constructor(painter, terrain) {
 		this.needsFollowUpFrame = false;
+		this.drapeBeneath = false;
 		this.painter = painter;
 		this.terrain = terrain;
 		this.rttSize = terrain.tileManager.tileSize * terrain.qualityFactor;
@@ -24434,7 +24435,14 @@ var RenderToTexture = class {
 	renderLayer(layer, renderContext) {
 		if (layer.isHidden(this.painter.transform.zoom)) return false;
 		const type = layer.type;
-		const painter = this.painter;
+		if (this.drapeBeneath) {
+			if (!LAYERS_TO_TEXTURES[type]) return false;
+			if (this._stacks.length) return true;
+			this._stacks.push(this._renderableLayerIds.filter((id) => LAYERS_TO_TEXTURES[this.painter.style._layers[id].type]));
+			this._renderStack(renderContext);
+			return true;
+		}
+		this.painter;
 		const isLastLayer = this._renderableLayerIds[this._renderableLayerIds.length - 1] === layer.id;
 		if (LAYERS_TO_TEXTURES[type]) {
 			if (!this._prevType || !LAYERS_TO_TEXTURES[this._prevType]) this._stacks.push([]);
@@ -24444,39 +24452,44 @@ var RenderToTexture = class {
 		}
 		if (LAYERS_TO_TEXTURES[this._prevType] || LAYERS_TO_TEXTURES[type] && isLastLayer) {
 			this._prevType = type;
-			const stack = this._stacks.length - 1, layers = this._stacks[stack] || [];
-			renderContext.isRenderingToTexture = true;
-			for (const tile of this._renderableTiles) {
-				this._rttTiles.push(tile);
-				if (tile.getRTT(stack)) continue;
-				const obj = tile.acquireRTT(painter, stack, this.rttSize);
-				painter.bindRTT(obj);
-				painter.context.clear({
-					color: Color.transparent,
-					stencil: 0
-				});
-				painter.currentStencilSource = void 0;
-				for (const layerId of layers) {
-					const layer = painter.style._layers[layerId];
-					const coords = layer.source ? this._coordsAscending[layer.source][tile.tileID.key] : [tile.tileID];
-					painter.context.viewport.set([
-						0,
-						0,
-						this.rttSize,
-						this.rttSize
-					]);
-					painter.renderTileClippingMasks(layer, coords);
-					painter.renderLayer(painter, painter.style.tileManagers[layer.source], layer, coords, renderContext);
-					if (layer.source) tile.rttFingerprint[layer.source] = this._rttFingerprints[layer.source][tile.tileID.key];
-				}
-				obj.texture.generateMipmap();
-			}
-			renderContext.isRenderingToTexture = false;
-			drawTerrain(this.painter, this.terrain, this._rttTiles, renderContext);
-			this._rttTiles = [];
+			this._renderStack(renderContext);
 			return LAYERS_TO_TEXTURES[type];
 		}
 		return false;
+	}
+	/** Render the last stack into each terrain tile's texture where it is not cached, then drape them. */
+	_renderStack(renderContext) {
+		const painter = this.painter;
+		const stack = this._stacks.length - 1, layers = this._stacks[stack] || [];
+		renderContext.isRenderingToTexture = true;
+		for (const tile of this._renderableTiles) {
+			this._rttTiles.push(tile);
+			if (tile.getRTT(stack)) continue;
+			const obj = tile.acquireRTT(painter, stack, this.rttSize);
+			painter.bindRTT(obj);
+			painter.context.clear({
+				color: Color.transparent,
+				stencil: 0
+			});
+			painter.currentStencilSource = void 0;
+			for (const layerId of layers) {
+				const layer = painter.style._layers[layerId];
+				const coords = layer.source ? this._coordsAscending[layer.source][tile.tileID.key] : [tile.tileID];
+				painter.context.viewport.set([
+					0,
+					0,
+					this.rttSize,
+					this.rttSize
+				]);
+				painter.renderTileClippingMasks(layer, coords);
+				painter.renderLayer(painter, painter.style.tileManagers[layer.source], layer, coords, renderContext);
+				if (layer.source) tile.rttFingerprint[layer.source] = this._rttFingerprints[layer.source][tile.tileID.key];
+			}
+			obj.texture.generateMipmap();
+		}
+		renderContext.isRenderingToTexture = false;
+		drawTerrain(this.painter, this.terrain, this._rttTiles, renderContext);
+		this._rttTiles = [];
 	}
 };
 //#endregion
@@ -24556,6 +24569,7 @@ const defaultOptions$4 = {
 	renderWorldCopies: true,
 	maxTileCacheSize: null,
 	maxTileCacheZoomLevels: config.MAX_TILE_CACHE_ZOOM_LEVELS,
+	drapeBeneath: false,
 	transformRequest: null,
 	transformCameraUpdate: null,
 	transformConstrain: null,
@@ -24715,6 +24729,7 @@ var Map$1 = class extends Evented {
 		this._interactive = resolvedOptions.interactive;
 		this._maxTileCacheSize = resolvedOptions.maxTileCacheSize;
 		this._maxTileCacheZoomLevels = resolvedOptions.maxTileCacheZoomLevels;
+		this._drapeBeneath = resolvedOptions.drapeBeneath;
 		this._canvasContextAttributes = { ...resolvedOptions.canvasContextAttributes };
 		this._trackResize = resolvedOptions.trackResize === true;
 		this._terrainSkirtLength = resolvedOptions.terrainSkirtLength;
@@ -26548,6 +26563,7 @@ var Map$1 = class extends Evented {
 			if (this.terrain) this.terrain.destroy();
 			this.terrain = new Terrain(this.painter, tileManager, options, this._terrainSkirtLength);
 			this.painter.renderToTexture = new RenderToTexture(this.painter, this.terrain);
+			this.painter.renderToTexture.drapeBeneath = this._drapeBeneath;
 			this._camera.setTerrain(this.terrain);
 			this._terrainDataCallback = (e) => this._handleTerrainDataEvent(e, options.source);
 			this.style.on("data", this._terrainDataCallback);

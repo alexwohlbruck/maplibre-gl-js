@@ -6223,7 +6223,7 @@ interface IRenderToTexture {
    */
   needsFollowUpFrame: boolean;
   /** Whether every render-to-texture layer is draped in one texture beneath all other layers; see `MapOptions.drapeBeneath`. */
-  drapeBeneath: boolean;
+  readonly drapeBeneath: boolean;
   prepareForRender(style: Style, zoom: number): void;
   renderLayer(layer: StyleLayer, renderContext: RenderContext): boolean;
   getTexture(tile: Tile): any;
@@ -12877,10 +12877,11 @@ type MapOptions = {
    */
   maxTileCacheZoomLevels?: number;
   /**
-   * With terrain, drape every background, fill, line, raster and hillshade layer beneath all other layers, in
-   * style order among themselves, rather than in as many textures and terrain passes as there are runs of them
-   * between other layers. Symbols, circles, extrusions and custom layers then draw above all of the draped
-   * ground. Much cheaper for a style that interleaves them.
+   * With terrain, drape every background, fill, line, raster, hillshade and color-relief layer beneath all
+   * other layers, in style order among themselves, rather than in as many textures and terrain passes as there
+   * are runs of them between other layers. Symbols, circles, extrusions and custom layers then draw above all of
+   * the draped ground, and a layer entering or leaving its zoom range re-renders the textures only if it is draped.
+   * Much cheaper for a style that interleaves them.
    * @defaultValue false
    */
   drapeBeneath?: boolean;

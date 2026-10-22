@@ -24338,11 +24338,12 @@ const LAYERS_TO_TEXTURES = {
 * via the painter's RTT pool.
 */
 var RenderToTexture = class {
-	constructor(painter, terrain) {
+	constructor(painter, terrain, drapeBeneath = false) {
+		this._drapedLayerIds = null;
 		this.needsFollowUpFrame = false;
-		this.drapeBeneath = false;
 		this.painter = painter;
 		this.terrain = terrain;
+		this.drapeBeneath = drapeBeneath;
 		this.rttSize = terrain.tileManager.tileSize * terrain.qualityFactor;
 	}
 	getTexture(tile) {
@@ -24365,7 +24366,8 @@ var RenderToTexture = class {
 		this._rttTiles = [];
 		this._renderableTiles = this.terrain.tileManager.getRenderableTiles();
 		this._renderableLayerIds = style._order.filter((id) => !style._layers[id].isHidden(zoom));
-		const visibleLayerIds = this._renderableLayerIds.join();
+		this._drapedLayerIds = this.drapeBeneath ? this._renderableLayerIds.filter((id) => LAYERS_TO_TEXTURES[style._layers[id].type]) : null;
+		const visibleLayerIds = (this._drapedLayerIds ?? this._renderableLayerIds).join();
 		const rttSourceIds = /* @__PURE__ */ new Set();
 		for (const layerId of this._renderableLayerIds) {
 			const layer = style._layers[layerId];
@@ -24435,12 +24437,12 @@ var RenderToTexture = class {
 	renderLayer(layer, renderContext) {
 		if (layer.isHidden(this.painter.transform.zoom)) return false;
 		const type = layer.type;
-		if (this.drapeBeneath) {
-			if (!LAYERS_TO_TEXTURES[type]) return false;
-			if (this._stacks.length) return true;
-			this._stacks.push(this._renderableLayerIds.filter((id) => LAYERS_TO_TEXTURES[this.painter.style._layers[id].type]));
-			this._renderStack(renderContext);
-			return true;
+		if (this._drapedLayerIds) {
+			if (!this._stacks.length && this._drapedLayerIds.length) {
+				this._stacks.push(this._drapedLayerIds);
+				this._renderStack(renderContext);
+			}
+			return !!LAYERS_TO_TEXTURES[type];
 		}
 		this.painter;
 		const isLastLayer = this._renderableLayerIds[this._renderableLayerIds.length - 1] === layer.id;
@@ -26562,8 +26564,7 @@ var Map$1 = class extends Evented {
 			}
 			if (this.terrain) this.terrain.destroy();
 			this.terrain = new Terrain(this.painter, tileManager, options, this._terrainSkirtLength);
-			this.painter.renderToTexture = new RenderToTexture(this.painter, this.terrain);
-			this.painter.renderToTexture.drapeBeneath = this._drapeBeneath;
+			this.painter.renderToTexture = new RenderToTexture(this.painter, this.terrain, this._drapeBeneath);
 			this._camera.setTerrain(this.terrain);
 			this._terrainDataCallback = (e) => this._handleTerrainDataEvent(e, options.source);
 			this.style.on("data", this._terrainDataCallback);

@@ -1,4 +1,4 @@
-import {beforeEach, describe, test, expect, vi} from 'vitest';
+import {afterEach, beforeEach, describe, test, expect, vi} from 'vitest';
 import {RenderToTexture} from './render_to_texture.ts';
 import {RTTFingerprint} from './rtt_fingerprint.ts';
 import {createRenderContext} from '../render/render_context.ts';
@@ -221,6 +221,45 @@ describe('render to texture', () => {
         expect(rtt.renderLayer(lineLayer, renderContext)).toBeTruthy();
         expect(rtt.renderLayer(symbolLayer, renderContext)).toBeFalsy();
         expect(layersDrawn).toBe(2);
+    });
+
+    describe('draped beneath', () => {
+        const beneath = new RenderToTexture(painter, terrain, true);
+        const renderContext = () => createRenderContext(painter.transform, undefined, terrain);
+        const frame = (order: string[]) => {
+            style._order = order;
+            beneath.prepareForRender(style, 0);
+            const ctx = renderContext();
+            return order.map(id => beneath.renderLayer(style._layers[id], ctx));
+        };
+        beforeEach(() => { painter.renderToTexture = beneath; });
+        afterEach(() => {
+            painter.renderToTexture = rtt;
+            vi.mocked(painter.renderLayer).mockClear();
+        });
+
+        test('drapes every rtt layer in one stack and one terrain pass, beneath the symbols between them', () => {
+            layersDrawn = 0;
+            expect(frame(['maine-symbol', 'maine-background', 'maine-fill', 'maine-symbol', 'maine-line'])).toStrictEqual([false, true, true, false, true]);
+            expect(beneath._stacks).toStrictEqual([['maine-background', 'maine-fill', 'maine-line']]);
+            expect(vi.mocked(painter.renderLayer).mock.calls.map(c => c[2].id)).toStrictEqual(['maine-background', 'maine-fill', 'maine-line']);
+            expect(layersDrawn).toBe(1);
+        });
+
+        test('keeps its texture from frame to frame, and when only a label enters its zoom range', () => {
+            frame(['maine-fill', 'maine-line']);
+            vi.mocked(painter.renderLayer).mockClear();
+            frame(['maine-fill', 'maine-line']);
+            frame(['maine-fill', 'maine-symbol', 'maine-line']);
+            expect(painter.renderLayer).not.toHaveBeenCalled();
+        });
+
+        test('draws nothing on the terrain where no layer is draped', () => {
+            layersDrawn = 0;
+            expect(frame(['maine-symbol'])).toStrictEqual([false]);
+            expect(beneath._stacks).toStrictEqual([]);
+            expect(layersDrawn).toBe(0);
+        });
     });
 
     test('render more symbols between rtt layers', () => {

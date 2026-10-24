@@ -233,7 +233,7 @@ describe('render-to-texture follow-up frame', () => {
     test('keeps rendering, deferring idle, until the follow-up frame is no longer needed', async () => {
         const map = createMap();
         await map.once('idle');
-        const rtt = {needsFollowUpFrame: true, prepareForRender: () => {}, renderLayer: () => false, getTexture: () => null};
+        const rtt = {needsFollowUpFrame: true, drapeBeneath: false, prepareForRender: () => {}, renderLayer: () => false, getTexture: () => null};
         map.painter.renderToTexture = rtt;
         const idle = vi.fn();
         map.on('idle', idle);

@@ -278,6 +278,15 @@ export type MapOptions = {
      */
     maxTileCacheZoomLevels?: number;
     /**
+     * With terrain, drape every background, fill, line, raster, hillshade and color-relief layer beneath all
+     * other layers, in style order among themselves, rather than in as many textures and terrain passes as there
+     * are runs of them between other layers. Symbols, circles, extrusions and custom layers then draw above all of
+     * the draped ground, and a layer entering or leaving its zoom range re-renders the textures only if it is draped.
+     * Much cheaper for a style that interleaves them.
+     * @defaultValue false
+     */
+    drapeBeneath?: boolean;
+    /**
      * A callback run before the Map makes a request for an external URL. The callback can be used to modify the url, set headers, or set the credentials property for cross-origin requests.
      * Expected to return an object with a `url` property and optionally `headers` and `credentials` properties.
      * @defaultValue null
@@ -541,6 +550,7 @@ const defaultOptions: Readonly<Partial<MapOptions>> = {
     renderWorldCopies: true,
     maxTileCacheSize: null,
     maxTileCacheZoomLevels: config.MAX_TILE_CACHE_ZOOM_LEVELS,
+    drapeBeneath: false,
     transformRequest: null,
     transformCameraUpdate: null,
     transformConstrain: null,
@@ -614,6 +624,7 @@ export class Map extends Evented<MapEventType> {
     _canvas: HTMLCanvasElement;
     _maxTileCacheSize: number | null;
     _maxTileCacheZoomLevels: number;
+    _drapeBeneath: boolean;
     _frameRequest: AbortController;
     _styleDirty: boolean;
     _sourcesDirty: boolean;
@@ -785,6 +796,7 @@ export class Map extends Evented<MapEventType> {
         this._interactive = resolvedOptions.interactive;
         this._maxTileCacheSize = resolvedOptions.maxTileCacheSize;
         this._maxTileCacheZoomLevels = resolvedOptions.maxTileCacheZoomLevels;
+        this._drapeBeneath = resolvedOptions.drapeBeneath;
         this._canvasContextAttributes = {...resolvedOptions.canvasContextAttributes};
         this._trackResize = resolvedOptions.trackResize === true;
         this._terrainSkirtLength = resolvedOptions.terrainSkirtLength;
@@ -2992,7 +3004,7 @@ export class Map extends Evented<MapEventType> {
                 this.terrain.destroy();
             }
             this.terrain = new Terrain(this.painter, tileManager, options, this._terrainSkirtLength);
-            this.painter.renderToTexture = new RenderToTexture(this.painter, this.terrain);
+            this.painter.renderToTexture = new RenderToTexture(this.painter, this.terrain, this._drapeBeneath);
             this._camera.setTerrain(this.terrain);
             this._terrainDataCallback = e => this._handleTerrainDataEvent(e, options.source);
             this.style.on('data', this._terrainDataCallback);

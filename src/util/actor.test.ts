@@ -163,6 +163,23 @@ describe('Actor', () => {
         expect(spy).not.toHaveBeenCalled();
     });
 
+    test('a queued DEM decode runs before the tasks queued ahead of it', async () => {
+        const worker = await workerFactory() as any as WorkerGlobalScopeInterface & ActorTarget;
+        const actor = new Actor(worker, '1');
+        const order: string[] = [];
+        worker.worker.actor.registerMessageHandler(MessageType.getClusterExpansionZoom, async () => { order.push('vector'); return 0; });
+        worker.worker.actor.registerMessageHandler(MessageType.loadDEMTile, async () => { order.push('dem'); return null; });
+        worker.worker.actor.invoker.trigger = () => {};
+
+        const vector = actor.sendAsync({type: MessageType.getClusterExpansionZoom, data: {} as any, mustQueue: true});
+        const dem = actor.sendAsync({type: MessageType.loadDEMTile, data: {} as any, mustQueue: true});
+        await sleep(50);
+        worker.worker.actor.process();
+        worker.worker.actor.process();
+        await Promise.all([vector, dem]);
+        expect(order).toEqual(['dem', 'vector']);
+    });
+
     test('remove unbinds event listener', () => {
         const addEventListenerSpy = vi.fn();
         const removeEventListenerSpy = vi.fn();

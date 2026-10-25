@@ -3,8 +3,8 @@ import {AbortError} from './abort_error.ts';
 import {serialize, deserialize, type Serialized} from './web_worker_transfer.ts';
 import {ThrottledInvoker} from './throttled_invoker.ts';
 
+import {MessageType} from './actor_messages.ts';
 import type {
-    MessageType,
     ActorMessage,
     RequestResponseMessageMap,
 } from './actor_messages.ts';
@@ -184,7 +184,9 @@ export class Actor implements IActor {
             // messages can be processed. We're using a MessageChannel object to get throttle the
             // process() flow to one at a time.
             this.tasks[id] = data;
-            this.taskQueue.push(id);
+            // Terrain under the camera waits on this one decode; vector tile parses can queue behind it.
+            if (data.type === MessageType.loadDEMTile) this.taskQueue.unshift(id);
+            else this.taskQueue.push(id);
             this.invoker.trigger();
             return;
         }

@@ -29096,8 +29096,8 @@ var Actor = class {
 		}
 		if (isWorker(self) || data.mustQueue) {
 			this.tasks[id] = data;
-			if (data.type === "LDT") this.taskQueue.unshift(id);
-			else this.taskQueue.push(id);
+			const ahead = data.type === "LDT" ? this.taskQueue.findIndex((queued) => this.tasks[queued]?.type !== "LDT") : -1;
+			this.taskQueue.splice(ahead < 0 ? this.taskQueue.length : ahead, 0, id);
 			this.invoker.trigger();
 			return;
 		}

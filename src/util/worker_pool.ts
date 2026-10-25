@@ -16,10 +16,12 @@ export class WorkerPool {
         [_ in number | string]: boolean;
     };
     workersPromise: Promise<ActorTarget[]> | null;
+    terrainWorkerPromise: Promise<ActorTarget> | null;
 
     constructor() {
         this.active = {};
         this.workersPromise = null;
+        this.terrainWorkerPromise = null;
     }
 
     async acquire(mapId: number | string): Promise<ActorTarget[]> {
@@ -34,8 +36,21 @@ export class WorkerPool {
         return (await this.workersPromise).slice();
     }
 
+    /**
+     * A worker kept for terrain (DEM) decodes alone, so one never waits on a tile parse already running.
+     */
+    acquireTerrain(): Promise<ActorTarget> {
+        this.terrainWorkerPromise ||= workerFactory();
+        return this.terrainWorkerPromise;
+    }
+
     release(mapId: number | string): void {
         delete this.active[mapId];
+        if (this.numActive() === 0 && this.terrainWorkerPromise) {
+            const promise = this.terrainWorkerPromise;
+            this.terrainWorkerPromise = null;
+            promise.then(worker => worker.terminate());
+        }
         if (this.numActive() === 0 && this.workersPromise) {
             const promise = this.workersPromise;
             this.workersPromise = null;

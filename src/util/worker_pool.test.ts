@@ -40,4 +40,21 @@ describe('WorkerPool', () => {
         expect(workersTerminated).toBe(4);
         expect(pool.workersPromise).toBeFalsy();
     });
+
+    test('keeps one terrain worker apart from the tile workers, ended with the pool', async () => {
+        Object.defineProperty(WorkerPool, 'workerCount', {value: 2});
+
+        const pool = new WorkerPool();
+        const workers = await pool.acquire('map-1');
+        const terrain = await pool.acquireTerrain();
+        expect(workers).not.toContain(terrain);
+        expect(await pool.acquireTerrain()).toBe(terrain);
+
+        let terminated = false;
+        terrain.terminate = () => { terminated = true; };
+        pool.release('map-1');
+        await Promise.resolve();
+        expect(terminated).toBe(true);
+        expect(pool.terrainWorkerPromise).toBeFalsy();
+    });
 });

@@ -19,6 +19,7 @@ export class Dispatcher extends Evented<ErrorEventType> {
     id: string | number;
     private removed: boolean;
     private workerErrorSubscriptions: Subscription[];
+    private terrainActor: Promise<Actor> | null = null;
 
     constructor(workerPool: WorkerPool, mapId: string | number) {
         super();
@@ -75,8 +76,26 @@ export class Dispatcher extends Evented<ErrorEventType> {
         return this.actors[this.currentActor];
     }
 
+    /**
+     * The actor for terrain (DEM) decodes: a worker of their own, so terrain never waits behind vector tile work.
+     */
+    getTerrainActor(): Promise<Actor> {
+        this.terrainActor ||= this.workerPool.acquireTerrain().then(worker => {
+            const actor = new Actor(worker, this.id);
+            actor.name = 'Terrain worker';
+            return actor;
+        });
+        return this.terrainActor;
+    }
+
     remove(mapRemoved: boolean = true): void {
         this.removed = true;
+        const terrain = this.terrainActor;
+        this.terrainActor = null;
+        terrain?.then(actor => {
+            if (mapRemoved) actor.sendAsync({type: MessageType.removeMap, data: undefined}).catch(() => {});
+            actor.remove();
+        });
         for (const actor of this.actors) {
             actor.remove();
         }

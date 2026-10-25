@@ -72,6 +72,29 @@ describe('Dispatcher', () => {
         expect(actorsRemoved).toHaveLength(4);
     });
 
+    test('terrain goes to a worker of its own, told when the map is removed', async () => {
+        const workers = [await workerFactory()];
+        const terrainWorker = await workerFactory();
+        const sent = [];
+        terrainWorker.postMessage = (message) => { sent.push(message.type); };
+        const workerPool = {
+            acquire: () => Promise.resolve(workers),
+            acquireTerrain: () => Promise.resolve(terrainWorker),
+            release: () => {}
+        } as any as WorkerPool;
+
+        const dispatcher = new Dispatcher(workerPool, 1);
+        await dispatcher.actorsPromise;
+        const terrain = await dispatcher.getTerrainActor();
+        expect(terrain.target).toBe(terrainWorker);
+        expect(dispatcher.actors.map(actor => actor.target)).not.toContain(terrainWorker);
+        expect(await dispatcher.getTerrainActor()).toBe(terrain);
+
+        dispatcher.remove();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(sent).toEqual(['RM']);
+    });
+
     test('fires worker errors through Evented', async () => {
         const worker = new EventTarget() as ActorTarget & EventTarget;
         worker.postMessage = vi.fn();

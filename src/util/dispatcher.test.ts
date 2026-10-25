@@ -95,6 +95,14 @@ describe('Dispatcher', () => {
         expect(sent).toEqual(['RM']);
     });
 
+    test('a removed dispatcher starts no terrain worker', async () => {
+        const acquireTerrain = vi.fn();
+        const dispatcher = new Dispatcher({acquire: () => Promise.resolve([]), acquireTerrain, release: () => {}} as any as WorkerPool, 1);
+        dispatcher.remove();
+        await expect(dispatcher.getTerrainActor()).rejects.toThrow();
+        expect(acquireTerrain).not.toHaveBeenCalled();
+    });
+
     test('fires worker errors through Evented', async () => {
         const worker = new EventTarget() as ActorTarget & EventTarget;
         worker.postMessage = vi.fn();

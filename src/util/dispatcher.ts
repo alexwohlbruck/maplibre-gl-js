@@ -80,7 +80,11 @@ export class Dispatcher extends Evented<ErrorEventType> {
      * The actor for terrain (DEM) decodes: a worker of their own, so terrain never waits behind vector tile work.
      */
     getTerrainActor(): Promise<Actor> {
+        if (this.removed) return Promise.reject(new Error('Dispatcher removed'));
         this.terrainActor ||= this.workerPool.acquireTerrain().then(worker => {
+            if (!this.removed) this.workerErrorSubscriptions.push(subscribe(worker, 'error', () => {
+                this.fire(new ErrorEvent(new Error('Worker failed to load. Check that the worker URL is correct.')));
+            }, false));
             const actor = new Actor(worker, this.id);
             actor.name = 'Terrain worker';
             return actor;

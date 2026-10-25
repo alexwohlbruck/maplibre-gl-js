@@ -153,6 +153,9 @@ export function getWrapDispatcher(): (actor: IActor) => Dispatcher {
             },
             getReadyActor() {
                 return actor;
+            },
+            getTerrainActor() {
+                return Promise.resolve(actor);
             }
         } as any as Dispatcher;
     };

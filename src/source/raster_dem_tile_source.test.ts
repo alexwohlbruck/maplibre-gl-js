@@ -5,6 +5,7 @@ import {OverscaledTileID} from '../tile/tile_id.ts';
 import {RequestManager} from '../util/request_manager.ts';
 import {ImageRequest} from '../util/image_request.ts';
 import {getMockDispatcher} from '../util/test/util.ts';
+import {MessageType} from '../util/actor_messages.ts';
 import {sleep, waitForEvent, waitForMetadataEvent} from '../util/test/util.ts';
 
 import type {Tile} from '../tile/tile.ts';
@@ -132,6 +133,33 @@ describe('RasterDEMTileSource', () => {
         expect(tile.state).toBe('loaded');
         expect(tile.dem).toBeUndefined();
         expect((tile.actor as any).sendAsync).not.toHaveBeenCalled();
+    });
+
+    test('decodes a tile on the terrain actor', async () => {
+        server.respondWith('/source.json', JSON.stringify({
+            minzoom: 0,
+            maxzoom: 22,
+            tiles: ['http://example.com/{z}/{x}/{y}.png']
+        }));
+        const source = createSource({url: '/source.json'});
+        const terrain = {sendAsync: vi.fn().mockResolvedValue({})};
+        source.dispatcher.getTerrainActor = () => Promise.resolve(terrain as any);
+        vi.spyOn(ImageRequest, 'getImage').mockResolvedValue({data: {width: 1, height: 1} as any});
+        vi.spyOn(source, 'readImageNow').mockResolvedValue({} as any);
+        const promise = waitForMetadataEvent(source);
+        await sleep(0);
+        server.respond();
+        await promise;
+        const tile = {
+            tileID: new OverscaledTileID(10, 0, 10, 5, 5),
+            state: 'loading',
+            setExpiryData() {}
+        } as any as Tile;
+        await source.loadTile(tile);
+
+        expect(tile.actor).toBe(terrain);
+        expect(terrain.sendAsync).toHaveBeenCalledWith(expect.objectContaining({type: MessageType.loadDEMTile}));
+        expect(tile.state).toBe('loaded');
     });
 
     test('can asynchronously transform tile request', async () => {

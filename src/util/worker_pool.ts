@@ -46,12 +46,13 @@ export class WorkerPool {
 
     release(mapId: number | string): void {
         delete this.active[mapId];
-        if (this.numActive() === 0 && this.terrainWorkerPromise) {
+        if (this.numActive() > 0) return;
+        if (this.terrainWorkerPromise) {
             const promise = this.terrainWorkerPromise;
             this.terrainWorkerPromise = null;
             promise.then(worker => worker.terminate());
         }
-        if (this.numActive() === 0 && this.workersPromise) {
+        if (this.workersPromise) {
             const promise = this.workersPromise;
             this.workersPromise = null;
             promise.then(workers => {

@@ -17,6 +17,7 @@ import type {Dispatcher} from '../util/dispatcher.ts';
 import type {Tile} from '../tile/tile.ts';
 import type {RasterDEMSourceSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {Evented} from '../util/evented.ts';
+import type {Map} from '../ui/map.ts';
 
 /**
  * A source containing raster DEM tiles (See the [Style Specification](https://maplibre.org/maplibre-style-spec/) for detailed documentation of options.)
@@ -51,6 +52,12 @@ export class RasterDEMTileSource extends RasterTileSource implements Source {
         this.greenFactor = options.greenFactor;
         this.blueFactor = options.blueFactor;
         this.baseShift = options.baseShift;
+    }
+
+    override onAdd(map: Map): void {
+        super.onAdd(map);
+        // Started with the source, so the first tile does not wait on the worker booting.
+        this.dispatcher.getTerrainActor().catch(() => {});
     }
 
     override async loadTile(tile: Tile): Promise<void> {

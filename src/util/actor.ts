@@ -184,9 +184,9 @@ export class Actor implements IActor {
             // messages can be processed. We're using a MessageChannel object to get throttle the
             // process() flow to one at a time.
             this.tasks[id] = data;
-            // Terrain under the camera waits on this one decode; vector tile parses can queue behind it.
-            if (data.type === MessageType.loadDEMTile) this.taskQueue.unshift(id);
-            else this.taskQueue.push(id);
+            // DEM decodes jump the queue, in arrival order, so terrain isn't held behind tile parses.
+            const ahead = data.type === MessageType.loadDEMTile ? this.taskQueue.findIndex(queued => this.tasks[queued]?.type !== MessageType.loadDEMTile) : -1;
+            this.taskQueue.splice(ahead < 0 ? this.taskQueue.length : ahead, 0, id);
             this.invoker.trigger();
             return;
         }

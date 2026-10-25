@@ -163,21 +163,23 @@ describe('Actor', () => {
         expect(spy).not.toHaveBeenCalled();
     });
 
-    test('a queued DEM decode runs before the tasks queued ahead of it', async () => {
+    test('queued DEM decodes run before the tasks queued ahead of them, in the order they came', async () => {
         const worker = await workerFactory() as any as WorkerGlobalScopeInterface & ActorTarget;
         const actor = new Actor(worker, '1');
         const order: string[] = [];
-        worker.worker.actor.registerMessageHandler(MessageType.getClusterExpansionZoom, async () => { order.push('vector'); return 0; });
-        worker.worker.actor.registerMessageHandler(MessageType.loadDEMTile, async () => { order.push('dem'); return null; });
+        worker.worker.actor.registerMessageHandler(MessageType.getClusterExpansionZoom, async () => { order.push('other'); return 0; });
+        worker.worker.actor.registerMessageHandler(MessageType.loadDEMTile, async (_, params: any) => { order.push(`dem ${params.uid}`); return null; });
         worker.worker.actor.invoker.trigger = () => {};
 
-        const vector = actor.sendAsync({type: MessageType.getClusterExpansionZoom, data: {} as any, mustQueue: true});
-        const dem = actor.sendAsync({type: MessageType.loadDEMTile, data: {} as any, mustQueue: true});
+        const sent = [
+            actor.sendAsync({type: MessageType.getClusterExpansionZoom, data: {} as any, mustQueue: true}),
+            actor.sendAsync({type: MessageType.loadDEMTile, data: {uid: 1} as any, mustQueue: true}),
+            actor.sendAsync({type: MessageType.loadDEMTile, data: {uid: 2} as any, mustQueue: true}),
+        ];
         await sleep(50);
-        worker.worker.actor.process();
-        worker.worker.actor.process();
-        await Promise.all([vector, dem]);
-        expect(order).toEqual(['dem', 'vector']);
+        for (let i = 0; i < sent.length; i++) worker.worker.actor.process();
+        await Promise.all(sent);
+        expect(order).toEqual(['dem 1', 'dem 2', 'other']);
     });
 
     test('remove unbinds event listener', () => {

@@ -3253,8 +3253,13 @@ declare class WorkerPool {
   static workerCount: number;
   active: { [_ in number | string]: boolean; };
   workersPromise: Promise<ActorTarget[]> | null;
+  terrainWorkerPromise: Promise<ActorTarget> | null;
   constructor();
   acquire(mapId: number | string): Promise<ActorTarget[]>;
+  /**
+   * A worker kept for terrain (DEM) decodes alone, so one never waits on a tile parse already running.
+   */
+  acquireTerrain(): Promise<ActorTarget>;
   release(mapId: number | string): void;
   isPreloaded(): boolean;
   numActive(): number;
@@ -3272,6 +3277,7 @@ declare class Dispatcher extends Evented<ErrorEventType> {
   id: string | number;
   private removed;
   private workerErrorSubscriptions;
+  private terrainActor;
   constructor(workerPool: WorkerPool, mapId: string | number);
   private initActors;
   /**
@@ -3285,6 +3291,10 @@ declare class Dispatcher extends Evented<ErrorEventType> {
   getActor(): Promise<Actor>;
   waitForInitComplete(): Promise<void>;
   getReadyActor(): Actor;
+  /**
+   * The actor for terrain (DEM) decodes: a worker of their own, so terrain never waits behind vector tile work.
+   */
+  getTerrainActor(): Promise<Actor>;
   remove(mapRemoved?: boolean): void;
   registerMessageHandler<T extends MessageType>(type: T, handler: MessageHandler<T>): Promise<void>;
   unregisterMessageHandler<T extends MessageType>(type: T): Promise<void>;
@@ -17471,6 +17481,7 @@ export declare class RasterDEMTileSource extends RasterTileSource implements Sou
   blueFactor?: number;
   baseShift?: number;
   constructor(id: string, options: RasterDEMSourceSpecification, dispatcher: Dispatcher, eventedParent: Evented);
+  override onAdd(map: Map$1): void;
   override loadTile(tile: Tile): Promise<void>;
   readImageNow(img: ImageBitmap | HTMLImageElement): Promise<RGBAImage | ImageData>;
   _getNeighboringTiles(tileID: OverscaledTileID): Record<string, {

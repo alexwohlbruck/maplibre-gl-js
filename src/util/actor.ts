@@ -3,8 +3,8 @@ import {AbortError} from './abort_error.ts';
 import {serialize, deserialize, type Serialized} from './web_worker_transfer.ts';
 import {ThrottledInvoker} from './throttled_invoker.ts';
 
-import {MessageType} from './actor_messages.ts';
 import type {
+    MessageType,
     ActorMessage,
     RequestResponseMessageMap,
 } from './actor_messages.ts';
@@ -184,9 +184,7 @@ export class Actor implements IActor {
             // messages can be processed. We're using a MessageChannel object to get throttle the
             // process() flow to one at a time.
             this.tasks[id] = data;
-            // DEM decodes jump the queue, in arrival order, so terrain isn't held behind tile parses.
-            const ahead = data.type === MessageType.loadDEMTile ? this.taskQueue.findIndex(queued => this.tasks[queued]?.type !== MessageType.loadDEMTile) : -1;
-            this.taskQueue.splice(ahead < 0 ? this.taskQueue.length : ahead, 0, id);
+            this.taskQueue.push(id);
             this.invoker.trigger();
             return;
         }

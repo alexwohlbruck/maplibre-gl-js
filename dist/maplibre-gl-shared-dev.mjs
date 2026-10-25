@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.7/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.8/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -29096,8 +29096,7 @@ var Actor = class {
 		}
 		if (isWorker(self) || data.mustQueue) {
 			this.tasks[id] = data;
-			const ahead = data.type === "LDT" ? this.taskQueue.findIndex((queued) => this.tasks[queued]?.type !== "LDT") : -1;
-			this.taskQueue.splice(ahead < 0 ? this.taskQueue.length : ahead, 0, id);
+			this.taskQueue.push(id);
 			this.invoker.trigger();
 			return;
 		}

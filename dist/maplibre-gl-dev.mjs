@@ -1,10 +1,10 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.7/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.8/LICENSE.txt
 */
 import { $ as projectToWorldCoordinates, $n as getRollPitchBearing, $r as rotateZ$1, $t as Transitionable, A as evaluateSizeForZoom, Ai as isOffscreenCanvasDistorted, An as arrayBufferToImageBitmap, Ar as create$3, At as toEvaluationFeature, B as isCluster, Bi as ValidationError, Bn as defaultEasing, Br as scale$2, Bt as SegmentVector, C as addDynamicAttributes, Ci as translate, Cn as AbortError, Cr as translatePosition, Ct as HEATMAP_FULL_RENDER_FBO_KEY, Di as determinant, Dn as MAX_VALID_LATITUDE, Dr as zoomScale, Dt as RGBAImage, E as TextAnchorEnum, Ei as create$2, Er as wrap, Et as AlphaImage, F as potpack, Fi as featureFilter, Fn as createIdentityMat4f64, Fr as fromEuler, Ft as Uniform4f, Gn as evaluateZoomSnap, Gr as distance, Gt as PosArray, Hi as derefLayers, Hn as differenceOfAnglesDegrees, Hr as add, Ht as CollisionCircleLayoutArray, I as isStyleImageWebGLData, In as createMat4f64, Ir as fromValues, It as UniformColor, J as cameraDirectionFromPitchBearing, Jn as findLineIntersection, Jr as length, Jt as TriangleIndexArray, K as isFillExtrusionStyleLayer, Kn as extend, Kr as dot, Kt as QuadTriangleArray, L as renderStyleImage, Li as interpolateFactory, Ln as createVec3f64, Lr as multiply$1, Lt as UniformColorArray, M as getAnchorAlignment, Mi as Point, Mn as clamp, Mr as scale$3, Mt as Uniform1i, Ni as emptyStyle, Nn as clone$2, Nr as sqrLen, Nt as Uniform2f, O as clipLine, Oi as invert, On as angleToRotateBetweenVectors2D, Or as pixelsToTileUnits, Ot as isCircleStyleLayer, P as ImagePosition, Pn as createIdentityMat4f32, Pr as zero, Pt as Uniform3f, Q as maxMercatorHorizonAngle, Qr as rotateY, Qt as Properties, R as parseGlyphPbf, Ri as ProjectionDefinition, Rn as createVec4f64, Rr as slerp, Rt as UniformFloatArray, S as SymbolBucket, Si as scale, Sn as config, Sr as threePlaneIntersection, St as isHillshadeStyleLayer, T as getAnchorJustification, Ti as fromRotation, Tn as throwIfAborted, Tr as warnOnce, Tt as renderColorRamp, U as collisionCircleLayout, Ui as latest, Un as distanceOfAnglesRadians, Ur as clone, Ut as LineStripIndexArray, V as codePointUsesLocalIdeographFontFamily, Vi as diff, Vn as degreesToRadians, Vr as transformMat4, Vt as CollisionBoxArray, W as isLineStyleLayer, Wn as ensureError, Wr as cross, Wt as Pos3dArray, X as cameraMercatorCoordinateFromCenterAndRotation, Xn as getAngleDelta, Xr as normalize, Xt as isRasterStyleLayer, Y as cameraMercatorCoordinate, Yn as getAABB, Yr as negate, Yt as createLayout, Z as getMercatorHorizon, Zn as getEdgeTiles, Zr as rotateX$1, Zt as DataConstantProperty, _ as createStyleLayer, _i as ortho, _n as makeRequest, _r as rollPitchBearingEqual, _t as SubdivisionGranularityExpression, a as GeoJSONFeature, ai as transformMat4$1, an as validateAndEmit, ar as isWorker, at as lngFromMercatorX, b as isBackgroundStyleLayer, bi as rotateY$1, bn as getProtocol, br as sphericalToCartesian, ci as clone$1, cn as ErrorEvent, cr as mod, ct as mercatorZfromAltitude, d as OverscaledTileID, di as equals, dn as AJAXError, dr as pick, ei as scale$1, en as EvaluationParameters, er as isImageBitmap, et as tileCoordinatesToMercatorCoordinates, f as UnwrappedTileID, fi as exactEquals, fn as GLOBAL_DISPATCHER_ID, fr as pointPlaneSignedDistance, ft as EXTENT_BOUNDS, g as Actor, gi as multiply, gn as getVideo, gr as remapSaturate, gt as SOUTH_POLE_Y, h as isInBoundsForZoomLngLat, hi as invert$1, hn as getReferrer, hr as readImageUsingVideoFrame, ht as NORTH_POLE_Y, ii as transformMat3, in as emitValidationErrors, ir as isTouchableOrPointableType, it as latFromMercatorY, ji as offscreenCanvasSupported, jn as bezier, jr as length$1, jt as Uniform1f, k as evaluateSizeForFeature, ki as rotate, kn as arrayBufferToImage, kr as EXTENT, kt as polygonIntersectsPolygon, li as copy, ln as Event, lr as nextPowerOfTwo, lt as LngLat, m as compareTileId, mi as identity, mn as getJSON, mr as rayPlaneIntersection, mt as isFillStyleLayer, n as TileCache, ni as sub, nr as isSafari, nt as MercatorCoordinate, oi as transformQuat, on as validateStyle, or as lerp, ot as mercatorXfromLng, p as calculateTileKey, pi as fromScaling, pn as getArrayBuffer, pr as radiansToDegrees, pt as Bounds, q as calculateTileMatrix, qn as filterObject, qr as len, qt as RasterBoundsArray, ri as subtract, rn as SPEC_SOURCE_TYPES, rr as isTouchableEvent, rt as altitudeFromMercatorZ, s as GEOJSON_TILE_LAYER_NAME, si as zero$1, sn as validateStyleAndEmit, sr as mapObject, st as mercatorYfromLat, ti as scaleAndAdd, tn as ZoomHistory, tr as isPointableEvent, tt as unprojectFromWorldCoordinates, u as CanonicalTileID, ui as create$1, un as Evented, ur as parseCacheControl, ut as earthRadius, v as isCustomStyleLayer, vi as perspective, vn as sameOrigin, vr as rollPitchBearingToQuat, vt as SubdivisionGranularitySetting, w as getOverlapMode, wi as create$4, wn as isAbortError, wr as uniqueId, wt as isHeatmapStyleLayer, x as isSymbolStyleLayer, xi as rotateZ, xn as removeProtocol, xr as subscribe, xt as Texture, y as validateCustomStyleLayer, yi as rotateX, yn as addProtocol, yr as scaleZoom, yt as isColorReliefStyleLayer, zi as Color, zn as deepEqual, zr as mul, zt as UniformMatrix4f } from "./maplibre-gl-shared-dev.mjs";
 //#region package.json
-var version$2 = "6.11.2-transit.7";
+var version$2 = "6.11.2-transit.8";
 //#endregion
 //#region src/util/browser.ts
 let linkEl;
@@ -2238,6 +2238,7 @@ var WorkerPool = class WorkerPool {
 	constructor() {
 		this.active = {};
 		this.workersPromise = null;
+		this.terrainWorkerPromise = null;
 	}
 	async acquire(mapId) {
 		this.active[mapId] = true;
@@ -2248,9 +2249,22 @@ var WorkerPool = class WorkerPool {
 		}
 		return (await this.workersPromise).slice();
 	}
+	/**
+	* A worker kept for terrain (DEM) decodes alone, so one never waits on a tile parse already running.
+	*/
+	acquireTerrain() {
+		this.terrainWorkerPromise ||= workerFactory();
+		return this.terrainWorkerPromise;
+	}
 	release(mapId) {
 		delete this.active[mapId];
-		if (this.numActive() === 0 && this.workersPromise) {
+		if (this.numActive() > 0) return;
+		if (this.terrainWorkerPromise) {
+			const promise = this.terrainWorkerPromise;
+			this.terrainWorkerPromise = null;
+			promise.then((worker) => worker.terminate());
+		}
+		if (this.workersPromise) {
 			const promise = this.workersPromise;
 			this.workersPromise = null;
 			promise.then((workers) => {
@@ -2331,6 +2345,7 @@ function clearPrewarmedResources() {
 var Dispatcher = class extends Evented {
 	constructor(workerPool, mapId) {
 		super();
+		this.terrainActor = null;
 		this.workerPool = workerPool;
 		this.actors = [];
 		this.currentActor = 0;
@@ -2379,8 +2394,32 @@ var Dispatcher = class extends Evented {
 		this.currentActor = (this.currentActor + 1) % this.actors.length;
 		return this.actors[this.currentActor];
 	}
+	/**
+	* The actor for terrain (DEM) decodes: a worker of their own, so terrain never waits behind vector tile work.
+	*/
+	getTerrainActor() {
+		if (this.removed) return Promise.reject(/* @__PURE__ */ new Error("Dispatcher removed"));
+		this.terrainActor ||= this.workerPool.acquireTerrain().then((worker) => {
+			if (!this.removed) this.workerErrorSubscriptions.push(subscribe(worker, "error", () => {
+				this.fire(new ErrorEvent(/* @__PURE__ */ new Error("Worker failed to load. Check that the worker URL is correct.")));
+			}, false));
+			const actor = new Actor(worker, this.id);
+			actor.name = "Terrain worker";
+			return actor;
+		});
+		return this.terrainActor;
+	}
 	remove(mapRemoved = true) {
 		this.removed = true;
+		const terrain = this.terrainActor;
+		this.terrainActor = null;
+		terrain?.then((actor) => {
+			if (mapRemoved) actor.sendAsync({
+				type: "RM",
+				data: void 0
+			}).catch(() => {});
+			actor.remove();
+		});
 		for (const actor of this.actors) actor.remove();
 		for (const subscription of this.workerErrorSubscriptions) subscription.unsubscribe();
 		this.actors = [];
@@ -3384,6 +3423,10 @@ var RasterDEMTileSource = class extends RasterTileSource {
 		this.blueFactor = options.blueFactor;
 		this.baseShift = options.baseShift;
 	}
+	onAdd(map) {
+		super.onAdd(map);
+		this.dispatcher.getTerrainActor().catch(() => {});
+	}
 	async loadTile(tile) {
 		const url = tile.tileID.canonical.url(this.tiles, this.map.getPixelRatio(), this.scheme);
 		tile.neighboringTiles = this._getNeighboringTiles(tile.tileID);
@@ -3418,8 +3461,7 @@ var RasterDEMTileSource = class extends RasterTileSource {
 					baseShift: this.baseShift
 				};
 				if (tile.actor && tile.state !== "expired" && tile.state !== "reloading") return;
-				await this.dispatcher.waitForInitComplete();
-				if (!tile.actor || tile.state === "expired") tile.actor = this.dispatcher.getReadyActor();
+				if (!tile.actor || tile.state === "expired") tile.actor = await this.dispatcher.getTerrainActor();
 				tile.dem = await tile.actor.sendAsync({
 					type: "LDT",
 					data: params

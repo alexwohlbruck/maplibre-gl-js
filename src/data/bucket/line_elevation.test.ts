@@ -64,6 +64,12 @@ describe('elevateLine', () => {
         expect(heights).toEqual([0, 6, 0]);
     });
 
+    test('a point a sliver from a vertex takes it over, so the line does not step there', () => {
+        const {vertices, heights} = elevateLine(line, [run([[3, 0], [997, 0]], [-9, -9], true)]);
+        expect(vertices.map(p => p.x)).toEqual([0, 1000, 2000]);
+        expect(heights).toEqual([-9, -9, 0]);
+    });
+
     test('does not interpolate across two runs', () => {
         const {heights, ground} = elevateLine(line, [run([[100, 0], [400, 0]], [4, 4]), run([[1600, 0], [1900, 0]], [-6, -6], true)]);
         expect(heights).toEqual([0, 4, 4, 0, -6, -6, 0]);

@@ -39,18 +39,15 @@ layout(std140) uniform FrameUBO {
 };
 
 #ifdef LINE_ELEVATION
-uniform highp sampler2D u_depth;
-
-// Keeps an elevated line's fragment to its own tile, whose neighbours draw the rest of the line from their buffers.
-// Underground it takes the depth just in front of the terrain over it: what stands on the ground hides it, the ground does not.
+// Keeps an elevated line's fragment to its own tile, whose neighbours draw the rest of the line from their buffers,
+// and to the side of the terrain the pass draws.
 void elevated_line_fragment(highp vec2 tile_pos, float lift) {
     if (tile_pos.x < 0.0 || tile_pos.y < 0.0 || tile_pos.x > 8192.0 || tile_pos.y > 8192.0) discard;
-    if (lift < 0.0) {
-        highp vec4 packed = texture(u_depth, gl_FragCoord.xy / (u_viewport_size * u_device_pixel_ratio));
-        highp float terrain = dot(packed, vec4(1.0 / 16777216.0, 1.0 / 65536.0, 1.0 / 256.0, 1.0));
-        gl_FragDepth = min(gl_FragCoord.z, gl_DepthRange.near + gl_DepthRange.diff * ((terrain - 0.0001) * 0.5 + 0.5));
-    } else {
-        gl_FragDepth = gl_FragCoord.z;
-    }
+    #ifdef LINE_UNDERGROUND
+        if (lift >= 0.0) discard;
+    #endif
+    #ifdef LINE_OVERGROUND
+        if (lift < 0.0) discard;
+    #endif
 }
 #endif

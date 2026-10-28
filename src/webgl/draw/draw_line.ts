@@ -149,14 +149,30 @@ export function drawLine(painter: Painter, tileManager: TileManager, layer: Line
     const layerOpacity = layer.paint.get('line-layer-opacity');
     if (opacity.constantOr(1) === 0 || width.constantOr(1) === 0 || layerOpacity === 0) return;
 
+    const passes = linePasses(painter, layer, renderContext);
+    if (!passes.length) return;
+
     if (layerOpacity < 1) {
         const results = prepareDrawLayerOpacity(painter, layer, coords);
-        drawLineTiles(painter, tileManager, layer, coords, renderContext);
+        for (const pass of passes) drawLineTiles(painter, tileManager, layer, coords, renderContext, pass);
         drawLayerOpacity(painter, layerOpacity, results, layer);
         return;
     }
 
-    drawLineTiles(painter, tileManager, layer, coords, renderContext);
+    for (const pass of passes) drawLineTiles(painter, tileManager, layer, coords, renderContext, pass);
+}
+
+type LinePass = 'flat' | 'underground' | 'overground' | 'unoccluded';
+
+/**
+ * How a line is drawn now. An elevated one is drawn underground with no depth test, so the terrain over it does not hide
+ * it but what stands on the ground still may, and over the ground tested against the depth of everything 3D. One
+ * that is never occluded is drawn whole, untested, last.
+ */
+function linePasses(painter: Painter, layer: LineStyleLayer, renderContext: RenderContext): LinePass[] {
+    if (!layer.isElevated() || !painter.style.map.terrain) return ['flat'];
+    if (layer.paint.get('line-depth-occlusion-factor') === 0) return renderContext.elevatedPass === 'underground' ? [] : ['unoccluded'];
+    return renderContext.elevatedPass ? [renderContext.elevatedPass] : ['underground', 'overground'];
 }
 
 function drawLineTiles(
@@ -164,14 +180,19 @@ function drawLineTiles(
     tileManager: TileManager,
     layer: LineStyleLayer,
     coords: OverscaledTileID[],
-    renderContext: RenderContext
+    renderContext: RenderContext,
+    pass: LinePass
 ) {
     // Raised off the terrain, a line is drawn in 3D among the extrusions and custom layers rather than draped.
-    const elevated = layer.isElevated() && !!painter.style.map.terrain;
-    const depthMode = !elevated ? painter.getDepthModeForSublayer(0, DepthMode.ReadOnly) :
-        layer.paint.get('line-depth-occlusion-factor') > 0 ? new DepthMode(painter.context.gl.LEQUAL, DepthMode.ReadOnly, painter.renderContext.depthRangeFor3D) :
+    const elevated = pass !== 'flat';
+    const depthMode = pass === 'flat' ? painter.getDepthModeForSublayer(0, DepthMode.ReadOnly) :
+        pass === 'overground' ? new DepthMode(painter.context.gl.LEQUAL, DepthMode.ReadOnly, painter.renderContext.depthRangeFor3D) :
             DepthMode.disabled;
-    const defines = !elevated ? [] : layer.paint.get('line-pitch-alignment') === 'viewport' ? ['#define LINE_ELEVATION', '#define LINE_VIEWPORT'] : ['#define LINE_ELEVATION'];
+    const defines = !elevated ? [] : [
+        '#define LINE_ELEVATION',
+        ...(layer.paint.get('line-pitch-alignment') === 'viewport' ? ['#define LINE_VIEWPORT'] : []),
+        ...(pass === 'underground' ? ['#define LINE_UNDERGROUND'] : pass === 'overground' ? ['#define LINE_OVERGROUND'] : []),
+    ];
     const colorMode = painter.colorModeForRenderPass();
 
     const dasharrayProperty = layer.paint.get('line-dasharray');

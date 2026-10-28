@@ -12,12 +12,16 @@ export type RenderPass = 'offscreen' | 'opaque' | 'translucent';
  * Shared draw state, created per render and updated as rendering proceeds.
  * Corresponds to part of MapLibre Native's `PaintParameters`.
  */
+export type ElevatedPass = 'underground' | 'overground';
+
 export type RenderContext = {
     currentPass: RenderPass;
     currentLayer: number;
     opaquePassCutoff: number;
     depthRangeFor3D: DepthRangeType;
     isRenderingToTexture: boolean;
+    /** Which part of an elevated line to draw: under the terrain at its place in the style, or over it once the 3D layers are drawn. Both when unset. */
+    elevatedPass?: ElevatedPass;
     readonly transform: IReadonlyTransform;
     readonly terrain: Terrain | null;
     readonly projectionTransition: number;

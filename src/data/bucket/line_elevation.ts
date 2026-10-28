@@ -83,9 +83,11 @@ export function elevateLine(vertices: Point[], runs: ElevationRun[]): ElevatedLi
             const hit = place(vertices, point, from);
             if (!hit) continue;
             from = hit.segment;
-            // A point at the end of a segment is the next one's first vertex.
-            const next = hit.t >= 1 - VERTEX_EPSILON;
-            placed.push({segment: hit.segment + (next ? 1 : 0), t: next ? 0 : hit.t, height: run.heights[i], run: r});
+            // A point within the snap of a vertex is that vertex, rather than a sliver beside it at another height.
+            const length = vertices[hit.segment].dist(vertices[hit.segment + 1]);
+            const t = hit.t * length <= SNAP_TOLERANCE ? 0 : (1 - hit.t) * length <= SNAP_TOLERANCE ? 1 : hit.t;
+            const next = t >= 1 - VERTEX_EPSILON;
+            placed.push({segment: hit.segment + (next ? 1 : 0), t: next ? 0 : t, height: run.heights[i], run: r});
         }
     }
     if (!placed.length) return {vertices, heights: vertices.map(() => 0), ground: vertices.map(() => 1)};

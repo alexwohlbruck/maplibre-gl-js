@@ -641,6 +641,10 @@ export class Painter {
             if (this.renderToTexture?.renderLayer(layer, renderContext)) continue;
 
             if (renderContext.currentLayer < last3D && isLineStyleLayer(layer) && layer.isElevated()) {
+                // Underground it is drawn here, for the extrusions and custom layers after it to stand over, as over a draped line.
+                renderContext.elevatedPass = 'underground';
+                this.renderLayer(this, tileManager, layer, coordsDescending[layer.source], renderContext);
+                renderContext.elevatedPass = undefined;
                 deferred.push(renderContext.currentLayer);
                 continue;
             }
@@ -664,10 +668,12 @@ export class Painter {
 
             if (renderContext.currentLayer === last3D) {
                 const current = renderContext.currentLayer;
+                renderContext.elevatedPass = 'overground';
                 for (renderContext.currentLayer of deferred) {
                     const line = this.style._layers[layerIds[renderContext.currentLayer]];
                     this.renderLayer(this, tileManagers[line.source], line, coordsDescending[line.source], renderContext);
                 }
+                renderContext.elevatedPass = undefined;
                 renderContext.currentLayer = current;
             }
         }

@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.12/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.13/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -22266,10 +22266,12 @@ function elevateLine(vertices, runs) {
 			const hit = place(vertices, point, from);
 			if (!hit) continue;
 			from = hit.segment;
-			const next = hit.t >= .999999;
+			const length = vertices[hit.segment].dist(vertices[hit.segment + 1]);
+			const t = hit.t * length <= SNAP_TOLERANCE ? 0 : (1 - hit.t) * length <= SNAP_TOLERANCE ? 1 : hit.t;
+			const next = t >= .999999;
 			placed.push({
 				segment: hit.segment + (next ? 1 : 0),
-				t: next ? 0 : hit.t,
+				t: next ? 0 : t,
 				height: run.heights[i],
 				run: r
 			});

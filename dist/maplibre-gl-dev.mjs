@@ -1,10 +1,10 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.12/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.13/LICENSE.txt
 */
 import { $ as projectToWorldCoordinates, $n as getRollPitchBearing, $r as rotateZ$1, $t as Transitionable, A as evaluateSizeForZoom, Ai as isOffscreenCanvasDistorted, An as arrayBufferToImageBitmap, Ar as create$3, At as toEvaluationFeature, B as isCluster, Bi as ValidationError, Bn as defaultEasing, Br as scale$2, Bt as SegmentVector, C as addDynamicAttributes, Ci as translate, Cn as AbortError, Cr as translatePosition, Ct as HEATMAP_FULL_RENDER_FBO_KEY, Di as determinant, Dn as MAX_VALID_LATITUDE, Dr as zoomScale, Dt as RGBAImage, E as TextAnchorEnum, Ei as create$2, Er as wrap, Et as AlphaImage, F as potpack, Fi as featureFilter, Fn as createIdentityMat4f64, Fr as fromEuler, Ft as Uniform4f, Gn as evaluateZoomSnap, Gr as distance, Gt as PosArray, Hi as derefLayers, Hn as differenceOfAnglesDegrees, Hr as add, Ht as CollisionCircleLayoutArray, I as isStyleImageWebGLData, In as createMat4f64, Ir as fromValues, It as UniformColor, J as cameraDirectionFromPitchBearing, Jn as findLineIntersection, Jr as length, Jt as TriangleIndexArray, K as isFillExtrusionStyleLayer, Kn as extend, Kr as dot, Kt as QuadTriangleArray, L as renderStyleImage, Li as interpolateFactory, Ln as createVec3f64, Lr as multiply$1, Lt as UniformColorArray, M as getAnchorAlignment, Mi as Point, Mn as clamp, Mr as scale$3, Mt as Uniform1i, Ni as emptyStyle, Nn as clone$2, Nr as sqrLen, Nt as Uniform2f, O as clipLine, Oi as invert, On as angleToRotateBetweenVectors2D, Or as pixelsToTileUnits, Ot as isCircleStyleLayer, P as ImagePosition, Pn as createIdentityMat4f32, Pr as zero, Pt as Uniform3f, Q as maxMercatorHorizonAngle, Qr as rotateY, Qt as Properties, R as parseGlyphPbf, Ri as ProjectionDefinition, Rn as createVec4f64, Rr as slerp, Rt as UniformFloatArray, S as SymbolBucket, Si as scale, Sn as config, Sr as threePlaneIntersection, St as isHillshadeStyleLayer, T as getAnchorJustification, Ti as fromRotation, Tn as throwIfAborted, Tr as warnOnce, Tt as renderColorRamp, U as collisionCircleLayout, Ui as latest, Un as distanceOfAnglesRadians, Ur as clone, Ut as LineStripIndexArray, V as codePointUsesLocalIdeographFontFamily, Vi as diff, Vn as degreesToRadians, Vr as transformMat4, Vt as CollisionBoxArray, W as isLineStyleLayer, Wn as ensureError, Wr as cross, Wt as Pos3dArray, X as cameraMercatorCoordinateFromCenterAndRotation, Xn as getAngleDelta, Xr as normalize, Xt as isRasterStyleLayer, Y as cameraMercatorCoordinate, Yn as getAABB, Yr as negate, Yt as createLayout, Z as getMercatorHorizon, Zn as getEdgeTiles, Zr as rotateX$1, Zt as DataConstantProperty, _ as createStyleLayer, _i as ortho, _n as makeRequest, _r as rollPitchBearingEqual, _t as SubdivisionGranularityExpression, a as GeoJSONFeature, ai as transformMat4$1, an as validateAndEmit, ar as isWorker, at as lngFromMercatorX, b as isBackgroundStyleLayer, bi as rotateY$1, bn as getProtocol, br as sphericalToCartesian, ci as clone$1, cn as ErrorEvent, cr as mod, ct as mercatorZfromAltitude, d as OverscaledTileID, di as equals, dn as AJAXError, dr as pick, ei as scale$1, en as EvaluationParameters, er as isImageBitmap, et as tileCoordinatesToMercatorCoordinates, f as UnwrappedTileID, fi as exactEquals, fn as GLOBAL_DISPATCHER_ID, fr as pointPlaneSignedDistance, ft as EXTENT_BOUNDS, g as Actor, gi as multiply, gn as getVideo, gr as remapSaturate, gt as SOUTH_POLE_Y, h as isInBoundsForZoomLngLat, hi as invert$1, hn as getReferrer, hr as readImageUsingVideoFrame, ht as NORTH_POLE_Y, ii as transformMat3, in as emitValidationErrors, ir as isTouchableOrPointableType, it as latFromMercatorY, ji as offscreenCanvasSupported, jn as bezier, jr as length$1, jt as Uniform1f, k as evaluateSizeForFeature, ki as rotate, kn as arrayBufferToImage, kr as EXTENT, kt as polygonIntersectsPolygon, li as copy, ln as Event, lr as nextPowerOfTwo, lt as LngLat, m as compareTileId, mi as identity, mn as getJSON, mr as rayPlaneIntersection, mt as isFillStyleLayer, n as TileCache, ni as sub, nr as isSafari, nt as MercatorCoordinate, oi as transformQuat, on as validateStyle, or as lerp, ot as mercatorXfromLng, p as calculateTileKey, pi as fromScaling, pn as getArrayBuffer, pr as radiansToDegrees, pt as Bounds, q as calculateTileMatrix, qn as filterObject, qr as len, qt as RasterBoundsArray, ri as subtract, rn as SPEC_SOURCE_TYPES, rr as isTouchableEvent, rt as altitudeFromMercatorZ, s as GEOJSON_TILE_LAYER_NAME, si as zero$1, sn as validateStyleAndEmit, sr as mapObject, st as mercatorYfromLat, ti as scaleAndAdd, tn as ZoomHistory, tr as isPointableEvent, tt as unprojectFromWorldCoordinates, u as CanonicalTileID, ui as create$1, un as Evented, ur as parseCacheControl, ut as earthRadius, v as isCustomStyleLayer, vi as perspective, vn as sameOrigin, vr as rollPitchBearingToQuat, vt as SubdivisionGranularitySetting, w as getOverlapMode, wi as create$4, wn as isAbortError, wr as uniqueId, wt as isHeatmapStyleLayer, x as isSymbolStyleLayer, xi as rotateZ, xn as removeProtocol, xr as subscribe, xt as Texture, y as validateCustomStyleLayer, yi as rotateX, yn as addProtocol, yr as scaleZoom, yt as isColorReliefStyleLayer, zi as Color, zn as deepEqual, zr as mul, zt as UniformMatrix4f } from "./maplibre-gl-shared-dev.mjs";
 //#region package.json
-var version$2 = "6.11.2-transit.12";
+var version$2 = "6.11.2-transit.13";
 //#endregion
 //#region src/util/browser.ts
 let linkEl;
@@ -9687,7 +9687,7 @@ var CrossTileSymbolIndex = class {
 };
 //#endregion
 //#region src/shaders/glsl/_prelude.fragment.glsl.g.ts
-var _prelude_fragment_glsl_g_default = "#ifdef GL_ES\nprecision mediump float;\n#else\n#if !defined(lowp)\n#define lowp\n#endif\n#if !defined(mediump)\n#define mediump\n#endif\n#if !defined(highp)\n#define highp\n#endif\n#endif\nout highp vec4 fragColor;layout(std140) uniform ProjectionUBO {highp mat4 u_projection_matrix;highp mat4 u_projection_fallback_matrix;highp vec4 u_projection_tile_mercator_coords;highp vec4 u_projection_clipping_plane;highp float u_projection_transition;highp int u_projection_clip_antimeridian;};layout(std140) uniform FrameUBO {highp vec2 u_units_to_pixels;highp vec2 u_world_size;highp float u_camera_to_center_distance;highp float u_symbol_fade_change;highp float u_aspect_ratio;highp float u_device_pixel_ratio;highp vec2 u_viewport_size;highp vec2 u_pixel_extrude_scale;highp float u_pitch;};\n#ifdef LINE_ELEVATION\nuniform highp sampler2D u_depth;void elevated_line_fragment(highp vec2 tile_pos,float lift) {if (tile_pos.x < 0.0 || tile_pos.y < 0.0 || tile_pos.x > 8192.0 || tile_pos.y > 8192.0) discard;if (lift < 0.0) {highp vec4 packed=texture(u_depth,gl_FragCoord.xy/(u_viewport_size*u_device_pixel_ratio));highp float terrain=dot(packed,vec4(1.0/16777216.0,1.0/65536.0,1.0/256.0,1.0));gl_FragDepth=min(gl_FragCoord.z,gl_DepthRange.near+gl_DepthRange.diff*((terrain-0.0001)*0.5+0.5));} else {gl_FragDepth=gl_FragCoord.z;}}\n#endif";
+var _prelude_fragment_glsl_g_default = "#ifdef GL_ES\nprecision mediump float;\n#else\n#if !defined(lowp)\n#define lowp\n#endif\n#if !defined(mediump)\n#define mediump\n#endif\n#if !defined(highp)\n#define highp\n#endif\n#endif\nout highp vec4 fragColor;layout(std140) uniform ProjectionUBO {highp mat4 u_projection_matrix;highp mat4 u_projection_fallback_matrix;highp vec4 u_projection_tile_mercator_coords;highp vec4 u_projection_clipping_plane;highp float u_projection_transition;highp int u_projection_clip_antimeridian;};layout(std140) uniform FrameUBO {highp vec2 u_units_to_pixels;highp vec2 u_world_size;highp float u_camera_to_center_distance;highp float u_symbol_fade_change;highp float u_aspect_ratio;highp float u_device_pixel_ratio;highp vec2 u_viewport_size;highp vec2 u_pixel_extrude_scale;highp float u_pitch;};\n#ifdef LINE_ELEVATION\nvoid elevated_line_fragment(highp vec2 tile_pos,float lift) {if (tile_pos.x < 0.0 || tile_pos.y < 0.0 || tile_pos.x > 8192.0 || tile_pos.y > 8192.0) discard;\n#ifdef LINE_UNDERGROUND\nif (lift >=0.0) discard;\n#endif\n#ifdef LINE_OVERGROUND\nif (lift < 0.0) discard;\n#endif\n}\n#endif";
 //#endregion
 //#region src/shaders/glsl/_prelude.vertex.glsl.g.ts
 var _prelude_vertex_glsl_g_default = "#ifdef GL_ES\nprecision highp float;\n#else\n#if !defined(lowp)\n#define lowp\n#endif\n#if !defined(mediump)\n#define mediump\n#endif\n#if !defined(highp)\n#define highp\n#endif\n#endif\nvec2 unpack_float(const float packedValue) {int packedIntValue=int(packedValue);int v0=packedIntValue/256;return vec2(v0,packedIntValue-v0*256);}vec2 unpack_opacity(const uint packedOpacity) {return vec2(float(packedOpacity >> 1u)/127.0,float(packedOpacity & 1u));}vec4 decode_color(const vec2 encodedColor) {return vec4(unpack_float(encodedColor[0])/255.0,unpack_float(encodedColor[1])/255.0\n);}float unpack_mix_vec2(const vec2 packedValue,const float t) {return mix(packedValue[0],packedValue[1],t);}vec4 unpack_mix_color(const vec4 packedColors,const float t) {vec4 minColor=decode_color(vec2(packedColors[0],packedColors[1]));vec4 maxColor=decode_color(vec2(packedColors[2],packedColors[3]));return mix(minColor,maxColor,t);}vec2 get_pattern_pos(const vec2 pixel_coord_upper,const vec2 pixel_coord_lower,const vec2 pattern_size,const float tile_units_to_pixels,const vec2 pos) {vec2 offset=mod(mod(mod(pixel_coord_upper,pattern_size)*256.0,pattern_size)*256.0+pixel_coord_lower,pattern_size);return (tile_units_to_pixels*pos+offset)/pattern_size;}mat3 rotationMatrixFromAxisAngle(vec3 u,float angle) {float c=cos(angle);float s=sin(angle);float c2=1.0-c;return mat3(u.x*u.x*c2+      c,u.x*u.y*c2-u.z*s,u.x*u.z*c2+u.y*s,u.y*u.x*c2+u.z*s,u.y*u.y*c2+    c,u.y*u.z*c2-u.x*s,u.z*u.x*c2-u.y*s,u.z*u.y*c2+u.x*s,u.z*u.z*c2+    c\n);}\n#ifdef TERRAIN3D\nuniform sampler2D u_terrain;uniform highp sampler2D u_depth;layout(std140) uniform TerrainUBO {highp mat4 u_terrain_matrix;highp vec4 u_terrain_unpack;highp float u_terrain_dim;highp float u_terrain_exaggeration;};\n#endif\nconst highp vec4 bitSh=vec4(256.*256.*256.,256.*256.,256.,1.);const highp vec4 bitShifts=vec4(1.)/bitSh;highp float unpack(highp vec4 color) {return dot(color,bitShifts);}highp float depthOpacity(vec3 frag) {\n#ifdef TERRAIN3D\nhighp float d=unpack(texture(u_depth,frag.xy*0.5+0.5))+0.0001-frag.z;return 1.0-max(0.0,min(1.0,-d*500.0));\n#else\nreturn 1.0;\n#endif\n}float calculate_visibility(vec4 pos) {\n#ifdef TERRAIN3D\nvec3 frag=pos.xyz/pos.w;highp float d=depthOpacity(frag);if (d > 0.95) return 1.0;return (d+depthOpacity(frag+vec3(0.0,0.01,0.0)))/2.0;\n#else\nreturn 1.0;\n#endif\n}float ele(ivec2 pos) {\n#ifdef TERRAIN3D\nvec4 rgb=(texelFetch(u_terrain,pos,0)*255.0)*u_terrain_unpack;return rgb.r+rgb.g+rgb.b-u_terrain_unpack.a;\n#else\nreturn 0.0;\n#endif\n}float get_elevation(vec2 pos) {\n#ifdef TERRAIN3D\n#ifdef GLOBE\nif ((pos.y <-32767.5) || (pos.y > 32766.5)) {return 0.0;}\n#endif\nvec2 coord=(u_terrain_matrix*vec4(pos,0.0,1.0)).xy*u_terrain_dim+1.5;vec2 f=fract(coord);ivec2 c=ivec2(floor(coord));ivec2 hi=textureSize(u_terrain,0)-1;float tl=ele(clamp(c,ivec2(0),hi));float tr=ele(clamp(c+ivec2(1,0),ivec2(0),hi));float bl=ele(clamp(c+ivec2(0,1),ivec2(0),hi));float br=ele(clamp(c+ivec2(1,1),ivec2(0),hi));float elevation=mix(mix(tl,tr,f.x),mix(bl,br,f.x),f.y);return elevation*u_terrain_exaggeration;\n#else\nreturn 0.0;\n#endif\n}const float PI=3.141592653589793;\n#define PROJECTION_UBO\nlayout(std140) uniform ProjectionUBO {highp mat4 u_projection_matrix;highp mat4 u_projection_fallback_matrix;highp vec4 u_projection_tile_mercator_coords;highp vec4 u_projection_clipping_plane;highp float u_projection_transition;highp int u_projection_clip_antimeridian;};layout(std140) uniform FrameUBO {highp vec2 u_units_to_pixels;highp vec2 u_world_size;highp float u_camera_to_center_distance;highp float u_symbol_fade_change;highp float u_aspect_ratio;highp float u_device_pixel_ratio;highp vec2 u_viewport_size;highp vec2 u_pixel_extrude_scale;highp float u_pitch;};";
@@ -19149,18 +19149,34 @@ function drawLine(painter, tileManager, layer, coords, renderContext) {
 	const width = layer.paint.get("line-width");
 	const layerOpacity = layer.paint.get("line-layer-opacity");
 	if (opacity.constantOr(1) === 0 || width.constantOr(1) === 0 || layerOpacity === 0) return;
+	const passes = linePasses(painter, layer, renderContext);
+	if (!passes.length) return;
 	if (layerOpacity < 1) {
 		const results = prepareDrawLayerOpacity(painter, layer, coords);
-		drawLineTiles(painter, tileManager, layer, coords, renderContext);
+		for (const pass of passes) drawLineTiles(painter, tileManager, layer, coords, renderContext, pass);
 		drawLayerOpacity(painter, layerOpacity, results, layer);
 		return;
 	}
-	drawLineTiles(painter, tileManager, layer, coords, renderContext);
+	for (const pass of passes) drawLineTiles(painter, tileManager, layer, coords, renderContext, pass);
 }
-function drawLineTiles(painter, tileManager, layer, coords, renderContext) {
-	const elevated = layer.isElevated() && !!painter.style.map.terrain;
-	const depthMode = !elevated ? painter.getDepthModeForSublayer(0, DepthMode.ReadOnly) : layer.paint.get("line-depth-occlusion-factor") > 0 ? new DepthMode(painter.context.gl.LEQUAL, DepthMode.ReadOnly, painter.renderContext.depthRangeFor3D) : DepthMode.disabled;
-	const defines = !elevated ? [] : layer.paint.get("line-pitch-alignment") === "viewport" ? ["#define LINE_ELEVATION", "#define LINE_VIEWPORT"] : ["#define LINE_ELEVATION"];
+/**
+* How a line is drawn now. An elevated one is drawn underground with no depth test, so the terrain over it does not hide
+* it but what stands on the ground still may, and over the ground tested against the depth of everything 3D. One
+* that is never occluded is drawn whole, untested, last.
+*/
+function linePasses(painter, layer, renderContext) {
+	if (!layer.isElevated() || !painter.style.map.terrain) return ["flat"];
+	if (layer.paint.get("line-depth-occlusion-factor") === 0) return renderContext.elevatedPass === "underground" ? [] : ["unoccluded"];
+	return renderContext.elevatedPass ? [renderContext.elevatedPass] : ["underground", "overground"];
+}
+function drawLineTiles(painter, tileManager, layer, coords, renderContext, pass) {
+	const elevated = pass !== "flat";
+	const depthMode = pass === "flat" ? painter.getDepthModeForSublayer(0, DepthMode.ReadOnly) : pass === "overground" ? new DepthMode(painter.context.gl.LEQUAL, DepthMode.ReadOnly, painter.renderContext.depthRangeFor3D) : DepthMode.disabled;
+	const defines = !elevated ? [] : [
+		"#define LINE_ELEVATION",
+		...layer.paint.get("line-pitch-alignment") === "viewport" ? ["#define LINE_VIEWPORT"] : [],
+		...pass === "underground" ? ["#define LINE_UNDERGROUND"] : pass === "overground" ? ["#define LINE_OVERGROUND"] : []
+	];
 	const colorMode = painter.colorModeForRenderPass();
 	const dasharrayProperty = layer.paint.get("line-dasharray");
 	const dasharray = dasharrayProperty.constantOr(1);
@@ -20388,6 +20404,9 @@ var Painter = class Painter {
 			const tileManager = tileManagers[layer.source];
 			if (this.renderToTexture?.renderLayer(layer, renderContext)) continue;
 			if (renderContext.currentLayer < last3D && isLineStyleLayer(layer) && layer.isElevated()) {
+				renderContext.elevatedPass = "underground";
+				this.renderLayer(this, tileManager, layer, coordsDescending[layer.source], renderContext);
+				renderContext.elevatedPass = void 0;
 				deferred.push(renderContext.currentLayer);
 				continue;
 			}
@@ -20400,10 +20419,12 @@ var Painter = class Painter {
 			this.renderLayer(this, tileManager, layer, coords, renderContext);
 			if (renderContext.currentLayer === last3D) {
 				const current = renderContext.currentLayer;
+				renderContext.elevatedPass = "overground";
 				for (renderContext.currentLayer of deferred) {
 					const line = this.style._layers[layerIds[renderContext.currentLayer]];
 					this.renderLayer(this, tileManagers[line.source], line, coordsDescending[line.source], renderContext);
 				}
+				renderContext.elevatedPass = void 0;
 				renderContext.currentLayer = current;
 			}
 		}

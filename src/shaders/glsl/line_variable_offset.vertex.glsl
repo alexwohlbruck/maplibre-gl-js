@@ -9,9 +9,9 @@
 layout(location = 0) in ivec2 a_pos_normal;
 layout(location = 1) in uvec4 a_data;
 // PARCHMENT: per-vertex offset in pixels, from the ext buffer, evaluated from a
-// `line-progress` expression on `line-offset`. Location 4 is that buffer's third
-// member, after a_uv_x and a_split_index; see line_attributes_ext.ts.
-layout(location = 4) in float a_line_offset;
+// `line-progress` expression on `line-offset`. Its location is its place among this
+// shader's own inputs: the paint attributes are given the locations after them.
+layout(location = 2) in float a_line_offset;
 
 uniform vec2 u_translation;
 uniform mediump float u_ratio;

@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.11/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.12/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -9771,12 +9771,27 @@ if (!layoutLine["line-elevation-profile"]) {
 	layoutLine["line-elevation-profile"] = {
 		"type": "string",
 		"default": "",
-		"doc": "Heights of the line above the terrain, as runs separated by `;`. Each run is a comma-separated list of integer triples: the first is longitude and latitude in 1e-7 degrees and height in decimetres, each later one the change in longitude and latitude from the point before and its own height. Points lie on the line in its direction; the line is raised by the height interpolated between the points of a run and lies on the terrain outside the runs. A layer with a profile is drawn in 3D rather than draped over terrain, and only while terrain is enabled.",
+		"doc": "Heights along the line, as runs separated by `;`. Each run is a comma-separated list of integer triples: the first is longitude and latitude in 1e-7 degrees and height in decimetres, each later one the change in longitude and latitude from the point before and its own height. Heights are above sea level in the terrain's datum, or above the terrain under the point for a run prefixed with `~`. Points lie on the line in its direction; within a run the height is interpolated between its points, and outside the runs the line lies on the terrain. A layer with a profile is drawn in 3D rather than draped over terrain, and only while terrain is enabled.",
 		"expression": {
 			"interpolated": false,
 			"parameters": ["zoom", "feature"]
 		},
 		"property-type": "data-driven"
+	};
+	paintLine["line-pitch-alignment"] = {
+		"type": "enum",
+		"values": {
+			"map": { "doc": "The line lies in the plane of the map, so it narrows as the map tilts away." },
+			"viewport": { "doc": "The line keeps its width and offset in pixels however the map is tilted." }
+		},
+		"default": "map",
+		"doc": "How a line drawn with `line-elevation-profile` is widened under a tilted camera.",
+		"requires": ["line-elevation-profile"],
+		"expression": {
+			"interpolated": false,
+			"parameters": ["zoom"]
+		},
+		"property-type": "data-constant"
 	};
 	paintLine["line-depth-occlusion-factor"] = {
 		"type": "number",
@@ -14427,30 +14442,33 @@ register("StructArrayLayout2i4ub8", StructArrayLayout2i4ub8);
 /**
 * @internal
 * Implementation of the StructArray layout:
-* [0] - Float32[4]
+* [0] - Float32[7]
 *
 */
-var StructArrayLayout4f16 = class extends StructArray {
+var StructArrayLayout7f28 = class extends StructArray {
 	_refreshViews() {
 		this.uint8 = new Uint8Array(this.arrayBuffer);
 		this.float32 = new Float32Array(this.arrayBuffer);
 	}
-	emplaceBack(v0, v1, v2, v3) {
+	emplaceBack(v0, v1, v2, v3, v4, v5, v6) {
 		const i = this.length;
 		this.resize(i + 1);
-		return this.emplace(i, v0, v1, v2, v3);
+		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6);
 	}
-	emplace(i, v0, v1, v2, v3) {
-		const o4 = i * 4;
+	emplace(i, v0, v1, v2, v3, v4, v5, v6) {
+		const o4 = i * 7;
 		this.float32[o4 + 0] = v0;
 		this.float32[o4 + 1] = v1;
 		this.float32[o4 + 2] = v2;
 		this.float32[o4 + 3] = v3;
+		this.float32[o4 + 4] = v4;
+		this.float32[o4 + 5] = v5;
+		this.float32[o4 + 6] = v6;
 		return i;
 	}
 };
-StructArrayLayout4f16.prototype.bytesPerElement = 16;
-register("StructArrayLayout4f16", StructArrayLayout4f16);
+StructArrayLayout7f28.prototype.bytesPerElement = 28;
+register("StructArrayLayout7f28", StructArrayLayout7f28);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -15043,6 +15061,33 @@ var StructArrayLayout2f8 = class extends StructArray {
 };
 StructArrayLayout2f8.prototype.bytesPerElement = 8;
 register("StructArrayLayout2f8", StructArrayLayout2f8);
+/**
+* @internal
+* Implementation of the StructArray layout:
+* [0] - Float32[4]
+*
+*/
+var StructArrayLayout4f16 = class extends StructArray {
+	_refreshViews() {
+		this.uint8 = new Uint8Array(this.arrayBuffer);
+		this.float32 = new Float32Array(this.arrayBuffer);
+	}
+	emplaceBack(v0, v1, v2, v3) {
+		const i = this.length;
+		this.resize(i + 1);
+		return this.emplace(i, v0, v1, v2, v3);
+	}
+	emplace(i, v0, v1, v2, v3) {
+		const o4 = i * 4;
+		this.float32[o4 + 0] = v0;
+		this.float32[o4 + 1] = v1;
+		this.float32[o4 + 2] = v2;
+		this.float32[o4 + 3] = v3;
+		return i;
+	}
+};
+StructArrayLayout4f16.prototype.bytesPerElement = 16;
+register("StructArrayLayout4f16", StructArrayLayout4f16);
 /** @internal */
 var CollisionBoxStruct = class extends Struct {
 	get anchorPointX() {
@@ -15352,7 +15397,7 @@ var CircleLayoutArray = class extends StructArrayLayout2i4 {};
 var FillLayoutArray = class extends StructArrayLayout2i4 {};
 var FillExtrusionLayoutArray = class extends StructArrayLayout2i4i12 {};
 var LineLayoutArray = class extends StructArrayLayout2i4ub8 {};
-var LineExtLayoutArray = class extends StructArrayLayout4f16 {};
+var LineExtLayoutArray = class extends StructArrayLayout7f28 {};
 var PatternLayoutArray = class extends StructArrayLayout10ui20 {};
 var DashLayoutArray = class extends StructArrayLayout8ui16 {};
 var SymbolLayoutArray = class extends StructArrayLayout4i4ui4i1f2i32 {};
@@ -22148,8 +22193,8 @@ const lineLayoutAttributesExt = createLayout([
 		type: "Float32"
 	},
 	{
-		name: "a_z",
-		components: 1,
+		name: "a_elevation",
+		components: 4,
 		type: "Float32"
 	}
 ]);
@@ -22158,6 +22203,8 @@ lineLayoutAttributesExt.size;
 lineLayoutAttributesExt.alignment;
 //#endregion
 //#region src/data/bucket/line_elevation.ts
+/** A run's prefix for heights measured from the terrain rather than from sea level. */
+const RELATIVE_PREFIX = "~";
 /** How far from the line, in tile units, a profile point may lie and still be placed on it. */
 const SNAP_TOLERANCE = 8;
 /** Projections closer than this to a vertex, as a fraction of their segment, land on the vertex. */
@@ -22174,11 +22221,13 @@ function parseElevationProfile(profile, canonical) {
 	const runs = [];
 	if (!profile) return runs;
 	for (const text of profile.split(";")) {
-		const values = text.split(",").map(Number);
+		const relative = text.startsWith(RELATIVE_PREFIX);
+		const values = (relative ? text.slice(1) : text).split(",").map(Number);
 		if (values.length < 6 || values.length % 3 !== 0 || values.some((v) => !Number.isFinite(v))) continue;
 		const run = {
 			points: [],
-			heights: []
+			heights: [],
+			relative
 		};
 		let lng = 0, lat = 0;
 		for (let i = 0; i < values.length; i += 3) {
@@ -22208,10 +22257,7 @@ function place(vertices, point, from) {
 	}
 	return best;
 }
-/**
-* The line with the profile's points added as vertices, and the height of every vertex: interpolated by
-* distance between the points of a run, zero outside the runs.
-*/
+/** The line with the profile's points added as vertices, and where each vertex is drawn. */
 function elevateLine(vertices, runs) {
 	const placed = [];
 	for (const [r, run] of runs.entries()) {
@@ -22231,7 +22277,8 @@ function elevateLine(vertices, runs) {
 	}
 	if (!placed.length) return {
 		vertices,
-		heights: vertices.map(() => 0)
+		heights: vertices.map(() => 0),
+		ground: vertices.map(() => 1)
 	};
 	placed.sort((a, b) => a.segment - b.segment || a.t - b.t);
 	const out = [];
@@ -22255,7 +22302,12 @@ function elevateLine(vertices, runs) {
 			runOf.push(run);
 		}
 	}
-	return interpolate(out, heights, runOf);
+	interpolate(out, heights, runOf);
+	return {
+		vertices: out,
+		heights,
+		ground: runOf.map((r) => r < 0 || runs[r].relative ? 1 : 0)
+	};
 }
 /** Fills in the vertices between two placed points of one run by distance along the line. */
 function interpolate(vertices, heights, runOf) {
@@ -22269,14 +22321,11 @@ function interpolate(vertices, heights, runOf) {
 			for (let k = last + 1; k < i; k++) {
 				const f = span ? (along[k] - along[last]) / span : 0;
 				heights[k] = heights[last] + (heights[i] - heights[last]) * f;
+				runOf[k] = runOf[i];
 			}
 		}
 		last = i;
 	}
-	return {
-		vertices,
-		heights
-	};
 }
 //#endregion
 //#region src/data/bucket/line_bucket.ts
@@ -22320,6 +22369,9 @@ var LineBucket = class {
 		const profile = this.layers[0].layout.get("line-elevation-profile");
 		this.elevated = !profile.isConstant() || !!profile.constantOr("");
 		this.vertexHeight = 0;
+		this.vertexGround = 1;
+		this.tangentX = 1;
+		this.tangentY = 0;
 		this.stateDependentLayerIds = this.layers.filter((l) => l.isStateDependent()).map((l) => l.id);
 	}
 	populate(features, options, canonical) {
@@ -22421,7 +22473,8 @@ var LineBucket = class {
 		const granularity = canonical ? subdivisionGranularity.line.getGranularityForZoomLevel(canonical.z) : 1;
 		vertices = subdivideVertexLine(vertices, this.elevated ? Math.max(granularity, ELEVATED_GRANULARITY) : granularity);
 		let heights = null;
-		if (this.elevated) ({vertices, heights} = elevateLine(vertices, this.elevationRuns));
+		let ground = null;
+		if (this.elevated) ({vertices, heights, ground} = elevateLine(vertices, this.elevationRuns));
 		if (this.lineClips) {
 			this.lineClipsArray.push(this.lineClips);
 			for (let i = 0; i < vertices.length - 1; i++) this.totalDistance += vertices[i].dist(vertices[i + 1]);
@@ -22453,7 +22506,10 @@ var LineBucket = class {
 			if (nextNormal) prevNormal = nextNormal;
 			if (currentVertex) prevVertex = currentVertex;
 			currentVertex = vertices[i];
-			if (heights) this.vertexHeight = heights[i];
+			if (heights) {
+				this.vertexHeight = heights[i];
+				this.vertexGround = ground[i];
+			}
 			nextNormal = nextVertex ? nextVertex.sub(currentVertex)._unit()._perp() : prevNormal;
 			prevNormal ||= nextNormal;
 			let joinNormal = prevNormal.add(nextNormal);
@@ -22503,6 +22559,7 @@ var LineBucket = class {
 				if (prevVertex) this.addCurrentVertex(currentVertex, prevNormal, offsetA, offsetB, segment);
 				if (currentJoin === "fakeround") {
 					const n = Math.round(approxAngle * 180 / Math.PI / DEG_PER_TRIANGLE);
+					this.setTangent(joinNormal);
 					for (let m = 1; m < n; m++) {
 						let t = m / n;
 						if (t !== .5) {
@@ -22552,6 +22609,7 @@ var LineBucket = class {
 	* @param round - whether this is a round cap
 	*/
 	addCurrentVertex(p, normal, endLeft, endRight, segment, round = false) {
+		this.setTangent(normal);
 		const leftX = normal.x + normal.y * endLeft;
 		const leftY = normal.y - normal.x * endLeft;
 		const rightX = -normal.x + normal.y * endRight;
@@ -22575,7 +22633,7 @@ var LineBucket = class {
 				this.evaluationGlobals.lineProgress = this.scaledDistance;
 				lineOffset = this.variableOffsetExpression.evaluate(this.evaluationGlobals, this.currentLineFeature) || 0;
 			}
-			this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length, lineOffset, this.vertexHeight);
+			this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length, lineOffset, this.vertexHeight, this.vertexGround, this.tangentX, this.tangentY);
 		}
 		const e = segment.vertexLength++;
 		if (this.e1 >= 0 && this.e2 >= 0) {
@@ -22584,6 +22642,14 @@ var LineBucket = class {
 		}
 		if (up) this.e2 = e;
 		else this.e1 = e;
+	}
+	/** The line's direction, from the normal it is extruded along. */
+	setTangent(normal) {
+		const length = Math.hypot(normal.x, normal.y);
+		if (length) {
+			this.tangentX = normal.y / length;
+			this.tangentY = -normal.x / length;
+		}
 	}
 	updateScaledDistance() {
 		this.scaledDistance = this.lineClips ? this.lineClips.start + (this.lineClips.end - this.lineClips.start) * this.distance / this.totalDistance : this.distance;
@@ -22669,6 +22735,7 @@ const getPaint$2 = () => paint$2 = paint$2 || new Properties({
 	"line-dasharray": new CrossFadedDataDrivenProperty(latest["paint_line"]["line-dasharray"], "line-dasharray"),
 	"line-pattern": new CrossFadedDataDrivenProperty(latest["paint_line"]["line-pattern"], "line-pattern"),
 	"line-gradient": new ColorRampProperty(latest["paint_line"]["line-gradient"], "line-gradient"),
+	"line-pitch-alignment": new DataConstantProperty(latest["paint_line"]["line-pitch-alignment"], "line-pitch-alignment"),
 	"line-depth-occlusion-factor": new DataConstantProperty(latest["paint_line"]["line-depth-occlusion-factor"], "line-depth-occlusion-factor")
 });
 var line_style_layer_properties_g_default = {

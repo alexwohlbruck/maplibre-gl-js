@@ -343,15 +343,15 @@ declare class StructArrayLayout2i4ub8 extends StructArray {
 /**
  * @internal
  * Implementation of the StructArray layout:
- * [0] - Float32[4]
+ * [0] - Float32[7]
  *
  */
-declare class StructArrayLayout4f16 extends StructArray {
+declare class StructArrayLayout7f28 extends StructArray {
   uint8: Uint8Array;
   float32: Float32Array;
   _refreshViews(): void;
-  emplaceBack(v0: number, v1: number, v2: number, v3: number): number;
-  emplace(i: number, v0: number, v1: number, v2: number, v3: number): number;
+  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number): number;
+  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number): number;
 }
 /**
  * @internal
@@ -706,7 +706,7 @@ declare class CircleLayoutArray extends StructArrayLayout2i4 {}
 declare class FillLayoutArray extends StructArrayLayout2i4 {}
 declare class FillExtrusionLayoutArray extends StructArrayLayout2i4i12 {}
 declare class LineLayoutArray extends StructArrayLayout2i4ub8 {}
-declare class LineExtLayoutArray extends StructArrayLayout4f16 {}
+declare class LineExtLayoutArray extends StructArrayLayout7f28 {}
 declare class SymbolLayoutArray extends StructArrayLayout4i4ui4i1f2i32 {}
 declare class SymbolDynamicLayoutArray extends StructArrayLayout3f12 {}
 declare class SymbolOpacityArray extends StructArrayLayout1ul4 {}
@@ -5145,10 +5145,14 @@ declare class HeatmapStyleLayer extends StyleLayer {
 declare function drawHeatmap(painter: Painter, tileManager: TileManager, layer: HeatmapStyleLayer, tileIDs: OverscaledTileID[], renderContext: RenderContext): void;
 //#endregion
 //#region src/data/bucket/line_elevation.d.ts
-/** A stretch of a line off the ground: points on the line, in tile units, with their heights in metres. */
+/**
+ * A stretch of a line off the ground: points on the line, in tile units, with their heights in metres, above
+ * sea level in the terrain's datum or, for a relative run, above the terrain under them.
+ */
 type ElevationRun = {
   points: Point$1[];
   heights: number[];
+  relative: boolean;
 };
 //#endregion
 //#region src/data/bucket/line_bucket.d.ts
@@ -5204,6 +5208,9 @@ declare class LineBucket implements Bucket {
   elevated: boolean;
   elevationRuns: ElevationRun[];
   vertexHeight: number;
+  vertexGround: number;
+  tangentX: number;
+  tangentY: number;
   constructor(options: BucketParameters<LineStyleLayer>);
   populate(features: IndexedFeature[], options: PopulateParameters, canonical: CanonicalTileID): void;
   update(states: FeatureStates, vtLayer: VectorTileLayerLike, imagePositions: {
@@ -5233,6 +5240,8 @@ declare class LineBucket implements Bucket {
    */
   addCurrentVertex(p: Point$1, normal: Point$1, endLeft: number, endRight: number, segment: Segment, round?: boolean): void;
   addHalfVertex({ x, y }: Point$1, extrudeX: number, extrudeY: number, round: boolean, up: boolean, dir: number, segment: Segment): void;
+  /** The line's direction, from the normal it is extruded along. */
+  setTangent(normal: Point$1): void;
   updateScaledDistance(): void;
   updateDistance(prev: Point$1, next: Point$1): void;
   private hasLineDasharray;
@@ -5271,6 +5280,7 @@ type LinePaintProps = {
   "line-dasharray": CrossFadedDataDrivenProperty<number[]>;
   "line-pattern": CrossFadedDataDrivenProperty<ResolvedImage>;
   "line-gradient": ColorRampProperty;
+  "line-pitch-alignment": DataConstantProperty<"map" | "viewport">;
   "line-depth-occlusion-factor": DataConstantProperty<number>;
 };
 type LinePaintPropsPossiblyEvaluated = {
@@ -5286,6 +5296,7 @@ type LinePaintPropsPossiblyEvaluated = {
   "line-dasharray": PossiblyEvaluatedPropertyValue<CrossFaded<number[]>>;
   "line-pattern": PossiblyEvaluatedPropertyValue<CrossFaded<ResolvedImage>>;
   "line-gradient": ColorRampProperty;
+  "line-pitch-alignment": "map" | "viewport";
   "line-depth-occlusion-factor": number;
 };
 //#endregion

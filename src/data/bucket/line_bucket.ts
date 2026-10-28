@@ -78,6 +78,8 @@ const MAX_LINE_DISTANCE = Math.pow(2, LINE_DISTANCE_BUFFER_BITS - 1) / LINE_DIST
 
 // Cells per tile an elevated line is cut at, so that off the draped texture it still follows the terrain.
 const ELEVATED_GRANULARITY = 64;
+// How far from a run's path a vertex of its line may lie and still take its height.
+const ELEVATION_REACH_METERS = 4;
 
 type LineClips = {
     start: number;
@@ -328,7 +330,7 @@ export class LineBucket implements Bucket {
         vertices = subdivideVertexLine(vertices, this.elevated ? Math.max(granularity, ELEVATED_GRANULARITY) : granularity);
         let heights: number[] | null = null;
         let ground: number[] | null = null;
-        if (this.elevated) ({vertices, heights, ground} = elevateLine(vertices, this.elevationRuns));
+        if (this.elevated) ({vertices, heights, ground} = elevateLine(vertices, this.elevationRuns, canonical ? ELEVATION_REACH_METERS * getTileUnitsForMeters(1, canonical) : 0));
 
         if (this.lineClips) {
             this.lineClipsArray.push(this.lineClips);

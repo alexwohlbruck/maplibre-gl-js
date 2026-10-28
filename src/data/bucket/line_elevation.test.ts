@@ -70,6 +70,13 @@ describe('elevateLine', () => {
         expect(heights).toEqual([-9, -9, 0]);
     });
 
+    test('a piece cut from the middle of a run, holding none of its points, follows its path', () => {
+        const {vertices, heights, ground} = elevateLine(line, [run([[-500, 3], [2500, 3]], [-9, -21], true)], 8);
+        expect(vertices).toHaveLength(3);
+        expect(heights).toEqual([-11, -15, -19]);
+        expect(ground).toEqual([1, 1, 1]);
+    });
+
     test('does not interpolate across two runs', () => {
         const {heights, ground} = elevateLine(line, [run([[100, 0], [400, 0]], [4, 4]), run([[1600, 0], [1900, 0]], [-6, -6], true)]);
         expect(heights).toEqual([0, 4, 4, 0, -6, -6, 0]);

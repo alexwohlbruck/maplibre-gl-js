@@ -74,8 +74,12 @@ function place(vertices: Point[], point: Point, from: number): {segment: number;
  */
 export type ElevatedLine = {vertices: Point[]; heights: number[]; ground: number[]};
 
-/** The line with the profile's points added as vertices, and where each vertex is drawn. */
-export function elevateLine(vertices: Point[], runs: ElevationRun[]): ElevatedLine {
+/**
+ * The line with the profile's points added as vertices, and where each vertex is drawn. A vertex between no two of a
+ * run's points on this piece of the line, as when the tile cut the run's ends off, takes the height of the run's path
+ * where it passes within `reach` tile units.
+ */
+export function elevateLine(vertices: Point[], runs: ElevationRun[], reach: number = SNAP_TOLERANCE): ElevatedLine {
     const placed: Placed[] = [];
     for (const [r, run] of runs.entries()) {
         let from = 0;
@@ -90,7 +94,6 @@ export function elevateLine(vertices: Point[], runs: ElevationRun[]): ElevatedLi
             placed.push({segment: hit.segment + (next ? 1 : 0), t: next ? 0 : t, height: run.heights[i], run: r});
         }
     }
-    if (!placed.length) return {vertices, heights: vertices.map(() => 0), ground: vertices.map(() => 1)};
     placed.sort((a, b) => a.segment - b.segment || a.t - b.t);
 
     const out: Point[] = [];
@@ -115,7 +118,28 @@ export function elevateLine(vertices: Point[], runs: ElevationRun[]): ElevatedLi
         }
     }
     interpolate(out, heights, runOf);
+    for (const [i, vertex] of out.entries()) {
+        if (runOf[i] >= 0) continue;
+        const on = nearestOnRun(runs, vertex, reach);
+        if (on) [heights[i], runOf[i]] = [on.height, on.run];
+    }
     return {vertices: out, heights, ground: runOf.map(r => (r < 0 || runs[r].relative ? 1 : 0))};
+}
+
+/** The height of the nearest run whose path passes within `reach` of a point, interpolated along it there. */
+function nearestOnRun(runs: ElevationRun[], p: Point, reach: number): {height: number; run: number} | null {
+    let best: {height: number; run: number; distance: number} | null = null;
+    for (const [r, {points, heights}] of runs.entries()) {
+        for (let i = 1; i < points.length; i++) {
+            const a = points[i - 1], b = points[i];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const length2 = dx * dx + dy * dy;
+            const t = length2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2)) : 0;
+            const distance = Math.hypot(a.x + dx * t - p.x, a.y + dy * t - p.y);
+            if (distance <= reach && (!best || distance < best.distance)) best = {height: heights[i - 1] + (heights[i] - heights[i - 1]) * t, run: r, distance};
+        }
+    }
+    return best;
 }
 
 /** Fills in the vertices between two placed points of one run by distance along the line. */

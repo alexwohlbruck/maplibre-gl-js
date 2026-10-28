@@ -7,8 +7,9 @@ export const lineLayoutAttributesExt: StructArrayLayout = createLayout([
     // `line-offset`. Only populated (non-zero) when the offset varies along the line;
     // consumed by the `lineVariableOffset` shader variant.
     {name: 'a_line_offset', components: 1, type: 'Float32'},
-    // Height of the vertex over the terrain in metres, from `line-elevation-profile`; zero for other lines.
-    {name: 'a_z', components: 1, type: 'Float32'},
+    // From `line-elevation-profile`: the vertex's height in metres, how much of the terrain's height to add to it,
+    // and the direction of the line through it, for extruding it across the line on screen.
+    {name: 'a_elevation', components: 4, type: 'Float32'},
 ]);
 
 export const members: StructArrayMember[] = lineLayoutAttributesExt.members;

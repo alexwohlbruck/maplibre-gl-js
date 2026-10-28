@@ -14,8 +14,8 @@ import type {BucketFeature, BucketParameters} from '../bucket.ts';
 
 const world = new CanonicalTileID(0, 0, 0);
 
-function run(points: Array<[number, number]>, heights: number[]): ElevationRun {
-    return {points: points.map(([x, y]) => new Point(x, y)), heights};
+function run(points: Array<[number, number]>, heights: number[], relative = false): ElevationRun {
+    return {points: points.map(([x, y]) => new Point(x, y)), heights, relative};
 }
 
 describe('parseElevationProfile', () => {
@@ -26,6 +26,13 @@ describe('parseElevationProfile', () => {
         expect(a.points[1].x).toBeCloseTo(EXTENT * 0.75);
         expect(a.heights).toEqual([2.5, -4]);
         expect(b.points[0].x).toBeCloseTo(EXTENT / 4);
+        expect([a.relative, b.relative]).toEqual([false, false]);
+    });
+
+    test('reads a run prefixed with ~ as heights over the terrain', () => {
+        const [run] = parseElevationProfile('~0,0,-90,1000,0,-90', world);
+        expect(run.relative).toBe(true);
+        expect(run.heights).toEqual([-9, -9]);
     });
 
     test('skips malformed runs', () => {
@@ -39,9 +46,10 @@ describe('elevateLine', () => {
     const line = [new Point(0, 0), new Point(1000, 0), new Point(2000, 0)];
 
     test('adds the run as vertices and interpolates between them', () => {
-        const {vertices, heights} = elevateLine(line, [run([[200, 2], [600, 0], [1400, 0], [1800, 1]], [0, 10, 10, 0])]);
+        const {vertices, heights, ground} = elevateLine(line, [run([[200, 2], [600, 0], [1400, 0], [1800, 1]], [4, 30, 30, 4])]);
         expect(vertices.map(p => p.x)).toEqual([0, 200, 600, 1000, 1400, 1800, 2000]);
-        expect(heights).toEqual([0, 0, 10, 10, 10, 0, 0]);
+        expect(heights).toEqual([0, 4, 30, 30, 30, 4, 0]);
+        expect(ground).toEqual([1, 0, 0, 0, 0, 0, 1]);
     });
 
     test('leaves the line on the ground outside its runs and off-line points out', () => {
@@ -57,8 +65,9 @@ describe('elevateLine', () => {
     });
 
     test('does not interpolate across two runs', () => {
-        const {heights} = elevateLine(line, [run([[100, 0], [400, 0]], [4, 4]), run([[1600, 0], [1900, 0]], [-6, -6])]);
+        const {heights, ground} = elevateLine(line, [run([[100, 0], [400, 0]], [4, 4]), run([[1600, 0], [1900, 0]], [-6, -6], true)]);
         expect(heights).toEqual([0, 4, 4, 0, -6, -6, 0]);
+        expect(ground).toEqual([1, 0, 0, 1, 1, 1, 1]);
     });
 });
 
@@ -77,7 +86,11 @@ describe('LineBucket elevation', () => {
         const geometry = [[new Point(EXTENT / 2, EXTENT / 2), new Point(EXTENT, EXTENT / 2)]];
         bucket.addFeature(feature, geometry, 0, world, {}, {}, SubdivisionGranularitySetting.noSubdivision);
         const heights = new Set<number>();
-        for (let i = 0; i < bucket.layoutVertexArray2.length; i++) heights.add(bucket.layoutVertexArray2.float32[i * 4 + 3]);
+        const stride = bucket.layoutVertexArray2.bytesPerElement / 4;
+        for (let i = 0; i < bucket.layoutVertexArray2.length; i++) heights.add(bucket.layoutVertexArray2.float32[i * stride + 3]);
+        // Every vertex runs east, as the line does.
+        expect(bucket.layoutVertexArray2.float32[5]).toBeCloseTo(1);
+        expect(bucket.layoutVertexArray2.float32[6]).toBeCloseTo(0);
         expect(bucket.layoutVertexArray2.length).toBe(bucket.layoutVertexArray.length);
         expect([...heights].sort()).toEqual([0, 3]);
     });

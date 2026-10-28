@@ -43,12 +43,27 @@ if (!layoutLine['line-elevation-profile']) {
     layoutLine['line-elevation-profile'] = {
         'type': 'string',
         'default': '',
-        'doc': 'Heights of the line above the terrain, as runs separated by `;`. Each run is a comma-separated list of integer triples: the first is longitude and latitude in 1e-7 degrees and height in decimetres, each later one the change in longitude and latitude from the point before and its own height. Points lie on the line in its direction; the line is raised by the height interpolated between the points of a run and lies on the terrain outside the runs. A layer with a profile is drawn in 3D rather than draped over terrain, and only while terrain is enabled.',
+        'doc': 'Heights along the line, as runs separated by `;`. Each run is a comma-separated list of integer triples: the first is longitude and latitude in 1e-7 degrees and height in decimetres, each later one the change in longitude and latitude from the point before and its own height. Heights are above sea level in the terrain\'s datum, or above the terrain under the point for a run prefixed with `~`. Points lie on the line in its direction; within a run the height is interpolated between its points, and outside the runs the line lies on the terrain. A layer with a profile is drawn in 3D rather than draped over terrain, and only while terrain is enabled.',
         'expression': {
             'interpolated': false,
             'parameters': ['zoom', 'feature']
         },
         'property-type': 'data-driven'
+    };
+    paintLine['line-pitch-alignment'] = {
+        'type': 'enum',
+        'values': {
+            'map': {'doc': 'The line lies in the plane of the map, so it narrows as the map tilts away.'},
+            'viewport': {'doc': 'The line keeps its width and offset in pixels however the map is tilted.'}
+        },
+        'default': 'map',
+        'doc': 'How a line drawn with `line-elevation-profile` is widened under a tilted camera.',
+        'requires': ['line-elevation-profile'],
+        'expression': {
+            'interpolated': false,
+            'parameters': ['zoom']
+        },
+        'property-type': 'data-constant'
     };
     paintLine['line-depth-occlusion-factor'] = {
         'type': 'number',

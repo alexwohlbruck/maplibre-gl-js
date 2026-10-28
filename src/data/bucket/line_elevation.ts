@@ -3,11 +3,18 @@ import {EXTENT} from '../extent.ts';
 
 import type {CanonicalTileID} from '../../tile/tile_id.ts';
 
-/** A stretch of a line off the ground: points on the line, in tile units, with their heights in metres. */
+/**
+ * A stretch of a line off the ground: points on the line, in tile units, with their heights in metres, above
+ * sea level in the terrain's datum or, for a relative run, above the terrain under them.
+ */
 export type ElevationRun = {
     points: Point[];
     heights: number[];
+    relative: boolean;
 };
+
+/** A run's prefix for heights measured from the terrain rather than from sea level. */
+const RELATIVE_PREFIX = '~';
 
 /** How far from the line, in tile units, a profile point may lie and still be placed on it. */
 const SNAP_TOLERANCE = 8;
@@ -29,9 +36,10 @@ export function parseElevationProfile(profile: string, canonical: CanonicalTileI
     const runs: ElevationRun[] = [];
     if (!profile) return runs;
     for (const text of profile.split(';')) {
-        const values = text.split(',').map(Number);
+        const relative = text.startsWith(RELATIVE_PREFIX);
+        const values = (relative ? text.slice(RELATIVE_PREFIX.length) : text).split(',').map(Number);
         if (values.length < 6 || values.length % 3 !== 0 || values.some(v => !Number.isFinite(v))) continue;
-        const run: ElevationRun = {points: [], heights: []};
+        const run: ElevationRun = {points: [], heights: [], relative};
         let lng = 0, lat = 0;
         for (let i = 0; i < values.length; i += 3) {
             lng += values[i];
@@ -61,10 +69,13 @@ function place(vertices: Point[], point: Point, from: number): {segment: number;
 }
 
 /**
- * The line with the profile's points added as vertices, and the height of every vertex: interpolated by
- * distance between the points of a run, zero outside the runs.
+ * Where each vertex is drawn: `height` metres plus `ground` times the terrain under it. Outside the runs a vertex
+ * lies on the terrain; within one its height is interpolated by distance between the run's points.
  */
-export function elevateLine(vertices: Point[], runs: ElevationRun[]): {vertices: Point[]; heights: number[]} {
+export type ElevatedLine = {vertices: Point[]; heights: number[]; ground: number[]};
+
+/** The line with the profile's points added as vertices, and where each vertex is drawn. */
+export function elevateLine(vertices: Point[], runs: ElevationRun[]): ElevatedLine {
     const placed: Placed[] = [];
     for (const [r, run] of runs.entries()) {
         let from = 0;
@@ -77,7 +88,7 @@ export function elevateLine(vertices: Point[], runs: ElevationRun[]): {vertices:
             placed.push({segment: hit.segment + (next ? 1 : 0), t: next ? 0 : hit.t, height: run.heights[i], run: r});
         }
     }
-    if (!placed.length) return {vertices, heights: vertices.map(() => 0)};
+    if (!placed.length) return {vertices, heights: vertices.map(() => 0), ground: vertices.map(() => 1)};
     placed.sort((a, b) => a.segment - b.segment || a.t - b.t);
 
     const out: Point[] = [];
@@ -101,11 +112,12 @@ export function elevateLine(vertices: Point[], runs: ElevationRun[]): {vertices:
             runOf.push(run);
         }
     }
-    return interpolate(out, heights, runOf);
+    interpolate(out, heights, runOf);
+    return {vertices: out, heights, ground: runOf.map(r => (r < 0 || runs[r].relative ? 1 : 0))};
 }
 
 /** Fills in the vertices between two placed points of one run by distance along the line. */
-function interpolate(vertices: Point[], heights: number[], runOf: number[]): {vertices: Point[]; heights: number[]} {
+function interpolate(vertices: Point[], heights: number[], runOf: number[]): void {
     const along = [0];
     for (let i = 1; i < vertices.length; i++) along.push(along[i - 1] + vertices[i].dist(vertices[i - 1]));
     let last = -1;
@@ -116,9 +128,9 @@ function interpolate(vertices: Point[], heights: number[], runOf: number[]): {ve
             for (let k = last + 1; k < i; k++) {
                 const f = span ? (along[k] - along[last]) / span : 0;
                 heights[k] = heights[last] + (heights[i] - heights[last]) * f;
+                runOf[k] = runOf[i];
             }
         }
         last = i;
     }
-    return {vertices, heights};
 }

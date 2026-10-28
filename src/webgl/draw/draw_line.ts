@@ -171,7 +171,7 @@ function drawLineTiles(
     const depthMode = !elevated ? painter.getDepthModeForSublayer(0, DepthMode.ReadOnly) :
         layer.paint.get('line-depth-occlusion-factor') > 0 ? new DepthMode(painter.context.gl.LEQUAL, DepthMode.ReadOnly, painter.renderContext.depthRangeFor3D) :
             DepthMode.disabled;
-    const defines = elevated ? ['#define LINE_ELEVATION'] : [];
+    const defines = !elevated ? [] : layer.paint.get('line-pitch-alignment') === 'viewport' ? ['#define LINE_ELEVATION', '#define LINE_VIEWPORT'] : ['#define LINE_ELEVATION'];
     const colorMode = painter.colorModeForRenderPass();
 
     const dasharrayProperty = layer.paint.get('line-dasharray');

@@ -628,12 +628,22 @@ export class Painter {
 
         let globeDepthRendered = false;
 
+        // A line raised over the terrain is drawn after the last 3D layer, which would otherwise paint over it
+        // wherever it stands in front: the depth buffer then holds everything that may hide it.
+        const last3D = this.style.map.terrain ? layerIds.findLastIndex(id => !this.style._layers[id].isHidden(this.transform.zoom) && this.style._layers[id].is3D()) : -1;
+        const deferred: number[] = [];
+
         for (renderContext.currentLayer = 0; renderContext.currentLayer < layerIds.length; renderContext.currentLayer++) {
             const layer = this.style._layers[layerIds[renderContext.currentLayer]];
             if (layer.isHidden(this.transform.zoom)) continue;
             const tileManager = tileManagers[layer.source];
 
             if (this.renderToTexture?.renderLayer(layer, renderContext)) continue;
+
+            if (renderContext.currentLayer < last3D && isLineStyleLayer(layer) && layer.isElevated()) {
+                deferred.push(renderContext.currentLayer);
+                continue;
+            }
 
             if (!this.opaquePassEnabledForLayer() && !globeDepthRendered) {
                 globeDepthRendered = true;
@@ -651,6 +661,15 @@ export class Painter {
 
             this.renderTileClippingMasks(layer, coordsAscending[layer.source]);
             this.renderLayer(this, tileManager, layer, coords, renderContext);
+
+            if (renderContext.currentLayer === last3D) {
+                const current = renderContext.currentLayer;
+                for (renderContext.currentLayer of deferred) {
+                    const line = this.style._layers[layerIds[renderContext.currentLayer]];
+                    this.renderLayer(this, tileManagers[line.source], line, coordsDescending[line.source], renderContext);
+                }
+                renderContext.currentLayer = current;
+            }
         }
 
         // Render atmosphere, only for Globe projection

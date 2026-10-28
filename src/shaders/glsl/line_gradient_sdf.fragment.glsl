@@ -20,7 +20,16 @@ in float v_depth;
 #pragma maplibre: define mediump vec4 dasharray_from
 #pragma maplibre: define mediump vec4 dasharray_to
 
+#ifdef LINE_ELEVATION
+in highp vec2 v_tile_pos;
+in float v_lift;
+#endif
+
 void main() {
+    #ifdef LINE_ELEVATION
+        elevated_line_fragment(v_tile_pos, v_lift);
+    #endif
+
     #pragma maplibre: initialize lowp float blur
     #pragma maplibre: initialize lowp float opacity
     #pragma maplibre: initialize mediump float width

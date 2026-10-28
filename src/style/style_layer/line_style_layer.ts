@@ -86,6 +86,12 @@ export class LineStyleLayer extends StyleLayer {
         return expressionReferencesLineProgress(this.offsetExpression());
     }
 
+    /** True when a `line-elevation-profile` lifts the line off the terrain, so it is drawn in 3D rather than draped. */
+    isElevated(): boolean {
+        const profile = this.layout.get('line-elevation-profile');
+        return !profile.isConstant() || !!profile.constantOr('');
+    }
+
     recalculate(parameters: EvaluationParameters, availableImages: string[]): void {
         super.recalculate(parameters, availableImages);
         (this.paint._values as any)['line-floorwidth'] =

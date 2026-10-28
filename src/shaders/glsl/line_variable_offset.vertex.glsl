@@ -18,6 +18,13 @@ uniform mediump float u_ratio;
 out vec2 v_normal;
 flat out vec2 v_width2;
 out float v_gamma_scale;
+#ifdef LINE_ELEVATION
+layout(location = 5) in float a_z;
+out highp vec2 v_tile_pos;
+out float v_lift;
+// Metres an elevated line's depth is pulled towards the camera, so the terrain or deck under it does not cover it.
+#define ELEVATION_DEPTH_BIAS 2.0
+#endif
 out highp float v_linesofar;
 #ifdef GLOBE
 out float v_depth;
@@ -88,15 +95,29 @@ void main() {
     mediump vec2 offset2 = offset * a_extrude * scale * normal.y * mat2(t, -u, u, t);
 
     float adjustedThickness = projectLineThickness(pos.y);
-    vec4 projected_no_extrude = projectTile(pos + offset2 / u_ratio * adjustedThickness + u_translation);
-    vec4 projected_with_extrude = projectTile(pos + offset2 / u_ratio * adjustedThickness + u_translation + dist / u_ratio * adjustedThickness);
-    gl_Position = projected_with_extrude;
+    vec2 line_pos = pos + offset2 / u_ratio * adjustedThickness + u_translation;
+    vec2 edge_pos = line_pos + dist / u_ratio * adjustedThickness;
+    #ifdef LINE_ELEVATION
+        // Raised over the terrain under its centreline; the fragment shader keeps an underground stretch in sight.
+        float ground = get_elevation(pos);
+        float lift = a_z * u_terrain_exaggeration;
+        vec4 projected_no_extrude = projectTileFor3D(line_pos, ground + lift);
+        vec4 projected_with_extrude = projectTileFor3D(edge_pos, ground + lift);
+        vec4 depth_at = projectTileFor3D(edge_pos, ground + lift + ELEVATION_DEPTH_BIAS);
+        gl_Position = vec4(projected_with_extrude.xy, depth_at.z / depth_at.w * projected_with_extrude.w, projected_with_extrude.w);
+        v_tile_pos = edge_pos;
+        v_lift = lift;
+    #else
+        vec4 projected_no_extrude = projectTile(line_pos);
+        vec4 projected_with_extrude = projectTile(edge_pos);
+        gl_Position = projected_with_extrude;
+    #endif
     #ifdef GLOBE
     v_depth = gl_Position.z / gl_Position.w;
     #endif
 
     // calculate how much the perspective view squishes or stretches the extrude
-    #ifdef TERRAIN3D
+    #if !defined(LINE_ELEVATION) && defined TERRAIN3D
         v_gamma_scale = 1.0; // not needed, because this is done automatically via the mesh
     #else
         float extrude_length_without_perspective = length(dist);

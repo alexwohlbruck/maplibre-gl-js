@@ -23,7 +23,16 @@ in float v_depth;
 #pragma maplibre: define lowp float blur
 #pragma maplibre: define lowp float opacity
 
+#ifdef LINE_ELEVATION
+in highp vec2 v_tile_pos;
+in float v_lift;
+#endif
+
 void main() {
+    #ifdef LINE_ELEVATION
+        elevated_line_fragment(v_tile_pos, v_lift);
+    #endif
+
     #pragma maplibre: initialize mediump vec4 pattern_from
     #pragma maplibre: initialize mediump vec4 pattern_to
     #pragma maplibre: initialize lowp float pixel_ratio_from

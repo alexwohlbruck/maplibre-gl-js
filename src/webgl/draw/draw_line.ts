@@ -1,5 +1,6 @@
 import {DepthMode} from '../depth_mode.ts';
 import {CullFaceMode} from '../cull_face_mode.ts';
+import {StencilMode} from '../stencil_mode.ts';
 import {Texture} from '../texture.ts';
 import {
     lineUniformValues,
@@ -165,7 +166,12 @@ function drawLineTiles(
     coords: OverscaledTileID[],
     renderContext: RenderContext
 ) {
-    const depthMode = painter.getDepthModeForSublayer(0, DepthMode.ReadOnly);
+    // Raised off the terrain, a line is drawn in 3D among the extrusions and custom layers rather than draped.
+    const elevated = layer.isElevated() && !!painter.style.map.terrain;
+    const depthMode = !elevated ? painter.getDepthModeForSublayer(0, DepthMode.ReadOnly) :
+        layer.paint.get('line-depth-occlusion-factor') > 0 ? new DepthMode(painter.context.gl.LEQUAL, DepthMode.ReadOnly, painter.renderContext.depthRangeFor3D) :
+            DepthMode.disabled;
+    const defines = elevated ? ['#define LINE_ELEVATION'] : [];
     const colorMode = painter.colorModeForRenderPass();
 
     const dasharrayProperty = layer.paint.get('line-dasharray');
@@ -202,10 +208,12 @@ function drawLineTiles(
 
         const bucket: LineBucket = (tile.getBucket(layer) as any);
         if (!bucket) continue;
+        // A bucket parsed before the layer took its profile has no heights to draw with.
+        if (elevated && !bucket.layoutVertexBuffer2) continue;
 
         const programConfiguration = bucket.programConfigurations.get(layer.id);
         const prevProgram = painter.context.program.get();
-        const program = painter.useProgram(programId, programConfiguration);
+        const program = painter.useProgram(programId, programConfiguration, false, defines);
         const programChanged = firstTile || program.program !== prevProgram;
         const terrainData = getTerrainDataForTile(renderContext, coord);
 
@@ -245,7 +253,8 @@ function drawLineTiles(
             uniformValues = lineUniformValues(painter, tile, layer, pixelRatio);
         }
 
-        const stencil = painter.stencilModeForClipping(coord);
+        // The tile's clipping mask lies flat at sea level; an elevated line clips itself to its tile instead.
+        const stencil = elevated ? StencilMode.disabled : painter.stencilModeForClipping(coord);
 
         program.draw(context, gl.TRIANGLES, depthMode,
             stencil, colorMode, CullFaceMode.disabled, uniformValues, terrainData, projectionData,

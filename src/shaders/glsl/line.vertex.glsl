@@ -15,7 +15,7 @@ out vec2 v_normal;
 flat out vec2 v_width2;
 out float v_gamma_scale;
 #ifdef LINE_ELEVATION
-layout(location = 5) in float a_z;
+in float a_z;
 out highp vec2 v_tile_pos;
 out float v_lift;
 // Metres an elevated line's depth is pulled towards the camera, so the terrain or deck under it does not cover it.

@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.13/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.14/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -22257,8 +22257,12 @@ function place(vertices, point, from) {
 	}
 	return best;
 }
-/** The line with the profile's points added as vertices, and where each vertex is drawn. */
-function elevateLine(vertices, runs) {
+/**
+* The line with the profile's points added as vertices, and where each vertex is drawn. A vertex between no two of a
+* run's points on this piece of the line, as when the tile cut the run's ends off, takes the height of the run's path
+* where it passes within `reach` tile units.
+*/
+function elevateLine(vertices, runs, reach = SNAP_TOLERANCE) {
 	const placed = [];
 	for (const [r, run] of runs.entries()) {
 		let from = 0;
@@ -22277,11 +22281,6 @@ function elevateLine(vertices, runs) {
 			});
 		}
 	}
-	if (!placed.length) return {
-		vertices,
-		heights: vertices.map(() => 0),
-		ground: vertices.map(() => 1)
-	};
 	placed.sort((a, b) => a.segment - b.segment || a.t - b.t);
 	const out = [];
 	const heights = [];
@@ -22305,11 +22304,33 @@ function elevateLine(vertices, runs) {
 		}
 	}
 	interpolate(out, heights, runOf);
+	for (const [i, vertex] of out.entries()) {
+		if (runOf[i] >= 0) continue;
+		const on = nearestOnRun(runs, vertex, reach);
+		if (on) [heights[i], runOf[i]] = [on.height, on.run];
+	}
 	return {
 		vertices: out,
 		heights,
 		ground: runOf.map((r) => r < 0 || runs[r].relative ? 1 : 0)
 	};
+}
+/** The height of the nearest run whose path passes within `reach` of a point, interpolated along it there. */
+function nearestOnRun(runs, p, reach) {
+	let best = null;
+	for (const [r, { points, heights }] of runs.entries()) for (let i = 1; i < points.length; i++) {
+		const a = points[i - 1], b = points[i];
+		const dx = b.x - a.x, dy = b.y - a.y;
+		const length2 = dx * dx + dy * dy;
+		const t = length2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2)) : 0;
+		const distance = Math.hypot(a.x + dx * t - p.x, a.y + dy * t - p.y);
+		if (distance <= reach && (!best || distance < best.distance)) best = {
+			height: heights[i - 1] + (heights[i] - heights[i - 1]) * t,
+			run: r,
+			distance
+		};
+	}
+	return best;
 }
 /** Fills in the vertices between two placed points of one run by distance along the line. */
 function interpolate(vertices, heights, runOf) {
@@ -22338,6 +22359,7 @@ const DEG_PER_TRIANGLE = 20;
 const LINE_DISTANCE_SCALE = 1 / 2;
 const MAX_LINE_DISTANCE = Math.pow(2, 14) / LINE_DISTANCE_SCALE;
 const ELEVATED_GRANULARITY = 64;
+const ELEVATION_REACH_METERS = 4;
 /**
 * @internal
 * Line bucket class
@@ -22476,7 +22498,7 @@ var LineBucket = class {
 		vertices = subdivideVertexLine(vertices, this.elevated ? Math.max(granularity, ELEVATED_GRANULARITY) : granularity);
 		let heights = null;
 		let ground = null;
-		if (this.elevated) ({vertices, heights, ground} = elevateLine(vertices, this.elevationRuns));
+		if (this.elevated) ({vertices, heights, ground} = elevateLine(vertices, this.elevationRuns, canonical ? ELEVATION_REACH_METERS * getTileUnitsForMeters(1, canonical) : 0));
 		if (this.lineClips) {
 			this.lineClipsArray.push(this.lineClips);
 			for (let i = 0; i < vertices.length - 1; i++) this.totalDistance += vertices[i].dist(vertices[i + 1]);

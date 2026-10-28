@@ -343,15 +343,15 @@ declare class StructArrayLayout2i4ub8 extends StructArray {
 /**
  * @internal
  * Implementation of the StructArray layout:
- * [0] - Float32[3]
+ * [0] - Float32[4]
  *
  */
-declare class StructArrayLayout3f12 extends StructArray {
+declare class StructArrayLayout4f16 extends StructArray {
   uint8: Uint8Array;
   float32: Float32Array;
   _refreshViews(): void;
-  emplaceBack(v0: number, v1: number, v2: number): number;
-  emplace(i: number, v0: number, v1: number, v2: number): number;
+  emplaceBack(v0: number, v1: number, v2: number, v3: number): number;
+  emplace(i: number, v0: number, v1: number, v2: number, v3: number): number;
 }
 /**
  * @internal
@@ -371,6 +371,19 @@ declare class StructArrayLayout4i4ui4i1f2i32 extends StructArray {
   _refreshViews(): void;
   emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number): number;
   emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number): number;
+}
+/**
+ * @internal
+ * Implementation of the StructArray layout:
+ * [0] - Float32[3]
+ *
+ */
+declare class StructArrayLayout3f12 extends StructArray {
+  uint8: Uint8Array;
+  float32: Float32Array;
+  _refreshViews(): void;
+  emplaceBack(v0: number, v1: number, v2: number): number;
+  emplace(i: number, v0: number, v1: number, v2: number): number;
 }
 /**
  * @internal
@@ -693,7 +706,7 @@ declare class CircleLayoutArray extends StructArrayLayout2i4 {}
 declare class FillLayoutArray extends StructArrayLayout2i4 {}
 declare class FillExtrusionLayoutArray extends StructArrayLayout2i4i12 {}
 declare class LineLayoutArray extends StructArrayLayout2i4ub8 {}
-declare class LineExtLayoutArray extends StructArrayLayout3f12 {}
+declare class LineExtLayoutArray extends StructArrayLayout4f16 {}
 declare class SymbolLayoutArray extends StructArrayLayout4i4ui4i1f2i32 {}
 declare class SymbolDynamicLayoutArray extends StructArrayLayout3f12 {}
 declare class SymbolOpacityArray extends StructArrayLayout1ul4 {}
@@ -5131,6 +5144,13 @@ declare class HeatmapStyleLayer extends StyleLayer {
 //#region src/webgl/draw/draw_heatmap.d.ts
 declare function drawHeatmap(painter: Painter, tileManager: TileManager, layer: HeatmapStyleLayer, tileIDs: OverscaledTileID[], renderContext: RenderContext): void;
 //#endregion
+//#region src/data/bucket/line_elevation.d.ts
+/** A stretch of a line off the ground: points on the line, in tile units, with their heights in metres. */
+type ElevationRun = {
+  points: Point$1[];
+  heights: number[];
+};
+//#endregion
 //#region src/data/bucket/line_bucket.d.ts
 type LineClips = {
   start: number;
@@ -5181,6 +5201,9 @@ declare class LineBucket implements Bucket {
     lineProgress: number;
   };
   currentLineFeature: BucketFeature;
+  elevated: boolean;
+  elevationRuns: ElevationRun[];
+  vertexHeight: number;
   constructor(options: BucketParameters<LineStyleLayer>);
   populate(features: IndexedFeature[], options: PopulateParameters, canonical: CanonicalTileID): void;
   update(states: FeatureStates, vtLayer: VectorTileLayerLike, imagePositions: {
@@ -5224,6 +5247,7 @@ type LineLayoutProps = {
   "line-round-limit": DataDrivenProperty<number>;
   "line-sort-key": DataDrivenProperty<number>;
   "line-rounded-corner-distance": DataConstantProperty<number>;
+  "line-elevation-profile": DataDrivenProperty<string>;
 };
 type LineLayoutPropsPossiblyEvaluated = {
   "line-cap": PossiblyEvaluatedPropertyValue<"butt" | "round" | "square">;
@@ -5232,6 +5256,7 @@ type LineLayoutPropsPossiblyEvaluated = {
   "line-round-limit": PossiblyEvaluatedPropertyValue<number>;
   "line-sort-key": PossiblyEvaluatedPropertyValue<number>;
   "line-rounded-corner-distance": number;
+  "line-elevation-profile": PossiblyEvaluatedPropertyValue<string>;
 };
 type LinePaintProps = {
   "line-opacity": DataDrivenProperty<number>;
@@ -5246,6 +5271,7 @@ type LinePaintProps = {
   "line-dasharray": CrossFadedDataDrivenProperty<number[]>;
   "line-pattern": CrossFadedDataDrivenProperty<ResolvedImage>;
   "line-gradient": ColorRampProperty;
+  "line-depth-occlusion-factor": DataConstantProperty<number>;
 };
 type LinePaintPropsPossiblyEvaluated = {
   "line-opacity": PossiblyEvaluatedPropertyValue<number>;
@@ -5260,6 +5286,7 @@ type LinePaintPropsPossiblyEvaluated = {
   "line-dasharray": PossiblyEvaluatedPropertyValue<CrossFaded<number[]>>;
   "line-pattern": PossiblyEvaluatedPropertyValue<CrossFaded<ResolvedImage>>;
   "line-gradient": ColorRampProperty;
+  "line-depth-occlusion-factor": number;
 };
 //#endregion
 //#region src/style/style_layer/line_style_layer.d.ts
@@ -5282,6 +5309,8 @@ declare class LineStyleLayer extends StyleLayer {
    * inspecting the underlying expression AST rather than checking `paint.get(...).kind`.
    */
   hasVariableOffset(): boolean;
+  /** True when a `line-elevation-profile` lifts the line off the terrain, so it is drawn in 3D rather than draped. */
+  isElevated(): boolean;
   recalculate(parameters: EvaluationParameters, availableImages: string[]): void;
   createBucket(parameters: BucketParameters<any>): LineBucket;
   queryRadius(bucket: Bucket): number;

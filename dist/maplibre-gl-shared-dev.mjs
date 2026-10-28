@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.8/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.9/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -9754,6 +9754,7 @@ function createVisibility(visibility, rootKey, globalState) {
 */
 const layoutSymbol = latest.layout_symbol;
 const layoutLine = latest.layout_line;
+const paintLine = latest.paint_line;
 if (!layoutLine["line-rounded-corner-distance"]) layoutLine["line-rounded-corner-distance"] = {
 	"type": "number",
 	"default": 0,
@@ -9766,6 +9767,31 @@ if (!layoutLine["line-rounded-corner-distance"]) layoutLine["line-rounded-corner
 	},
 	"property-type": "data-constant"
 };
+if (!layoutLine["line-elevation-profile"]) {
+	layoutLine["line-elevation-profile"] = {
+		"type": "string",
+		"default": "",
+		"doc": "Heights of the line above the terrain, as runs separated by `;`. Each run is a comma-separated list of integer triples: the first is longitude and latitude in 1e-7 degrees and height in decimetres, each later one the change in longitude and latitude from the point before and its own height. Points lie on the line in its direction; the line is raised by the height interpolated between the points of a run and lies on the terrain outside the runs. A layer with a profile is drawn in 3D rather than draped over terrain, and only while terrain is enabled.",
+		"expression": {
+			"interpolated": false,
+			"parameters": ["zoom", "feature"]
+		},
+		"property-type": "data-driven"
+	};
+	paintLine["line-depth-occlusion-factor"] = {
+		"type": "number",
+		"default": 1,
+		"minimum": 0,
+		"maximum": 1,
+		"doc": "Whether a line drawn with `line-elevation-profile` is hidden behind 3D features nearer the camera: 0 draws it over them, any larger value hides it. Underground stretches are never hidden by the terrain over them.",
+		"requires": ["line-elevation-profile"],
+		"expression": {
+			"interpolated": false,
+			"parameters": ["zoom"]
+		},
+		"property-type": "data-constant"
+	};
+}
 if (!layoutSymbol["symbol-anchor-offset"]) {
 	layoutSymbol["symbol-anchor-offset"] = {
 		"type": "array",
@@ -14401,29 +14427,30 @@ register("StructArrayLayout2i4ub8", StructArrayLayout2i4ub8);
 /**
 * @internal
 * Implementation of the StructArray layout:
-* [0] - Float32[3]
+* [0] - Float32[4]
 *
 */
-var StructArrayLayout3f12 = class extends StructArray {
+var StructArrayLayout4f16 = class extends StructArray {
 	_refreshViews() {
 		this.uint8 = new Uint8Array(this.arrayBuffer);
 		this.float32 = new Float32Array(this.arrayBuffer);
 	}
-	emplaceBack(v0, v1, v2) {
+	emplaceBack(v0, v1, v2, v3) {
 		const i = this.length;
 		this.resize(i + 1);
-		return this.emplace(i, v0, v1, v2);
+		return this.emplace(i, v0, v1, v2, v3);
 	}
-	emplace(i, v0, v1, v2) {
-		const o4 = i * 3;
+	emplace(i, v0, v1, v2, v3) {
+		const o4 = i * 4;
 		this.float32[o4 + 0] = v0;
 		this.float32[o4 + 1] = v1;
 		this.float32[o4 + 2] = v2;
+		this.float32[o4 + 3] = v3;
 		return i;
 	}
 };
-StructArrayLayout3f12.prototype.bytesPerElement = 12;
-register("StructArrayLayout3f12", StructArrayLayout3f12);
+StructArrayLayout4f16.prototype.bytesPerElement = 16;
+register("StructArrayLayout4f16", StructArrayLayout4f16);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -14533,6 +14560,32 @@ var StructArrayLayout4i4ui4i1f2i32 = class extends StructArray {
 };
 StructArrayLayout4i4ui4i1f2i32.prototype.bytesPerElement = 32;
 register("StructArrayLayout4i4ui4i1f2i32", StructArrayLayout4i4ui4i1f2i32);
+/**
+* @internal
+* Implementation of the StructArray layout:
+* [0] - Float32[3]
+*
+*/
+var StructArrayLayout3f12 = class extends StructArray {
+	_refreshViews() {
+		this.uint8 = new Uint8Array(this.arrayBuffer);
+		this.float32 = new Float32Array(this.arrayBuffer);
+	}
+	emplaceBack(v0, v1, v2) {
+		const i = this.length;
+		this.resize(i + 1);
+		return this.emplace(i, v0, v1, v2);
+	}
+	emplace(i, v0, v1, v2) {
+		const o4 = i * 3;
+		this.float32[o4 + 0] = v0;
+		this.float32[o4 + 1] = v1;
+		this.float32[o4 + 2] = v2;
+		return i;
+	}
+};
+StructArrayLayout3f12.prototype.bytesPerElement = 12;
+register("StructArrayLayout3f12", StructArrayLayout3f12);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -14990,33 +15043,6 @@ var StructArrayLayout2f8 = class extends StructArray {
 };
 StructArrayLayout2f8.prototype.bytesPerElement = 8;
 register("StructArrayLayout2f8", StructArrayLayout2f8);
-/**
-* @internal
-* Implementation of the StructArray layout:
-* [0] - Float32[4]
-*
-*/
-var StructArrayLayout4f16 = class extends StructArray {
-	_refreshViews() {
-		this.uint8 = new Uint8Array(this.arrayBuffer);
-		this.float32 = new Float32Array(this.arrayBuffer);
-	}
-	emplaceBack(v0, v1, v2, v3) {
-		const i = this.length;
-		this.resize(i + 1);
-		return this.emplace(i, v0, v1, v2, v3);
-	}
-	emplace(i, v0, v1, v2, v3) {
-		const o4 = i * 4;
-		this.float32[o4 + 0] = v0;
-		this.float32[o4 + 1] = v1;
-		this.float32[o4 + 2] = v2;
-		this.float32[o4 + 3] = v3;
-		return i;
-	}
-};
-StructArrayLayout4f16.prototype.bytesPerElement = 16;
-register("StructArrayLayout4f16", StructArrayLayout4f16);
 /** @internal */
 var CollisionBoxStruct = class extends Struct {
 	get anchorPointX() {
@@ -15326,7 +15352,7 @@ var CircleLayoutArray = class extends StructArrayLayout2i4 {};
 var FillLayoutArray = class extends StructArrayLayout2i4 {};
 var FillExtrusionLayoutArray = class extends StructArrayLayout2i4i12 {};
 var LineLayoutArray = class extends StructArrayLayout2i4ub8 {};
-var LineExtLayoutArray = class extends StructArrayLayout3f12 {};
+var LineExtLayoutArray = class extends StructArrayLayout4f16 {};
 var PatternLayoutArray = class extends StructArrayLayout10ui20 {};
 var DashLayoutArray = class extends StructArrayLayout8ui16 {};
 var SymbolLayoutArray = class extends StructArrayLayout4i4ui4i1f2i32 {};
@@ -22120,11 +22146,138 @@ const lineLayoutAttributesExt = createLayout([
 		name: "a_line_offset",
 		components: 1,
 		type: "Float32"
+	},
+	{
+		name: "a_z",
+		components: 1,
+		type: "Float32"
 	}
 ]);
 const members = lineLayoutAttributesExt.members;
 lineLayoutAttributesExt.size;
 lineLayoutAttributesExt.alignment;
+//#endregion
+//#region src/data/bucket/line_elevation.ts
+/** How far from the line, in tile units, a profile point may lie and still be placed on it. */
+const SNAP_TOLERANCE = 8;
+/** Projections closer than this to a vertex, as a fraction of their segment, land on the vertex. */
+const VERTEX_EPSILON = 1e-6;
+function tileX(lng, canonical) {
+	return ((lng + 180) / 360 * (1 << canonical.z) - canonical.x) * EXTENT;
+}
+function tileY(lat, canonical) {
+	const sin = Math.sin(lat * Math.PI / 180);
+	return ((.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * (1 << canonical.z) - canonical.y) * EXTENT;
+}
+/** Decodes a `line-elevation-profile` string into runs in the tile's units. */
+function parseElevationProfile(profile, canonical) {
+	const runs = [];
+	if (!profile) return runs;
+	for (const text of profile.split(";")) {
+		const values = text.split(",").map(Number);
+		if (values.length < 6 || values.length % 3 !== 0 || values.some((v) => !Number.isFinite(v))) continue;
+		const run = {
+			points: [],
+			heights: []
+		};
+		let lng = 0, lat = 0;
+		for (let i = 0; i < values.length; i += 3) {
+			lng += values[i];
+			lat += values[i + 1];
+			run.points.push(new Point(tileX(lng * 1e-7, canonical), tileY(lat * 1e-7, canonical)));
+			run.heights.push(values[i + 2] / 10);
+		}
+		runs.push(run);
+	}
+	return runs;
+}
+/** Where on the line, searched from `from` onwards, a point falls; null if it lies off the line. */
+function place(vertices, point, from) {
+	let best = null;
+	for (let i = from; i < vertices.length - 1; i++) {
+		const a = vertices[i], b = vertices[i + 1];
+		const dx = b.x - a.x, dy = b.y - a.y;
+		const length2 = dx * dx + dy * dy;
+		const t = length2 ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length2)) : 0;
+		const distance = Math.hypot(a.x + dx * t - point.x, a.y + dy * t - point.y);
+		if (distance <= SNAP_TOLERANCE && (!best || distance < best.distance)) best = {
+			segment: i,
+			t,
+			distance
+		};
+	}
+	return best;
+}
+/**
+* The line with the profile's points added as vertices, and the height of every vertex: interpolated by
+* distance between the points of a run, zero outside the runs.
+*/
+function elevateLine(vertices, runs) {
+	const placed = [];
+	for (const [r, run] of runs.entries()) {
+		let from = 0;
+		for (const [i, point] of run.points.entries()) {
+			const hit = place(vertices, point, from);
+			if (!hit) continue;
+			from = hit.segment;
+			const next = hit.t >= .999999;
+			placed.push({
+				segment: hit.segment + (next ? 1 : 0),
+				t: next ? 0 : hit.t,
+				height: run.heights[i],
+				run: r
+			});
+		}
+	}
+	if (!placed.length) return {
+		vertices,
+		heights: vertices.map(() => 0)
+	};
+	placed.sort((a, b) => a.segment - b.segment || a.t - b.t);
+	const out = [];
+	const heights = [];
+	const runOf = [];
+	let p = 0;
+	for (let i = 0; i < vertices.length; i++) {
+		out.push(vertices[i]);
+		heights.push(0);
+		runOf.push(-1);
+		for (; p < placed.length && placed[p].segment === i; p++) {
+			const { t, height, run } = placed[p];
+			if (t <= VERTEX_EPSILON) {
+				heights[out.length - 1] = height;
+				runOf[out.length - 1] = run;
+				continue;
+			}
+			const a = vertices[i], b = vertices[i + 1];
+			out.push(new Point(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t));
+			heights.push(height);
+			runOf.push(run);
+		}
+	}
+	return interpolate(out, heights, runOf);
+}
+/** Fills in the vertices between two placed points of one run by distance along the line. */
+function interpolate(vertices, heights, runOf) {
+	const along = [0];
+	for (let i = 1; i < vertices.length; i++) along.push(along[i - 1] + vertices[i].dist(vertices[i - 1]));
+	let last = -1;
+	for (let i = 0; i < vertices.length; i++) {
+		if (runOf[i] < 0) continue;
+		if (last >= 0 && runOf[last] === runOf[i] && i - last > 1) {
+			const span = along[i] - along[last];
+			for (let k = last + 1; k < i; k++) {
+				const f = span ? (along[k] - along[last]) / span : 0;
+				heights[k] = heights[last] + (heights[i] - heights[last]) * f;
+			}
+		}
+		last = i;
+	}
+	return {
+		vertices,
+		heights
+	};
+}
 //#endregion
 //#region src/data/bucket/line_bucket.ts
 const EXTRUDE_SCALE = 63;
@@ -22133,6 +22286,7 @@ const SHARP_CORNER_OFFSET = 15;
 const DEG_PER_TRIANGLE = 20;
 const LINE_DISTANCE_SCALE = 1 / 2;
 const MAX_LINE_DISTANCE = Math.pow(2, 14) / LINE_DISTANCE_SCALE;
+const ELEVATED_GRANULARITY = 64;
 /**
 * @internal
 * Line bucket class
@@ -22163,6 +22317,9 @@ var LineBucket = class {
 			this.variableOffsetExpression = layer.offsetExpression();
 			break;
 		}
+		const profile = this.layers[0].layout.get("line-elevation-profile");
+		this.elevated = !profile.isConstant() || !!profile.constantOr("");
+		this.vertexHeight = 0;
 		this.stateDependentLayerIds = this.layers.filter((l) => l.isStateDependent()).map((l) => l.id);
 	}
 	populate(features, options, canonical) {
@@ -22249,6 +22406,7 @@ var LineBucket = class {
 		const roundLimit = layout.get("line-round-limit").evaluate(feature, {});
 		this.lineClips = this.lineFeatureClips(feature);
 		this.currentLineFeature = feature;
+		this.elevationRuns = this.elevated ? parseElevationProfile(this.layers[0].layout.get("line-elevation-profile").evaluate(feature, {}, canonical), canonical) : [];
 		for (const line of geometry) this.addLine(line, feature, join, cap, miterLimit, roundLimit, canonical, subdivisionGranularity);
 		this.programConfigurations.populatePaintArrays(this.layoutVertexArray.length, feature, index, {
 			imagePositions,
@@ -22261,7 +22419,9 @@ var LineBucket = class {
 		this.scaledDistance = 0;
 		this.totalDistance = 0;
 		const granularity = canonical ? subdivisionGranularity.line.getGranularityForZoomLevel(canonical.z) : 1;
-		vertices = subdivideVertexLine(vertices, granularity);
+		vertices = subdivideVertexLine(vertices, this.elevated ? Math.max(granularity, ELEVATED_GRANULARITY) : granularity);
+		let heights = null;
+		if (this.elevated) ({vertices, heights} = elevateLine(vertices, this.elevationRuns));
 		if (this.lineClips) {
 			this.lineClipsArray.push(this.lineClips);
 			for (let i = 0; i < vertices.length - 1; i++) this.totalDistance += vertices[i].dist(vertices[i + 1]);
@@ -22293,6 +22453,7 @@ var LineBucket = class {
 			if (nextNormal) prevNormal = nextNormal;
 			if (currentVertex) prevVertex = currentVertex;
 			currentVertex = vertices[i];
+			if (heights) this.vertexHeight = heights[i];
 			nextNormal = nextVertex ? nextVertex.sub(currentVertex)._unit()._perp() : prevNormal;
 			prevNormal ||= nextNormal;
 			let joinNormal = prevNormal.add(nextNormal);
@@ -22406,15 +22567,15 @@ var LineBucket = class {
 	addHalfVertex({ x, y }, extrudeX, extrudeY, round, up, dir, segment) {
 		const linesofarScaled = (this.lineClips ? this.scaledDistance * (MAX_LINE_DISTANCE - 1) : this.scaledDistance) * LINE_DISTANCE_SCALE;
 		this.layoutVertexArray.emplaceBack((x << 1) + (round ? 1 : 0), (y << 1) + (up ? 1 : 0), Math.round(EXTRUDE_SCALE * extrudeX) + 128, Math.round(EXTRUDE_SCALE * extrudeY) + 128, (dir === 0 ? 0 : dir < 0 ? -1 : 1) + 1 | (linesofarScaled & 63) << 2, linesofarScaled >> 6);
-		if (this.lineClips) {
-			const uvX = (this.scaledDistance - this.lineClips.start) / (this.lineClips.end - this.lineClips.start);
+		if (this.lineClips || this.elevated) {
+			const uvX = this.lineClips ? (this.scaledDistance - this.lineClips.start) / (this.lineClips.end - this.lineClips.start) : 0;
 			let lineOffset = 0;
-			if (this.variableOffsetExpression) {
+			if (this.variableOffsetExpression && this.lineClips) {
 				this.evaluationGlobals.zoom = this.zoom;
 				this.evaluationGlobals.lineProgress = this.scaledDistance;
 				lineOffset = this.variableOffsetExpression.evaluate(this.evaluationGlobals, this.currentLineFeature) || 0;
 			}
-			this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length, lineOffset);
+			this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length, lineOffset, this.vertexHeight);
 		}
 		const e = segment.vertexLength++;
 		if (this.e1 >= 0 && this.e2 >= 0) {
@@ -22473,7 +22634,8 @@ register("LineBucket", LineBucket, { omit: [
 	"layers",
 	"patternFeatures",
 	"variableOffsetExpression",
-	"currentLineFeature"
+	"currentLineFeature",
+	"elevationRuns"
 ] });
 /** Polygon outlines take `line-rounded-corner-distance`; real lines are left alone. */
 function roundOutline(geometry, type, layer, canonical) {
@@ -22490,7 +22652,8 @@ const getLayout$1 = () => layout$1 = layout$1 || new Properties({
 	"line-miter-limit": new DataDrivenProperty(latest["layout_line"]["line-miter-limit"], "line-miter-limit"),
 	"line-round-limit": new DataDrivenProperty(latest["layout_line"]["line-round-limit"], "line-round-limit"),
 	"line-sort-key": new DataDrivenProperty(latest["layout_line"]["line-sort-key"], "line-sort-key"),
-	"line-rounded-corner-distance": new DataConstantProperty(latest["layout_line"]["line-rounded-corner-distance"], "line-rounded-corner-distance")
+	"line-rounded-corner-distance": new DataConstantProperty(latest["layout_line"]["line-rounded-corner-distance"], "line-rounded-corner-distance"),
+	"line-elevation-profile": new DataDrivenProperty(latest["layout_line"]["line-elevation-profile"], "line-elevation-profile")
 });
 let paint$2;
 const getPaint$2 = () => paint$2 = paint$2 || new Properties({
@@ -22505,7 +22668,8 @@ const getPaint$2 = () => paint$2 = paint$2 || new Properties({
 	"line-blur": new DataDrivenProperty(latest["paint_line"]["line-blur"], "line-blur"),
 	"line-dasharray": new CrossFadedDataDrivenProperty(latest["paint_line"]["line-dasharray"], "line-dasharray"),
 	"line-pattern": new CrossFadedDataDrivenProperty(latest["paint_line"]["line-pattern"], "line-pattern"),
-	"line-gradient": new ColorRampProperty(latest["paint_line"]["line-gradient"], "line-gradient")
+	"line-gradient": new ColorRampProperty(latest["paint_line"]["line-gradient"], "line-gradient"),
+	"line-depth-occlusion-factor": new DataConstantProperty(latest["paint_line"]["line-depth-occlusion-factor"], "line-depth-occlusion-factor")
 });
 var line_style_layer_properties_g_default = {
 	get paint() {
@@ -22565,6 +22729,11 @@ var LineStyleLayer = class extends StyleLayer {
 	*/
 	hasVariableOffset() {
 		return expressionReferencesLineProgress(this.offsetExpression());
+	}
+	/** True when a `line-elevation-profile` lifts the line off the terrain, so it is drawn in 3D rather than draped. */
+	isElevated() {
+		const profile = this.layout.get("line-elevation-profile");
+		return !profile.isConstant() || !!profile.constantOr("");
 	}
 	recalculate(parameters, availableImages) {
 		super.recalculate(parameters, availableImages);

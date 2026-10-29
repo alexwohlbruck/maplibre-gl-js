@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.14/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.15/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -9807,6 +9807,14 @@ if (!layoutLine["line-elevation-profile"]) {
 		"property-type": "data-constant"
 	};
 }
+if (layoutSymbol["symbol-height-anchor"]?.["property-type"] === "data-constant") layoutSymbol["symbol-height-anchor"] = {
+	...layoutSymbol["symbol-height-anchor"],
+	"expression": {
+		"interpolated": false,
+		"parameters": ["zoom", "feature"]
+	},
+	"property-type": "data-driven"
+};
 if (!layoutSymbol["symbol-anchor-offset"]) {
 	layoutSymbol["symbol-anchor-offset"] = {
 		"type": "array",
@@ -14539,25 +14547,25 @@ register("StructArrayLayout8ui16", StructArrayLayout8ui16);
 * [0] - Int16[4]
 * [8] - Uint16[4]
 * [16] - Int16[4]
-* [24] - Float32[1]
-* [28] - Int16[2]
+* [24] - Float32[2]
+* [32] - Int16[2]
 *
 */
-var StructArrayLayout4i4ui4i1f2i32 = class extends StructArray {
+var StructArrayLayout4i4ui4i2f2i36 = class extends StructArray {
 	_refreshViews() {
 		this.uint8 = new Uint8Array(this.arrayBuffer);
 		this.int16 = new Int16Array(this.arrayBuffer);
 		this.uint16 = new Uint16Array(this.arrayBuffer);
 		this.float32 = new Float32Array(this.arrayBuffer);
 	}
-	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14) {
+	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15) {
 		const i = this.length;
 		this.resize(i + 1);
-		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14);
+		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
 	}
-	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14) {
-		const o2 = i * 16;
-		const o4 = i * 8;
+	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15) {
+		const o2 = i * 18;
+		const o4 = i * 9;
 		this.int16[o2 + 0] = v0;
 		this.int16[o2 + 1] = v1;
 		this.int16[o2 + 2] = v2;
@@ -14571,13 +14579,14 @@ var StructArrayLayout4i4ui4i1f2i32 = class extends StructArray {
 		this.int16[o2 + 10] = v10;
 		this.int16[o2 + 11] = v11;
 		this.float32[o4 + 6] = v12;
-		this.int16[o2 + 14] = v13;
-		this.int16[o2 + 15] = v14;
+		this.float32[o4 + 7] = v13;
+		this.int16[o2 + 16] = v14;
+		this.int16[o2 + 17] = v15;
 		return i;
 	}
 };
-StructArrayLayout4i4ui4i1f2i32.prototype.bytesPerElement = 32;
-register("StructArrayLayout4i4ui4i1f2i32", StructArrayLayout4i4ui4i1f2i32);
+StructArrayLayout4i4ui4i2f2i36.prototype.bytesPerElement = 36;
+register("StructArrayLayout4i4ui4i2f2i36", StructArrayLayout4i4ui4i2f2i36);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -14800,9 +14809,10 @@ register("StructArrayLayout3ui6", StructArrayLayout3ui6);
 * [40] - Uint32[1]
 * [44] - Int16[1]
 * [48] - Float32[1]
+* [52] - Uint8[1]
 *
 */
-var StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 = class extends StructArray {
+var StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 = class extends StructArray {
 	_refreshViews() {
 		this.uint8 = new Uint8Array(this.arrayBuffer);
 		this.int16 = new Int16Array(this.arrayBuffer);
@@ -14810,15 +14820,15 @@ var StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 = class extends StructArray {
 		this.uint32 = new Uint32Array(this.arrayBuffer);
 		this.float32 = new Float32Array(this.arrayBuffer);
 	}
-	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17) {
+	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18) {
 		const i = this.length;
 		this.resize(i + 1);
-		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17);
+		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18);
 	}
-	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17) {
-		const o2 = i * 26;
-		const o4 = i * 13;
-		const o1 = i * 52;
+	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18) {
+		const o2 = i * 28;
+		const o4 = i * 14;
+		const o1 = i * 56;
 		this.int16[o2 + 0] = v0;
 		this.int16[o2 + 1] = v1;
 		this.uint16[o2 + 2] = v2;
@@ -14837,11 +14847,12 @@ var StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 = class extends StructArray {
 		this.uint32[o4 + 10] = v15;
 		this.int16[o2 + 22] = v16;
 		this.float32[o4 + 12] = v17;
+		this.uint8[o1 + 52] = v18;
 		return i;
 	}
 };
-StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52.prototype.bytesPerElement = 52;
-register("StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52", StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52);
+StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56.prototype.bytesPerElement = 56;
+register("StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56", StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -14851,9 +14862,10 @@ register("StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52", StructArrayLayout2i2ui3ul
 * [52] - Float32[2]
 * [60] - Uint16[2]
 * [64] - Float32[3]
+* [76] - Uint8[1]
 *
 */
-var StructArrayLayout8i15ui1ul2f2ui3f76 = class extends StructArray {
+var StructArrayLayout8i15ui1ul2f2ui3f1ub80 = class extends StructArray {
 	_refreshViews() {
 		this.uint8 = new Uint8Array(this.arrayBuffer);
 		this.int16 = new Int16Array(this.arrayBuffer);
@@ -14861,14 +14873,15 @@ var StructArrayLayout8i15ui1ul2f2ui3f76 = class extends StructArray {
 		this.uint32 = new Uint32Array(this.arrayBuffer);
 		this.float32 = new Float32Array(this.arrayBuffer);
 	}
-	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30) {
+	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30, v31) {
 		const i = this.length;
 		this.resize(i + 1);
-		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30);
+		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30, v31);
 	}
-	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30) {
-		const o2 = i * 38;
-		const o4 = i * 19;
+	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30, v31) {
+		const o2 = i * 40;
+		const o4 = i * 20;
+		const o1 = i * 80;
 		this.int16[o2 + 0] = v0;
 		this.int16[o2 + 1] = v1;
 		this.int16[o2 + 2] = v2;
@@ -14900,11 +14913,12 @@ var StructArrayLayout8i15ui1ul2f2ui3f76 = class extends StructArray {
 		this.float32[o4 + 16] = v28;
 		this.float32[o4 + 17] = v29;
 		this.float32[o4 + 18] = v30;
+		this.uint8[o1 + 76] = v31;
 		return i;
 	}
 };
-StructArrayLayout8i15ui1ul2f2ui3f76.prototype.bytesPerElement = 76;
-register("StructArrayLayout8i15ui1ul2f2ui3f76", StructArrayLayout8i15ui1ul2f2ui3f76);
+StructArrayLayout8i15ui1ul2f2ui3f1ub80.prototype.bytesPerElement = 80;
+register("StructArrayLayout8i15ui1ul2f2ui3f1ub80", StructArrayLayout8i15ui1ul2f2ui3f1ub80);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -15198,10 +15212,13 @@ var PlacedSymbolStruct = class extends Struct {
 	get heightOffset() {
 		return this._structArray.float32[this._pos4 + 12];
 	}
+	get heightGround() {
+		return this._structArray.uint8[this._pos1 + 52];
+	}
 };
-PlacedSymbolStruct.prototype.size = 52;
+PlacedSymbolStruct.prototype.size = 56;
 /** @internal */
-var PlacedSymbolArray = class extends StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 {
+var PlacedSymbolArray = class extends StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 {
 	/**
 	* Return the PlacedSymbolStruct at the given location in the array.
 	* @param index - The index of the element.
@@ -15309,10 +15326,13 @@ var SymbolInstanceStruct = class extends Struct {
 	get anchorOffsetY() {
 		return this._structArray.float32[this._pos4 + 18];
 	}
+	get heightGround() {
+		return this._structArray.uint8[this._pos1 + 76];
+	}
 };
-SymbolInstanceStruct.prototype.size = 76;
+SymbolInstanceStruct.prototype.size = 80;
 /** @internal */
-var SymbolInstanceArray = class extends StructArrayLayout8i15ui1ul2f2ui3f76 {
+var SymbolInstanceArray = class extends StructArrayLayout8i15ui1ul2f2ui3f1ub80 {
 	/**
 	* Return the SymbolInstanceStruct at the given location in the array.
 	* @param index - The index of the element.
@@ -15400,7 +15420,7 @@ var LineLayoutArray = class extends StructArrayLayout2i4ub8 {};
 var LineExtLayoutArray = class extends StructArrayLayout7f28 {};
 var PatternLayoutArray = class extends StructArrayLayout10ui20 {};
 var DashLayoutArray = class extends StructArrayLayout8ui16 {};
-var SymbolLayoutArray = class extends StructArrayLayout4i4ui4i1f2i32 {};
+var SymbolLayoutArray = class extends StructArrayLayout4i4ui4i2f2i36 {};
 var SymbolDynamicLayoutArray = class extends StructArrayLayout3f12 {};
 var SymbolOpacityArray = class extends StructArrayLayout1ul4 {};
 var CollisionBoxLayoutArray = class extends StructArrayLayout2i2i2i12 {};
@@ -22895,7 +22915,7 @@ const symbolLayoutAttributes = createLayout([
 	},
 	{
 		name: "a_height_offset",
-		components: 1,
+		components: 2,
 		type: "Float32"
 	},
 	{
@@ -23080,6 +23100,10 @@ createLayout([
 	{
 		type: "Float32",
 		name: "heightOffset"
+	},
+	{
+		type: "Uint8",
+		name: "heightGround"
 	}
 ]);
 createLayout([
@@ -23206,6 +23230,10 @@ createLayout([
 	{
 		type: "Float32",
 		name: "anchorOffsetY"
+	},
+	{
+		type: "Uint8",
+		name: "heightGround"
 	}
 ]);
 createLayout([{
@@ -28264,7 +28292,7 @@ function addTextVariableAnchorOffsets(textAnchorOffsets, variableAnchorOffset) {
 	}
 	return [startIndex, textAnchorOffsets.length];
 }
-function addTextVertices(bucket, anchor, shapedText, imageMap, layer, textAlongLine, feature, textOffset, elevation, lineArray, writingMode, placementTypes, placedTextSymbolIndices, placedIconIndex, sizes, canonical) {
+function addTextVertices(bucket, anchor, shapedText, imageMap, layer, textAlongLine, feature, textOffset, elevation, ground, lineArray, writingMode, placementTypes, placedTextSymbolIndices, placedIconIndex, sizes, canonical) {
 	const glyphQuads = getGlyphQuads(anchor, shapedText, textOffset, layer, textAlongLine, feature, imageMap, bucket.allowVerticalPlacement);
 	const sizeData = bucket.textSizeData;
 	let textSizeData = null;
@@ -28275,7 +28303,7 @@ function addTextVertices(bucket, anchor, shapedText, imageMap, layer, textAlongL
 		textSizeData = [128 * sizes.compositeTextSizes[0].evaluate(feature, {}, canonical), 128 * sizes.compositeTextSizes[1].evaluate(feature, {}, canonical)];
 		if (textSizeData[0] > 32640 || textSizeData[1] > 32640) warnOnce(`${bucket.layerIds[0]}: Value for "text-size" is >= 255. Reduce your "text-size".`);
 	}
-	bucket.addSymbols(bucket.text, glyphQuads, textSizeData, textOffset, textAlongLine, feature, writingMode, anchor, lineArray.lineStartIndex, lineArray.lineLength, placedIconIndex, canonical, elevation);
+	bucket.addSymbols(bucket.text, glyphQuads, textSizeData, textOffset, textAlongLine, feature, writingMode, anchor, lineArray.lineStartIndex, lineArray.lineLength, placedIconIndex, canonical, elevation, ground);
 	for (const placementType of placementTypes) placedTextSymbolIndices[placementType] = bucket.text.placedSymbolArray.length - 1;
 	return glyphQuads.length * 4;
 }
@@ -28289,6 +28317,7 @@ function getDefaultHorizontalShaping(horizontalShaping) {
 function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, imageMap, verticallyShapedIcon, layer, collisionBoxArray, featureIndex, sourceLayerIndex, bucketIndex, textBoxScale, textPadding, textAlongLine, textOffset, iconBoxScale, iconPadding, iconAlongLine, iconOffset, feature, sizes, isSDFIcon, canonical, layoutTextSize, hasPromoteId) {
 	const lineArray = bucket.addToLineVertexArray(anchor, line);
 	const elevation = layer.layout.get("symbol-height-offset").evaluate(feature, {}, canonical);
+	const ground = layer.layout.get("symbol-height-anchor").evaluate(feature, {}, canonical) === "ground" ? 1 : 0;
 	if (elevation > bucket.maxHeightOffset) bucket.maxHeightOffset = elevation;
 	let textCollisionFeature, iconCollisionFeature, verticalTextCollisionFeature, verticalIconCollisionFeature;
 	let numIconVertices = 0;
@@ -28321,11 +28350,11 @@ function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, ima
 			iconSizeData = [128 * sizes.compositeIconSizes[0].evaluate(feature, {}, canonical), 128 * sizes.compositeIconSizes[1].evaluate(feature, {}, canonical)];
 			if (iconSizeData[0] > 32640 || iconSizeData[1] > 32640) warnOnce(`${bucket.layerIds[0]}: Value for "icon-size" is >= 255. Reduce your "icon-size".`);
 		}
-		bucket.addSymbols(bucket.icon, iconQuads, iconSizeData, iconOffset, iconAlongLine, feature, 0, anchor, lineArray.lineStartIndex, lineArray.lineLength, -1, canonical, elevation);
+		bucket.addSymbols(bucket.icon, iconQuads, iconSizeData, iconOffset, iconAlongLine, feature, 0, anchor, lineArray.lineStartIndex, lineArray.lineLength, -1, canonical, elevation, ground);
 		placedIconSymbolIndex = bucket.icon.placedSymbolArray.length - 1;
 		if (verticalIconQuads) {
 			numVerticalIconVertices = verticalIconQuads.length * 4;
-			bucket.addSymbols(bucket.icon, verticalIconQuads, iconSizeData, iconOffset, iconAlongLine, feature, 2, anchor, lineArray.lineStartIndex, lineArray.lineLength, -1, canonical, elevation);
+			bucket.addSymbols(bucket.icon, verticalIconQuads, iconSizeData, iconOffset, iconAlongLine, feature, 2, anchor, lineArray.lineStartIndex, lineArray.lineLength, -1, canonical, elevation, ground);
 			verticalPlacedIconSymbolIndex = bucket.icon.placedSymbolArray.length - 1;
 		}
 	}
@@ -28337,10 +28366,10 @@ function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, ima
 			textCollisionFeature = new CollisionFeature(collisionBoxArray, anchor, featureIndex, sourceLayerIndex, bucketIndex, shaping, textBoxScale, textPadding, textAlongLine, layer.layout.get("text-rotate").evaluate(feature, {}, canonical));
 		}
 		const singleLine = shaping.positionedLines.length === 1;
-		numHorizontalGlyphVertices += addTextVertices(bucket, anchor, shaping, imageMap, layer, textAlongLine, feature, textOffset, elevation, lineArray, shapedTextOrientations.vertical ? 1 : 3, singleLine ? justifications : [justification], placedTextSymbolIndices, placedIconSymbolIndex, sizes, canonical);
+		numHorizontalGlyphVertices += addTextVertices(bucket, anchor, shaping, imageMap, layer, textAlongLine, feature, textOffset, elevation, ground, lineArray, shapedTextOrientations.vertical ? 1 : 3, singleLine ? justifications : [justification], placedTextSymbolIndices, placedIconSymbolIndex, sizes, canonical);
 		if (singleLine) break;
 	}
-	if (shapedTextOrientations.vertical) numVerticalGlyphVertices += addTextVertices(bucket, anchor, shapedTextOrientations.vertical, imageMap, layer, textAlongLine, feature, textOffset, elevation, lineArray, 2, ["vertical"], placedTextSymbolIndices, verticalPlacedIconSymbolIndex, sizes, canonical);
+	if (shapedTextOrientations.vertical) numVerticalGlyphVertices += addTextVertices(bucket, anchor, shapedTextOrientations.vertical, imageMap, layer, textAlongLine, feature, textOffset, elevation, ground, lineArray, 2, ["vertical"], placedTextSymbolIndices, verticalPlacedIconSymbolIndex, sizes, canonical);
 	const textBoxStartIndex = textCollisionFeature ? textCollisionFeature.boxStartIndex : bucket.collisionBoxArray.length;
 	const textBoxEndIndex = textCollisionFeature ? textCollisionFeature.boxEndIndex : bucket.collisionBoxArray.length;
 	const verticalTextBoxStartIndex = verticalTextCollisionFeature ? verticalTextCollisionFeature.boxStartIndex : bucket.collisionBoxArray.length;
@@ -28366,7 +28395,7 @@ function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, ima
 	const [textAnchorOffsetStartIndex, textAnchorOffsetEndIndex] = addTextVariableAnchorOffsets(bucket.textAnchorOffsets, variableAnchorOffset);
 	if (hasPromoteId) key = keyWithFeatureId(key, feature);
 	const instanceAnchorOffset = layer.layout.get("symbol-anchor-offset").evaluate(feature, {}, canonical) || [0, 0];
-	bucket.symbolInstances.emplaceBack(anchor.x, anchor.y, placedTextSymbolIndices.right >= 0 ? placedTextSymbolIndices.right : -1, placedTextSymbolIndices.center >= 0 ? placedTextSymbolIndices.center : -1, placedTextSymbolIndices.left >= 0 ? placedTextSymbolIndices.left : -1, placedTextSymbolIndices.vertical || -1, placedIconSymbolIndex, verticalPlacedIconSymbolIndex, key, textBoxStartIndex, textBoxEndIndex, verticalTextBoxStartIndex, verticalTextBoxEndIndex, iconBoxStartIndex, iconBoxEndIndex, verticalIconBoxStartIndex, verticalIconBoxEndIndex, featureIndex, numHorizontalGlyphVertices, numVerticalGlyphVertices, numIconVertices, numVerticalIconVertices, useRuntimeCollisionCircles, 0, textBoxScale, collisionCircleDiameter, textAnchorOffsetStartIndex, textAnchorOffsetEndIndex, elevation, instanceAnchorOffset[0], instanceAnchorOffset[1]);
+	bucket.symbolInstances.emplaceBack(anchor.x, anchor.y, placedTextSymbolIndices.right >= 0 ? placedTextSymbolIndices.right : -1, placedTextSymbolIndices.center >= 0 ? placedTextSymbolIndices.center : -1, placedTextSymbolIndices.left >= 0 ? placedTextSymbolIndices.left : -1, placedTextSymbolIndices.vertical || -1, placedIconSymbolIndex, verticalPlacedIconSymbolIndex, key, textBoxStartIndex, textBoxEndIndex, verticalTextBoxStartIndex, verticalTextBoxEndIndex, iconBoxStartIndex, iconBoxEndIndex, verticalIconBoxStartIndex, verticalIconBoxEndIndex, featureIndex, numHorizontalGlyphVertices, numVerticalGlyphVertices, numIconVertices, numVerticalIconVertices, useRuntimeCollisionCircles, 0, textBoxScale, collisionCircleDiameter, textAnchorOffsetStartIndex, textAnchorOffsetEndIndex, elevation, instanceAnchorOffset[0], instanceAnchorOffset[1], ground);
 }
 function anchorIsTooClose(bucket, text, repeatDistance, anchor) {
 	const compareText = bucket.compareText;
@@ -28405,10 +28434,10 @@ const shaderOpacityAttributes = [{
 	type: "Uint8",
 	offset: 0
 }];
-function addVertex(array, anchorX, anchorY, ox, oy, tx, ty, sizeVertex, isSDF, pixelOffsetX, pixelOffsetY, minFontScaleX, minFontScaleY, elevation, anchorOffsetX, anchorOffsetY) {
+function addVertex(array, anchorX, anchorY, ox, oy, tx, ty, sizeVertex, isSDF, pixelOffsetX, pixelOffsetY, minFontScaleX, minFontScaleY, elevation, ground, anchorOffsetX, anchorOffsetY) {
 	const aSizeX = sizeVertex ? Math.min(MAX_PACKED_SIZE, Math.round(sizeVertex[0])) : 0;
 	const aSizeY = sizeVertex ? Math.min(MAX_PACKED_SIZE, Math.round(sizeVertex[1])) : 0;
-	array.emplaceBack(anchorX, anchorY, Math.round(ox * 32), Math.round(oy * 32), tx, ty, (aSizeX << 1) + (isSDF ? 1 : 0), aSizeY, pixelOffsetX * 16, pixelOffsetY * 16, minFontScaleX * 256, minFontScaleY * 256, elevation, Math.round(anchorOffsetX * 16), Math.round(anchorOffsetY * 16));
+	array.emplaceBack(anchorX, anchorY, Math.round(ox * 32), Math.round(oy * 32), tx, ty, (aSizeX << 1) + (isSDF ? 1 : 0), aSizeY, pixelOffsetX * 16, pixelOffsetY * 16, minFontScaleX * 256, minFontScaleY * 256, elevation, ground, Math.round(anchorOffsetX * 16), Math.round(anchorOffsetY * 16));
 }
 function addDynamicAttributes(dynamicLayoutVertexArray, p, angle) {
 	dynamicLayoutVertexArray.emplaceBack(p.x, p.y, angle);
@@ -28712,7 +28741,7 @@ var SymbolBucket = class {
 			lineLength: this.lineVertexArray.length - lineStartIndex
 		};
 	}
-	addSymbols(arrays, quads, sizeVertex, lineOffset, alongLine, feature, writingMode, labelAnchor, lineStartIndex, lineLength, associatedIconIndex, canonical, elevation) {
+	addSymbols(arrays, quads, sizeVertex, lineOffset, alongLine, feature, writingMode, labelAnchor, lineStartIndex, lineLength, associatedIconIndex, canonical, elevation, ground) {
 		const indexArray = arrays.indexArray;
 		const layoutVertexArray = arrays.layoutVertexArray;
 		const segment = arrays.segments.prepareSegment(4 * quads.length, layoutVertexArray, indexArray, this.canOverlap ? feature.sortKey : void 0);
@@ -28727,10 +28756,10 @@ var SymbolBucket = class {
 			const { tl, tr, bl, br, tex, pixelOffsetTL, pixelOffsetBR, minFontScaleX, minFontScaleY, glyphOffset, isSDF, sectionIndex } = quads[i];
 			const index = segment.vertexLength;
 			const y = glyphOffset[1];
-			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tl.x, y + tl.y, tex.x, tex.y, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
-			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tr.x, y + tr.y, tex.x + tex.w, tex.y, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
-			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, bl.x, y + bl.y, tex.x, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
-			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, br.x, y + br.y, tex.x + tex.w, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
+			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tl.x, y + tl.y, tex.x, tex.y, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
+			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tr.x, y + tr.y, tex.x + tex.w, tex.y, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
+			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, bl.x, y + bl.y, tex.x, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
+			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, br.x, y + br.y, tex.x + tex.w, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
 			addDynamicAttributes(arrays.dynamicLayoutVertexArray, labelAnchor, angle);
 			indexArray.emplaceBack(index, index + 2, index + 1);
 			indexArray.emplaceBack(index + 1, index + 2, index + 3);
@@ -28743,7 +28772,7 @@ var SymbolBucket = class {
 				formattedSection: sections?.[sectionIndex]
 			});
 		}
-		arrays.placedSymbolArray.emplaceBack(labelAnchor.x, labelAnchor.y, glyphOffsetArrayStart, this.glyphOffsetArray.length - glyphOffsetArrayStart, vertexStartIndex, lineStartIndex, lineLength, labelAnchor.segment, sizeVertex ? sizeVertex[0] : 0, sizeVertex ? sizeVertex[1] : 0, lineOffset[0], lineOffset[1], writingMode, 0, false, 0, associatedIconIndex, elevation);
+		arrays.placedSymbolArray.emplaceBack(labelAnchor.x, labelAnchor.y, glyphOffsetArrayStart, this.glyphOffsetArray.length - glyphOffsetArrayStart, vertexStartIndex, lineStartIndex, lineLength, labelAnchor.segment, sizeVertex ? sizeVertex[0] : 0, sizeVertex ? sizeVertex[1] : 0, lineOffset[0], lineOffset[1], writingMode, 0, false, 0, associatedIconIndex, elevation, ground);
 	}
 	_addCollisionDebugVertex(layoutVertexArray, collisionVertexArray, point, anchorX, anchorY, extrude) {
 		collisionVertexArray.emplaceBack(0, 0);
@@ -29001,7 +29030,7 @@ const getLayout = () => layout = layout || new Properties({
 	"text-ignore-placement": new DataConstantProperty(latest["layout_symbol"]["text-ignore-placement"], "text-ignore-placement"),
 	"text-optional": new DataConstantProperty(latest["layout_symbol"]["text-optional"], "text-optional"),
 	"symbol-height-offset": new DataDrivenProperty(latest["layout_symbol"]["symbol-height-offset"], "symbol-height-offset"),
-	"symbol-height-anchor": new DataConstantProperty(latest["layout_symbol"]["symbol-height-anchor"], "symbol-height-anchor"),
+	"symbol-height-anchor": new DataDrivenProperty(latest["layout_symbol"]["symbol-height-anchor"], "symbol-height-anchor"),
 	"symbol-anchor-offset": new DataDrivenProperty(latest["layout_symbol"]["symbol-anchor-offset"], "symbol-anchor-offset"),
 	"symbol-anchor-offset-alignment": new DataConstantProperty(latest["layout_symbol"]["symbol-anchor-offset-alignment"], "symbol-anchor-offset-alignment")
 });

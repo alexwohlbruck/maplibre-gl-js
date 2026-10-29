@@ -3,7 +3,7 @@ layout(location = 1) in uvec4 a_data;
 layout(location = 2) in vec4 a_pixeloffset;
 layout(location = 3) in vec3 a_projected_pos;
 layout(location = 4) in uint a_fade_opacity;
-layout(location = 5) in float a_height_offset;
+layout(location = 5) in vec2 a_height_offset;
 layout(location = 6) in vec2 a_anchoroffset;
 
 uniform bool u_is_size_zoom_constant;
@@ -21,7 +21,6 @@ uniform bool u_is_variable_anchor;
 uniform vec2 u_translation;
 uniform float u_pitched_scale;
 uniform bool u_is_offset;
-uniform bool u_height_anchor_ground;
 uniform bool u_anchor_offset_is_map;
 
 out vec2 v_tex;
@@ -42,7 +41,9 @@ void main() {
     vec2 a_pxoffset = a_pixeloffset.xy;
     vec2 a_minFontScale = a_pixeloffset.zw / 256.0;
 
-    float ele = a_height_offset + (u_height_anchor_ground ? get_elevation(a_pos) : 0.0);
+    // Its height offset, over the terrain or (a_height_offset.y = 0) over sea level.
+    float ground_ele = get_elevation(a_pos);
+    float ele = a_height_offset.x + a_height_offset.y * ground_ele;
     highp float segment_angle = -a_projected_pos[2];
     float size;
 
@@ -61,7 +62,8 @@ void main() {
     vec2 fade_opacity = unpack_opacity(a_fade_opacity);
     float fade_change = fade_opacity[1] > 0.5 ? u_symbol_fade_change : -u_symbol_fade_change;
     // Terrain can hide the ground anchor while the elevated symbol remains visible.
-    float visibility = calculate_visibility(projectedPoint);
+    // Below ground it is judged where it stands at the surface, so the terrain over it does not hide it.
+    float visibility = calculate_visibility(ele < ground_ele ? projectTileWithElevation(translated_a_pos, ground_ele) : projectedPoint);
     v_total_opacity = opacity * max(0.0, min(visibility, fade_opacity[0] + fade_change));
     if (v_total_opacity < 0.1){
         gl_Position = vec4(-2., -2., -2., 1.);

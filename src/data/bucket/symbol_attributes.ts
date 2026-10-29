@@ -4,7 +4,8 @@ export const symbolLayoutAttributes: StructArrayLayout = createLayout([
     {name: 'a_pos_offset',  components: 4, type: 'Int16'},
     {name: 'a_data',        components: 4, type: 'Uint16'},
     {name: 'a_pixeloffset',        components: 4, type: 'Int16'},
-    {name: 'a_height_offset',   components: 1, type: 'Float32'},
+    // symbol-height-offset, and 1 where it is measured from the terrain (symbol-height-anchor ground) or 0 from sea level.
+    {name: 'a_height_offset',   components: 2, type: 'Float32'},
     // symbol-anchor-offset, 1/16 px units. Applied to the projected anchor
     // (never rotated by icon-rotate); interpreted map- or viewport-aligned
     // per the layer's symbol-anchor-offset-alignment.
@@ -78,7 +79,8 @@ export const placement: StructArrayLayout = createLayout([
     {type: 'Uint8', name: 'hidden'},
     {type: 'Uint32', name: 'crossTileID'},
     {type: 'Int16', name: 'associatedIconIndex'},
-    {type: 'Float32', name: 'heightOffset'}
+    {type: 'Float32', name: 'heightOffset'},
+    {type: 'Uint8', name: 'heightGround'}
 ]);
 
 export const symbolInstance: StructArrayLayout = createLayout([
@@ -113,7 +115,8 @@ export const symbolInstance: StructArrayLayout = createLayout([
     {type: 'Float32', name: 'heightOffset'},
     // symbol-anchor-offset in pixels, for collision/query box shifting
     {type: 'Float32', name: 'anchorOffsetX'},
-    {type: 'Float32', name: 'anchorOffsetY'}
+    {type: 'Float32', name: 'anchorOffsetY'},
+    {type: 'Uint8', name: 'heightGround'}
 ]);
 
 export const glyphOffset: StructArrayLayout = createLayout([

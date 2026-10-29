@@ -13,10 +13,13 @@ import {SubdivisionGranularitySetting} from '../../render/subdivision_granularit
 import {MercatorTransform} from '../../geo/projection/mercator_transform.ts';
 import {createPopulateOptions, loadVectorTile} from '../../../test/unit/lib/tile.ts';
 import {SymbolBucket} from './symbol_bucket.ts';
+import type {EvaluationParameters} from '../../style/evaluation_parameters.ts';
+import type {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
+import {featureFilter} from '@maplibre/maplibre-gl-style-spec';
+import {SymbolStyleLayer} from '../../style/style_layer/symbol_style_layer.ts';
 import glyphs from '../../../test/unit/assets/fontstack-glyphs.json' with {type: 'json'};
 
 import type {BucketParameters, IndexedFeature, PopulateParameters} from '../bucket.ts';
-import type {SymbolStyleLayer} from '../../style/style_layer/symbol_style_layer.ts';
 import type {StyleImage} from '../../style/style_image.ts';
 import type {GlyphMap} from '../../style/style_glyph.ts';
 
@@ -190,6 +193,36 @@ describe('SymbolBucket', () => {
 
         // undefined SDF should be treated the same as false SDF - no warning raised
         expect(spy).not.toHaveBeenCalledTimes(1);
+    });
+
+    test('SymbolBucket measures each symbol\'s height from the datum its own feature names', () => {
+        const layer = new SymbolStyleLayer({
+            id: 'heights',
+            type: 'symbol',
+            layout: {
+                'icon-image': ['get', 'icon'],
+                'symbol-height-offset': ['coalesce', ['get', 'z'], 0],
+                'symbol-height-anchor': ['case', ['has', 'z'], 'absolute', 'ground'],
+            },
+            filter: featureFilter(undefined, 'filter')
+        } as any as LayerSpecification, {});
+        layer.recalculate({zoom: 0, zoomHistory: {}} as EvaluationParameters, undefined);
+        const bucket = new SymbolBucket({overscaling: 1, zoom: 0, collisionBoxArray, layers: [layer]} as BucketParameters<SymbolStyleLayer>);
+        const raised = createIndexedFeature(0, 0, 'a');
+        raised.feature.properties.z = 24;
+        bucket.populate([raised, createIndexedFeature(1, 1, 'a')], createPopulateOptions([]), undefined);
+        performSymbolLayout({
+            bucket,
+            imageMap: {a: {data: new RGBAImage({width: 10, height: 10})}} as any as {[_: string]: StyleImage},
+            imagePositions: {a: new ImagePosition({x: 0, y: 0, w: 10, h: 10}, 1 as any as StyleImage)},
+            subdivisionGranularity: SubdivisionGranularitySetting.noSubdivision
+        } as any);
+
+        const instances = [0, 1].map(i => bucket.symbolInstances.get(i));
+        expect(instances.map(s => [s.heightOffset, s.heightGround])).toEqual([[24, 0], [0, 1]]);
+        const vertices = bucket.icon.layoutVertexArray;
+        const at = (i: number) => vertices.float32[(i * vertices.bytesPerElement + 24) / 4];
+        expect([at(0), at(4)]).toEqual([24, 0]);
     });
 
     test('SymbolBucket image mismatched sdf', () => {

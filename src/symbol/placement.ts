@@ -459,7 +459,6 @@ export class Placement {
         const pitchWithMap = layout.get('text-pitch-alignment') === 'map';
         const hasIconTextFit = layout.get('icon-text-fit') !== 'none';
         const zOrderByViewportY = layout.get('symbol-z-order') === 'viewport-y';
-        const heightAnchorGround = layout.get('symbol-height-anchor') === 'ground';
 
         // This logic is similar to the "defaultOpacityState" logic below in updateBucketOpacities
         // If we know a symbol is always supposed to show, force it to be marked visible even if
@@ -514,6 +513,7 @@ export class Placement {
             }
 
             const symbolHeightOffset = symbolInstance.heightOffset;
+            const heightAnchorGround = symbolInstance.heightGround === 1;
 
             let placeText = false;
             let placeIcon = false;

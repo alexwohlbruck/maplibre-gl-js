@@ -80,6 +80,16 @@ if (!layoutLine['line-elevation-profile']) {
     };
 }
 
+if (layoutSymbol['symbol-height-anchor']?.['property-type'] === 'data-constant') {
+    // Per feature, so a layer can hold symbols over the terrain and symbols at heights of their own: a station on
+    // a viaduct at the height its line is drawn at, beside one standing on the street.
+    layoutSymbol['symbol-height-anchor'] = {
+        ...layoutSymbol['symbol-height-anchor'],
+        'expression': {'interpolated': false, 'parameters': ['zoom', 'feature']},
+        'property-type': 'data-driven'
+    };
+}
+
 if (!layoutSymbol['symbol-anchor-offset']) {
     // A pixel offset applied to the symbol's ANCHOR — not the image frame.
     // Unlike `icon-offset`/`text-offset` it is unaffected by `icon-rotate`,

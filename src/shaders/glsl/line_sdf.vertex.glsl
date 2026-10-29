@@ -25,6 +25,13 @@ flat out vec2 v_width2;
 out vec2 v_tex_a;
 out vec2 v_tex_b;
 out float v_gamma_scale;
+#ifdef LINE_ELEVATION
+in vec4 a_elevation;
+out highp vec2 v_tile_pos;
+out float v_lift;
+// Metres an elevated line's depth is pulled towards the camera, so the terrain or deck under it does not cover it.
+#define ELEVATION_DEPTH_BIAS 2.0
+#endif
 #ifdef GLOBE
 out float v_depth;
 #endif
@@ -38,6 +45,21 @@ out float v_depth;
 #pragma maplibre: define lowp float floorwidth
 #pragma maplibre: define mediump vec4 dasharray_from
 #pragma maplibre: define mediump vec4 dasharray_to
+
+#ifdef LINE_VIEWPORT
+// The extrusion `v`, in pixels across and along the line, laid across the line as it runs on screen.
+vec4 viewport_extrusion(vec2 centre, float elevation, vec2 tangent, vec2 v, vec4 projected) {
+    vec2 normal = vec2(-tangent.y, tangent.x);
+    vec4 ahead = projectTileFor3D(centre + tangent * 8.0, elevation);
+    vec4 beside = projectTileFor3D(centre + normal * 8.0, elevation);
+    vec2 at = projected.xy / projected.w;
+    vec2 along = normalize((ahead.xy / ahead.w - at) * u_viewport_size);
+    vec2 across = vec2(-along.y, along.x);
+    across *= sign(dot(across, (beside.xy / beside.w - at) * u_viewport_size));
+    vec2 pixels = dot(v, normal) * across + dot(v, tangent) * along;
+    return vec4(pixels * 2.0 / u_viewport_size * projected.w, 0.0, 0.0);
+}
+#endif
 
 void main() {
     #pragma maplibre: initialize highp vec4 color
@@ -95,15 +117,37 @@ void main() {
     mediump vec2 offset2 = offset * a_extrude * scale * normal.y * mat2(t, -u, u, t);
 
     float adjustedThickness = projectLineThickness(pos.y);
-    vec4 projected_no_extrude = projectTile(pos + offset2 / u_ratio * adjustedThickness + u_translation);
-    vec4 projected_with_extrude = projectTile(pos + offset2 / u_ratio * adjustedThickness + u_translation + dist / u_ratio * adjustedThickness);
-    gl_Position = projected_with_extrude;
+    vec2 line_pos = pos + offset2 / u_ratio * adjustedThickness + u_translation;
+    vec2 edge_pos = line_pos + dist / u_ratio * adjustedThickness;
+    #ifdef LINE_ELEVATION
+        // Its height plus its share of the terrain under it; the fragment shader keeps an underground stretch in sight.
+        float ground = get_elevation(pos);
+        float elevation = a_elevation.x * u_terrain_exaggeration + a_elevation.y * ground;
+        #ifdef LINE_VIEWPORT
+            vec2 centre = pos + u_translation;
+            vec4 projected_no_extrude = projectTileFor3D(centre, elevation);
+            vec4 projected_with_extrude = projected_no_extrude + viewport_extrusion(centre, elevation, a_elevation.zw, offset2 + dist, projected_no_extrude);
+            vec4 depth_at = projectTileFor3D(centre, elevation + ELEVATION_DEPTH_BIAS);
+            v_tile_pos = centre;
+        #else
+            vec4 projected_no_extrude = projectTileFor3D(line_pos, elevation);
+            vec4 projected_with_extrude = projectTileFor3D(edge_pos, elevation);
+            vec4 depth_at = projectTileFor3D(edge_pos, elevation + ELEVATION_DEPTH_BIAS);
+            v_tile_pos = edge_pos;
+        #endif
+        gl_Position = vec4(projected_with_extrude.xy, depth_at.z / depth_at.w * projected_with_extrude.w, projected_with_extrude.w);
+        v_lift = elevation - ground;
+    #else
+        vec4 projected_no_extrude = projectTile(line_pos);
+        vec4 projected_with_extrude = projectTile(edge_pos);
+        gl_Position = projected_with_extrude;
+    #endif
     #ifdef GLOBE
     v_depth = gl_Position.z / gl_Position.w;
     #endif
 
     // calculate how much the perspective view squishes or stretches the extrude
-    #ifdef TERRAIN3D
+    #if (!defined(LINE_ELEVATION) && defined TERRAIN3D) || defined LINE_VIEWPORT
         v_gamma_scale = 1.0; // not needed, because this is done automatically via the mesh
     #else
         float extrude_length_without_perspective = length(dist);

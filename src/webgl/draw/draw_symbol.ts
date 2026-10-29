@@ -154,8 +154,7 @@ function updateVariableAnchors(coords: OverscaledTileID[],
             const getElevation = terrain ? (x: number, y: number) => terrain.getElevation(coord, x, y) : undefined;
             const translation = translatePosition(transform, tile, translate, translateAnchor);
             updateVariableAnchorsForBucket(bucket, rotateWithMap, pitchWithMap, variableOffsets,
-                transform, pitchedLabelPlaneMatrix, tileScale, size, updateTextFitIcon, translation, coord.toUnwrapped(), getElevation,
-                layer.layout.get('symbol-height-anchor') === 'ground');
+                transform, pitchedLabelPlaneMatrix, tileScale, size, updateTextFitIcon, translation, coord.toUnwrapped(), getElevation);
         }
     }
 }
@@ -199,8 +198,7 @@ function updateVariableAnchorsForBucket(
     updateTextFitIcon: boolean,
     translation: [number, number],
     unwrappedTileID: UnwrappedTileID,
-    getElevation: GetElevation | undefined,
-    heightAnchorGround: boolean) {
+    getElevation: GetElevation | undefined) {
     const placedSymbols = bucket.text.placedSymbolArray;
     const dynamicTextLayoutVertexArray = bucket.text.dynamicLayoutVertexArray;
     const dynamicIconLayoutVertexArray = bucket.icon.dynamicLayoutVertexArray;
@@ -221,7 +219,7 @@ function updateVariableAnchorsForBucket(
             const projectionContext: SymbolProjectionContext = {
                 getElevation,
                 heightOffset: symbol.heightOffset,
-                heightAnchorGround,
+                heightAnchorGround: symbol.heightGround === 1,
                 width: transform.width,
                 height: transform.height,
                 pitchedLabelPlaneMatrix,
@@ -387,7 +385,6 @@ function drawLayerSymbols(
             hasVariableAnchors &&
             bucket.hasIconData();
         const isOffset = layer._unevaluatedLayout.hasValue('icon-offset');
-        const heightAnchorGround = layer.layout.get('symbol-height-anchor') === 'ground';
 
         if (alongLine) {
             const pitchedLabelPlaneMatrixInverse = mat4.create();
@@ -415,16 +412,16 @@ function drawLayerSymbols(
             if (!bucket.iconsInText) {
                 uniformValues = symbolSDFUniformValues(sizeData.kind,
                     size, rotateInShader, pitchWithMap, alongLine, shaderVariableAnchor, painter,
-                    uLabelPlaneMatrix, glCoordMatrixForShader, translation, isText, texSize, hasHalo, pitchedTextRescaling, isOffset, heightAnchorGround, anchorOffsetIsMap);
+                    uLabelPlaneMatrix, glCoordMatrixForShader, translation, isText, texSize, hasHalo, pitchedTextRescaling, isOffset, anchorOffsetIsMap);
             } else {
                 uniformValues = symbolTextAndIconUniformValues(sizeData.kind,
                     size, rotateInShader, pitchWithMap, alongLine, shaderVariableAnchor, painter,
-                    uLabelPlaneMatrix, glCoordMatrixForShader, translation, texSize, texSizeIcon, pitchedTextRescaling, isOffset, heightAnchorGround, anchorOffsetIsMap);
+                    uLabelPlaneMatrix, glCoordMatrixForShader, translation, texSize, texSizeIcon, pitchedTextRescaling, isOffset, anchorOffsetIsMap);
             }
         } else {
             uniformValues = symbolIconUniformValues(sizeData.kind,
                 size, rotateInShader, pitchWithMap, alongLine, shaderVariableAnchor, painter,
-                uLabelPlaneMatrix, glCoordMatrixForShader, translation, isText, texSize, pitchedTextRescaling, isOffset, heightAnchorGround, anchorOffsetIsMap);
+                uLabelPlaneMatrix, glCoordMatrixForShader, translation, isText, texSize, pitchedTextRescaling, isOffset, anchorOffsetIsMap);
         }
 
         const state = {

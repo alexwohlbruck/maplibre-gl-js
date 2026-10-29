@@ -122,6 +122,7 @@ function addVertex(
     minFontScaleX: number,
     minFontScaleY: number,
     elevation: number,
+    ground: number,
     anchorOffsetX: number,
     anchorOffsetY: number
 ) {
@@ -144,6 +145,7 @@ function addVertex(
         minFontScaleX * 256,
         minFontScaleY * 256,
         elevation,
+        ground,
         // a_anchoroffset (symbol-anchor-offset, 1/16 px)
         Math.round(anchorOffsetX * 16),
         Math.round(anchorOffsetY * 16)
@@ -678,7 +680,8 @@ export class SymbolBucket implements Bucket {
         lineLength: number,
         associatedIconIndex: number,
         canonical: CanonicalTileID,
-        elevation: number): void {
+        elevation: number,
+        ground: number): void {
         const indexArray = arrays.indexArray;
         const layoutVertexArray = arrays.layoutVertexArray;
 
@@ -701,10 +704,10 @@ export class SymbolBucket implements Bucket {
             const index = segment.vertexLength;
 
             const y = glyphOffset[1];
-            addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tl.x, y + tl.y, tex.x, tex.y, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
-            addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tr.x, y + tr.y, tex.x + tex.w, tex.y, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
-            addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, bl.x, y + bl.y, tex.x, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
-            addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, br.x, y + br.y, tex.x + tex.w, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
+            addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tl.x, y + tl.y, tex.x, tex.y, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
+            addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tr.x, y + tr.y, tex.x + tex.w, tex.y, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
+            addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, bl.x, y + bl.y, tex.x, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
+            addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, br.x, y + br.y, tex.x + tex.w, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
 
             addDynamicAttributes(arrays.dynamicLayoutVertexArray, labelAnchor, angle);
 
@@ -739,7 +742,8 @@ export class SymbolBucket implements Bucket {
             // The crossTileID is only filled/used on the foreground for dynamic text anchors
             0,
             associatedIconIndex,
-            elevation
+            elevation,
+            ground
         );
     }
 

@@ -14,6 +14,7 @@ import {roundPolygonCornersIfNeeded, getTileUnitsForMeters} from './round_polygo
 import {toEvaluationFeature} from '../evaluation_feature.ts';
 import {EvaluationParameters} from '../../style/evaluation_parameters.ts';
 import {subdivideVertexLine} from '../../render/subdivision.ts';
+import {elevateLine, parseElevationProfile, type ElevationRun} from './line_elevation.ts';
 
 import type {CanonicalTileID} from '../../tile/tile_id.ts';
 import type {
@@ -75,6 +76,11 @@ const LINE_DISTANCE_SCALE = 1 / 2;
 // The maximum line distance, in tile units, that fits in the buffer.
 const MAX_LINE_DISTANCE = Math.pow(2, LINE_DISTANCE_BUFFER_BITS - 1) / LINE_DISTANCE_SCALE;
 
+// Cells per tile an elevated line is cut at, so that off the draped texture it still follows the terrain.
+const ELEVATED_GRANULARITY = 64;
+// How far from a run's path a vertex of its line may lie and still take its height.
+const ELEVATION_REACH_METERS = 4;
+
 type LineClips = {
     start: number;
     end: number;
@@ -132,6 +138,15 @@ export class LineBucket implements Bucket {
     evaluationGlobals: {zoom: number; lineProgress: number};
     // The feature currently being added, so `addHalfVertex` can evaluate data-driven offsets.
     currentLineFeature: BucketFeature;
+    // Whether the layers draw off the ground with `line-elevation-profile`, each vertex's height in the ext buffer.
+    elevated: boolean;
+    // The current feature's profile, and where the vertex being added is drawn: metres, plus this much of the terrain.
+    elevationRuns: ElevationRun[];
+    vertexHeight: number;
+    vertexGround: number;
+    // The direction of the line through the vertex being added.
+    tangentX: number;
+    tangentY: number;
 
     constructor(options: BucketParameters<LineStyleLayer>) {
         this.zoom = options.zoom;
@@ -164,6 +179,13 @@ export class LineBucket implements Bucket {
                 break;
             }
         }
+
+        const profile = this.layers[0].layout.get('line-elevation-profile');
+        this.elevated = !profile.isConstant() || !!profile.constantOr('');
+        this.vertexHeight = 0;
+        this.vertexGround = 1;
+        this.tangentX = 1;
+        this.tangentY = 0;
 
         this.stateDependentLayerIds = this.layers.filter((l) => l.isStateDependent()).map((l) => l.id);
     }
@@ -287,6 +309,9 @@ export class LineBucket implements Bucket {
         this.lineClips = this.lineFeatureClips(feature);
         // Retained so `addHalfVertex` can evaluate a data-driven `line-offset` per vertex.
         this.currentLineFeature = feature;
+        this.elevationRuns = this.elevated ?
+            parseElevationProfile(this.layers[0].layout.get('line-elevation-profile').evaluate(feature, {}, canonical), canonical) :
+            [];
 
         for (const line of geometry) {
             this.addLine(line, feature, join, cap, miterLimit, roundLimit, canonical, subdivisionGranularity);
@@ -302,7 +327,10 @@ export class LineBucket implements Bucket {
 
         // First, subdivide the line if needed (mostly for globe rendering)
         const granularity = canonical ? subdivisionGranularity.line.getGranularityForZoomLevel(canonical.z) : 1;
-        vertices = subdivideVertexLine(vertices, granularity);
+        vertices = subdivideVertexLine(vertices, this.elevated ? Math.max(granularity, ELEVATED_GRANULARITY) : granularity);
+        let heights: number[] | null = null;
+        let ground: number[] | null = null;
+        if (this.elevated) ({vertices, heights, ground} = elevateLine(vertices, this.elevationRuns, canonical ? ELEVATION_REACH_METERS * getTileUnitsForMeters(1, canonical) : 0));
 
         if (this.lineClips) {
             this.lineClipsArray.push(this.lineClips);
@@ -365,6 +393,10 @@ export class LineBucket implements Bucket {
             if (currentVertex) prevVertex = currentVertex;
 
             currentVertex = vertices[i];
+            if (heights) {
+                this.vertexHeight = heights[i];
+                this.vertexGround = ground[i];
+            }
 
             // Calculate the normal towards the next vertex in this line. In case
             // there is no next vertex, pretend that the line is continuing straight,
@@ -486,6 +518,7 @@ export class LineBucket implements Bucket {
                     // pick the number of triangles for approximating round join by based on the angle between normals
                     const n = Math.round((approxAngle * 180 / Math.PI) / DEG_PER_TRIANGLE);
 
+                    this.setTangent(joinNormal);
                     for (let m = 1; m < n; m++) {
                         let t = m / n;
                         if (t !== 0.5) {
@@ -553,6 +586,7 @@ export class LineBucket implements Bucket {
      * @param round - whether this is a round cap
      */
     addCurrentVertex(p: Point, normal: Point, endLeft: number, endRight: number, segment: Segment, round: boolean = false): void {
+        this.setTangent(normal);
         // left and right extrude vectors, perpendicularly shifted by endLeft/endRight
         const leftX = normal.x + normal.y * endLeft;
         const leftY = normal.y - normal.x * endLeft;
@@ -595,10 +629,8 @@ export class LineBucket implements Bucket {
             linesofarScaled >> 6);
 
         // Constructs a second vertex buffer with higher precision line progress
-        if (this.lineClips) {
-            const progressRealigned = this.scaledDistance - this.lineClips.start;
-            const endClipRealigned = this.lineClips.end - this.lineClips.start;
-            const uvX = progressRealigned / endClipRealigned;
+        if (this.lineClips || this.elevated) {
+            const uvX = this.lineClips ? (this.scaledDistance - this.lineClips.start) / (this.lineClips.end - this.lineClips.start) : 0;
 
             // Evaluate the `line-progress`-driven offset at this vertex's progress. Zero when no
             // variable offset is active, so the ext buffer stays valid for all line variants.
@@ -608,14 +640,14 @@ export class LineBucket implements Bucket {
             // whole ramp and the offset jumps at each tile boundary. uvX stays as-is for the
             // gradient texture path.
             let lineOffset = 0;
-            if (this.variableOffsetExpression) {
+            if (this.variableOffsetExpression && this.lineClips) {
                 this.evaluationGlobals.zoom = this.zoom;
                 this.evaluationGlobals.lineProgress = this.scaledDistance;
                 lineOffset = (this.variableOffsetExpression.evaluate(
                     this.evaluationGlobals, this.currentLineFeature) as number) || 0;
             }
 
-            this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length, lineOffset);
+            this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length, lineOffset, this.vertexHeight, this.vertexGround, this.tangentX, this.tangentY);
         }
 
         const e = segment.vertexLength++;
@@ -627,6 +659,15 @@ export class LineBucket implements Bucket {
             this.e2 = e;
         } else {
             this.e1 = e;
+        }
+    }
+
+    /** The line's direction, from the normal it is extruded along. */
+    setTangent(normal: Point): void {
+        const length = Math.hypot(normal.x, normal.y);
+        if (length) {
+            this.tangentX = normal.y / length;
+            this.tangentY = -normal.x / length;
         }
     }
 
@@ -691,7 +732,7 @@ export class LineBucket implements Bucket {
     }
 }
 
-register('LineBucket', LineBucket, {omit: ['layers', 'patternFeatures', 'variableOffsetExpression', 'currentLineFeature']});
+register('LineBucket', LineBucket, {omit: ['layers', 'patternFeatures', 'variableOffsetExpression', 'currentLineFeature', 'elevationRuns']});
 
 /** Polygon outlines take `line-rounded-corner-distance`; real lines are left alone. */
 export function roundOutline(geometry: Point[][], type: number, layer: LineStyleLayer, canonical: CanonicalTileID): Point[][] {

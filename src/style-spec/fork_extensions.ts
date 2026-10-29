@@ -15,6 +15,7 @@ import {v8} from '@maplibre/maplibre-gl-style-spec';
 
 const layoutSymbol = (v8 as any).layout_symbol;
 const layoutLine = (v8 as any).layout_line;
+const paintLine = (v8 as any).paint_line;
 
 if (!layoutLine['line-rounded-corner-distance']) {
     // The line counterpart of `fill-extrusion-rounded-corner-distance`: polygon
@@ -31,6 +32,61 @@ if (!layoutLine['line-rounded-corner-distance']) {
             'parameters': []
         },
         'property-type': 'data-constant'
+    };
+}
+
+if (!layoutLine['line-elevation-profile']) {
+    // Heights along a line for drawing it off the ground over terrain: bridges
+    // raised to their decks, tunnels sunk to their bores. Carried as a feature
+    // property so a tile can state them per line; the points are geographic, so
+    // they survive clipping, simplification and re-tiling of the geometry.
+    layoutLine['line-elevation-profile'] = {
+        'type': 'string',
+        'default': '',
+        'doc': 'Heights along the line, as runs separated by `;`. Each run is a comma-separated list of integer triples: the first is longitude and latitude in 1e-7 degrees and height in decimetres, each later one the change in longitude and latitude from the point before and its own height. Heights are above sea level in the terrain\'s datum, or above the terrain under the point for a run prefixed with `~`. Points lie on the line in its direction; within a run the height is interpolated between its points, and outside the runs the line lies on the terrain. A layer with a profile is drawn in 3D rather than draped over terrain, and only while terrain is enabled.',
+        'expression': {
+            'interpolated': false,
+            'parameters': ['zoom', 'feature']
+        },
+        'property-type': 'data-driven'
+    };
+    paintLine['line-pitch-alignment'] = {
+        'type': 'enum',
+        'values': {
+            'map': {'doc': 'The line lies in the plane of the map, so it narrows as the map tilts away.'},
+            'viewport': {'doc': 'The line keeps its width and offset in pixels however the map is tilted.'}
+        },
+        'default': 'map',
+        'doc': 'How a line drawn with `line-elevation-profile` is widened under a tilted camera.',
+        'requires': ['line-elevation-profile'],
+        'expression': {
+            'interpolated': false,
+            'parameters': ['zoom']
+        },
+        'property-type': 'data-constant'
+    };
+    paintLine['line-depth-occlusion-factor'] = {
+        'type': 'number',
+        'default': 1,
+        'minimum': 0,
+        'maximum': 1,
+        'doc': 'Whether a line drawn with `line-elevation-profile` is hidden behind 3D features nearer the camera: 0 draws it over them, any larger value hides it. Underground stretches are never hidden by the terrain over them.',
+        'requires': ['line-elevation-profile'],
+        'expression': {
+            'interpolated': false,
+            'parameters': ['zoom']
+        },
+        'property-type': 'data-constant'
+    };
+}
+
+if (layoutSymbol['symbol-height-anchor']?.['property-type'] === 'data-constant') {
+    // Per feature, so a layer can hold symbols over the terrain and symbols at heights of their own: a station on
+    // a viaduct at the height its line is drawn at, beside one standing on the street.
+    layoutSymbol['symbol-height-anchor'] = {
+        ...layoutSymbol['symbol-height-anchor'],
+        'expression': {'interpolated': false, 'parameters': ['zoom', 'feature']},
+        'property-type': 'data-driven'
     };
 }
 

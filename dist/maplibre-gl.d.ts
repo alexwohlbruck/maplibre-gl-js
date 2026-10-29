@@ -343,6 +343,38 @@ declare class StructArrayLayout2i4ub8 extends StructArray {
 /**
  * @internal
  * Implementation of the StructArray layout:
+ * [0] - Float32[7]
+ *
+ */
+declare class StructArrayLayout7f28 extends StructArray {
+  uint8: Uint8Array;
+  float32: Float32Array;
+  _refreshViews(): void;
+  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number): number;
+  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number): number;
+}
+/**
+ * @internal
+ * Implementation of the StructArray layout:
+ * [0] - Int16[4]
+ * [8] - Uint16[4]
+ * [16] - Int16[4]
+ * [24] - Float32[2]
+ * [32] - Int16[2]
+ *
+ */
+declare class StructArrayLayout4i4ui4i2f2i36 extends StructArray {
+  uint8: Uint8Array;
+  int16: Int16Array;
+  uint16: Uint16Array;
+  float32: Float32Array;
+  _refreshViews(): void;
+  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number): number;
+  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number): number;
+}
+/**
+ * @internal
+ * Implementation of the StructArray layout:
  * [0] - Float32[3]
  *
  */
@@ -352,25 +384,6 @@ declare class StructArrayLayout3f12 extends StructArray {
   _refreshViews(): void;
   emplaceBack(v0: number, v1: number, v2: number): number;
   emplace(i: number, v0: number, v1: number, v2: number): number;
-}
-/**
- * @internal
- * Implementation of the StructArray layout:
- * [0] - Int16[4]
- * [8] - Uint16[4]
- * [16] - Int16[4]
- * [24] - Float32[1]
- * [28] - Int16[2]
- *
- */
-declare class StructArrayLayout4i4ui4i1f2i32 extends StructArray {
-  uint8: Uint8Array;
-  int16: Int16Array;
-  uint16: Uint16Array;
-  float32: Float32Array;
-  _refreshViews(): void;
-  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number): number;
-  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number): number;
 }
 /**
  * @internal
@@ -443,17 +456,18 @@ declare class StructArrayLayout3ui6 extends StructArray {
  * [40] - Uint32[1]
  * [44] - Int16[1]
  * [48] - Float32[1]
+ * [52] - Uint8[1]
  *
  */
-declare class StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 extends StructArray {
+declare class StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 extends StructArray {
   uint8: Uint8Array;
   int16: Int16Array;
   uint16: Uint16Array;
   uint32: Uint32Array;
   float32: Float32Array;
   _refreshViews(): void;
-  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number): number;
-  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number): number;
+  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number): number;
+  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number): number;
 }
 /**
  * @internal
@@ -464,17 +478,18 @@ declare class StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 extends StructArray {
  * [52] - Float32[2]
  * [60] - Uint16[2]
  * [64] - Float32[3]
+ * [76] - Uint8[1]
  *
  */
-declare class StructArrayLayout8i15ui1ul2f2ui3f76 extends StructArray {
+declare class StructArrayLayout8i15ui1ul2f2ui3f1ub80 extends StructArray {
   uint8: Uint8Array;
   int16: Int16Array;
   uint16: Uint16Array;
   uint32: Uint32Array;
   float32: Float32Array;
   _refreshViews(): void;
-  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number, v19: number, v20: number, v21: number, v22: number, v23: number, v24: number, v25: number, v26: number, v27: number, v28: number, v29: number, v30: number): number;
-  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number, v19: number, v20: number, v21: number, v22: number, v23: number, v24: number, v25: number, v26: number, v27: number, v28: number, v29: number, v30: number): number;
+  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number, v19: number, v20: number, v21: number, v22: number, v23: number, v24: number, v25: number, v26: number, v27: number, v28: number, v29: number, v30: number, v31: number): number;
+  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number, v19: number, v20: number, v21: number, v22: number, v23: number, v24: number, v25: number, v26: number, v27: number, v28: number, v29: number, v30: number, v31: number): number;
 }
 /**
  * @internal
@@ -591,10 +606,11 @@ declare class PlacedSymbolStruct extends Struct {
   set crossTileID(x: number);
   get associatedIconIndex(): number;
   get heightOffset(): number;
+  get heightGround(): number;
 }
 type PlacedSymbol = PlacedSymbolStruct;
 /** @internal */
-declare class PlacedSymbolArray extends StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 {
+declare class PlacedSymbolArray extends StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 {
   /**
    * Return the PlacedSymbolStruct at the given location in the array.
    * @param index - The index of the element.
@@ -636,10 +652,11 @@ declare class SymbolInstanceStruct extends Struct {
   get heightOffset(): number;
   get anchorOffsetX(): number;
   get anchorOffsetY(): number;
+  get heightGround(): number;
 }
 type SymbolInstance = SymbolInstanceStruct;
 /** @internal */
-declare class SymbolInstanceArray extends StructArrayLayout8i15ui1ul2f2ui3f76 {
+declare class SymbolInstanceArray extends StructArrayLayout8i15ui1ul2f2ui3f1ub80 {
   /**
    * Return the SymbolInstanceStruct at the given location in the array.
    * @param index - The index of the element.
@@ -693,8 +710,8 @@ declare class CircleLayoutArray extends StructArrayLayout2i4 {}
 declare class FillLayoutArray extends StructArrayLayout2i4 {}
 declare class FillExtrusionLayoutArray extends StructArrayLayout2i4i12 {}
 declare class LineLayoutArray extends StructArrayLayout2i4ub8 {}
-declare class LineExtLayoutArray extends StructArrayLayout3f12 {}
-declare class SymbolLayoutArray extends StructArrayLayout4i4ui4i1f2i32 {}
+declare class LineExtLayoutArray extends StructArrayLayout7f28 {}
+declare class SymbolLayoutArray extends StructArrayLayout4i4ui4i2f2i36 {}
 declare class SymbolDynamicLayoutArray extends StructArrayLayout3f12 {}
 declare class SymbolOpacityArray extends StructArrayLayout1ul4 {}
 declare class CollisionVertexArray extends StructArrayLayout2ub2f2i16 {}
@@ -4114,7 +4131,7 @@ type SymbolLayoutProps = {
   "text-ignore-placement": DataConstantProperty<boolean>;
   "text-optional": DataConstantProperty<boolean>;
   "symbol-height-offset": DataDrivenProperty<number>;
-  "symbol-height-anchor": DataConstantProperty<"ground" | "absolute">;
+  "symbol-height-anchor": DataDrivenProperty<"ground" | "absolute">;
   "symbol-anchor-offset": DataDrivenProperty<[number, number]>;
   "symbol-anchor-offset-alignment": DataConstantProperty<"map" | "viewport">;
 };
@@ -4164,7 +4181,7 @@ type SymbolLayoutPropsPossiblyEvaluated = {
   "text-ignore-placement": boolean;
   "text-optional": boolean;
   "symbol-height-offset": PossiblyEvaluatedPropertyValue<number>;
-  "symbol-height-anchor": "ground" | "absolute";
+  "symbol-height-anchor": PossiblyEvaluatedPropertyValue<"ground" | "absolute">;
   "symbol-anchor-offset": PossiblyEvaluatedPropertyValue<[number, number]>;
   "symbol-anchor-offset-alignment": "map" | "viewport";
 };
@@ -4459,7 +4476,7 @@ declare class SymbolBucket implements Bucket {
     lineStartIndex: number;
     lineLength: number;
   };
-  addSymbols(arrays: SymbolBuffers, quads: SymbolQuad[], sizeVertex: any, lineOffset: [number, number], alongLine: boolean, feature: SymbolFeature, writingMode: WritingMode, labelAnchor: Anchor, lineStartIndex: number, lineLength: number, associatedIconIndex: number, canonical: CanonicalTileID, elevation: number): void;
+  addSymbols(arrays: SymbolBuffers, quads: SymbolQuad[], sizeVertex: any, lineOffset: [number, number], alongLine: boolean, feature: SymbolFeature, writingMode: WritingMode, labelAnchor: Anchor, lineStartIndex: number, lineLength: number, associatedIconIndex: number, canonical: CanonicalTileID, elevation: number, ground: number): void;
   _addCollisionDebugVertex(layoutVertexArray: StructArray, collisionVertexArray: StructArray, point: Point$1, anchorX: number, anchorY: number, extrude: Point$1): number;
   addCollisionDebugVertices(x1: number, y1: number, x2: number, y2: number, arrays: CollisionBuffers, boxAnchorPoint: Point$1, symbolInstance: SymbolInstance): void;
   addDebugCollisionBoxes(startIndex: number, endIndex: number, symbolInstance: SymbolInstance, isText: boolean): void;
@@ -4795,12 +4812,15 @@ type RenderPass = "offscreen" | "opaque" | "translucent";
  * Shared draw state, created per render and updated as rendering proceeds.
  * Corresponds to part of MapLibre Native's `PaintParameters`.
  */
+type ElevatedPass = "underground" | "overground";
 type RenderContext = {
   currentPass: RenderPass;
   currentLayer: number;
   opaquePassCutoff: number;
   depthRangeFor3D: DepthRangeType;
   isRenderingToTexture: boolean;
+  /** Which part of an elevated line to draw: under the terrain at its place in the style, or over it once the 3D layers are drawn. Both when unset. */
+  elevatedPass?: ElevatedPass;
   readonly transform: IReadonlyTransform;
   readonly terrain: Terrain | null;
   readonly projectionTransition: number;
@@ -5131,6 +5151,17 @@ declare class HeatmapStyleLayer extends StyleLayer {
 //#region src/webgl/draw/draw_heatmap.d.ts
 declare function drawHeatmap(painter: Painter, tileManager: TileManager, layer: HeatmapStyleLayer, tileIDs: OverscaledTileID[], renderContext: RenderContext): void;
 //#endregion
+//#region src/data/bucket/line_elevation.d.ts
+/**
+ * A stretch of a line off the ground: points on the line, in tile units, with their heights in metres, above
+ * sea level in the terrain's datum or, for a relative run, above the terrain under them.
+ */
+type ElevationRun = {
+  points: Point$1[];
+  heights: number[];
+  relative: boolean;
+};
+//#endregion
 //#region src/data/bucket/line_bucket.d.ts
 type LineClips = {
   start: number;
@@ -5181,6 +5212,12 @@ declare class LineBucket implements Bucket {
     lineProgress: number;
   };
   currentLineFeature: BucketFeature;
+  elevated: boolean;
+  elevationRuns: ElevationRun[];
+  vertexHeight: number;
+  vertexGround: number;
+  tangentX: number;
+  tangentY: number;
   constructor(options: BucketParameters<LineStyleLayer>);
   populate(features: IndexedFeature[], options: PopulateParameters, canonical: CanonicalTileID): void;
   update(states: FeatureStates, vtLayer: VectorTileLayerLike, imagePositions: {
@@ -5210,6 +5247,8 @@ declare class LineBucket implements Bucket {
    */
   addCurrentVertex(p: Point$1, normal: Point$1, endLeft: number, endRight: number, segment: Segment, round?: boolean): void;
   addHalfVertex({ x, y }: Point$1, extrudeX: number, extrudeY: number, round: boolean, up: boolean, dir: number, segment: Segment): void;
+  /** The line's direction, from the normal it is extruded along. */
+  setTangent(normal: Point$1): void;
   updateScaledDistance(): void;
   updateDistance(prev: Point$1, next: Point$1): void;
   private hasLineDasharray;
@@ -5224,6 +5263,7 @@ type LineLayoutProps = {
   "line-round-limit": DataDrivenProperty<number>;
   "line-sort-key": DataDrivenProperty<number>;
   "line-rounded-corner-distance": DataConstantProperty<number>;
+  "line-elevation-profile": DataDrivenProperty<string>;
 };
 type LineLayoutPropsPossiblyEvaluated = {
   "line-cap": PossiblyEvaluatedPropertyValue<"butt" | "round" | "square">;
@@ -5232,6 +5272,7 @@ type LineLayoutPropsPossiblyEvaluated = {
   "line-round-limit": PossiblyEvaluatedPropertyValue<number>;
   "line-sort-key": PossiblyEvaluatedPropertyValue<number>;
   "line-rounded-corner-distance": number;
+  "line-elevation-profile": PossiblyEvaluatedPropertyValue<string>;
 };
 type LinePaintProps = {
   "line-opacity": DataDrivenProperty<number>;
@@ -5246,6 +5287,8 @@ type LinePaintProps = {
   "line-dasharray": CrossFadedDataDrivenProperty<number[]>;
   "line-pattern": CrossFadedDataDrivenProperty<ResolvedImage>;
   "line-gradient": ColorRampProperty;
+  "line-pitch-alignment": DataConstantProperty<"map" | "viewport">;
+  "line-depth-occlusion-factor": DataConstantProperty<number>;
 };
 type LinePaintPropsPossiblyEvaluated = {
   "line-opacity": PossiblyEvaluatedPropertyValue<number>;
@@ -5260,6 +5303,8 @@ type LinePaintPropsPossiblyEvaluated = {
   "line-dasharray": PossiblyEvaluatedPropertyValue<CrossFaded<number[]>>;
   "line-pattern": PossiblyEvaluatedPropertyValue<CrossFaded<ResolvedImage>>;
   "line-gradient": ColorRampProperty;
+  "line-pitch-alignment": "map" | "viewport";
+  "line-depth-occlusion-factor": number;
 };
 //#endregion
 //#region src/style/style_layer/line_style_layer.d.ts
@@ -5282,6 +5327,8 @@ declare class LineStyleLayer extends StyleLayer {
    * inspecting the underlying expression AST rather than checking `paint.get(...).kind`.
    */
   hasVariableOffset(): boolean;
+  /** True when a `line-elevation-profile` lifts the line off the terrain, so it is drawn in 3D rather than draped. */
+  isElevated(): boolean;
   recalculate(parameters: EvaluationParameters, availableImages: string[]): void;
   createBucket(parameters: BucketParameters<any>): LineBucket;
   queryRadius(bucket: Bucket): number;

@@ -10,6 +10,7 @@ import type {Terrain} from '../render/terrain.ts';
 import type {Texture} from './texture.ts';
 import type {StyleLayer} from '../style/style_layer.ts';
 import type {Painter} from '../render/painter.ts';
+import type {LineStyleLayer} from '../style/style_layer/line_style_layer.ts';
 import type {RenderContext} from '../render/render_context.ts';
 
 /**
@@ -23,6 +24,11 @@ const LAYERS_TO_TEXTURES: { [keyof in StyleLayer['type']]?: boolean } = {
     hillshade: true,
     'color-relief': true
 };
+
+/** Whether a layer is drawn into the terrain texture: a line raised by an elevation profile is drawn in 3D instead. */
+function drapes(layer: StyleLayer): boolean {
+    return !!LAYERS_TO_TEXTURES[layer.type] && !(layer as LineStyleLayer).isElevated?.();
+}
 
 /**
  * @internal
@@ -54,9 +60,9 @@ export class RenderToTexture {
      */
     _stacks: string[][];
     /**
-     * remember the previous processed layer to check if a new stack is needed
+     * whether the previous processed layer was draped, to check if a new stack is needed
      */
-    _prevType: string;
+    _prevDraped: boolean;
     /**
      * a list of tiles that can potentially rendered
      */
@@ -112,19 +118,19 @@ export class RenderToTexture {
         const zoomChanged = zoom !== this._lastPrepareZoom;
         this._lastPrepareZoom = zoom;
         this._stacks = [];
-        this._prevType = null;
+        this._prevDraped = false;
         this._rttTiles = [];
         this._renderableTiles = this.terrain.tileManager.getRenderableTiles();
         this._renderableLayerIds = style._order.filter(id => !style._layers[id].isHidden(zoom));
         // Draped beneath, a texture holds only the draped layers: a label entering its zoom range leaves it as it is.
-        this._drapedLayerIds = this.drapeBeneath ? this._renderableLayerIds.filter(id => LAYERS_TO_TEXTURES[style._layers[id].type]) : null;
+        this._drapedLayerIds = this.drapeBeneath ? this._renderableLayerIds.filter(id => drapes(style._layers[id])) : null;
         const visibleLayerIds = (this._drapedLayerIds ?? this._renderableLayerIds).join();
 
         const rttSourceIds = new Set<string>();
         for (const layerId of this._renderableLayerIds) {
             const layer = style._layers[layerId];
             const source = layer.source;
-            if (source && LAYERS_TO_TEXTURES[layer.type]) rttSourceIds.add(source);
+            if (source && drapes(layer)) rttSourceIds.add(source);
         }
 
         this._coordsAscending = {};
@@ -200,34 +206,33 @@ export class RenderToTexture {
     renderLayer(layer: StyleLayer, renderContext: RenderContext): boolean {
         if (layer.isHidden(this.painter.transform.zoom)) return false;
 
-        const type = layer.type;
+        const draped = drapes(layer);
         if (this._drapedLayerIds) {
             // Draped on the first visible layer, whatever its type, so nothing is drawn under the terrain pass.
             if (!this._stacks.length && this._drapedLayerIds.length) {
                 this._stacks.push(this._drapedLayerIds);
                 this._renderStack(renderContext);
             }
-            return !!LAYERS_TO_TEXTURES[type];
+            return draped;
         }
-        const painter = this.painter;
         const isLastLayer = this._renderableLayerIds[this._renderableLayerIds.length - 1] === layer.id;
 
         // remember background, fill, line & raster layer to render into a stack
-        if (LAYERS_TO_TEXTURES[type]) {
+        if (draped) {
             // create a new stack if previous layer was not rendered to texture (f.e. symbols)
-            if (!this._prevType || !LAYERS_TO_TEXTURES[this._prevType]) this._stacks.push([]);
+            if (!this._prevDraped) this._stacks.push([]);
             // push current render-to-texture layer to render-stack
-            this._prevType = type;
+            this._prevDraped = true;
             this._stacks[this._stacks.length - 1].push(layer.id);
             // rendering is done later, all in once
             if (!isLastLayer) return true;
         }
 
         // in case a stack is finished render all collected stack-layers into a texture
-        if (LAYERS_TO_TEXTURES[this._prevType] || (LAYERS_TO_TEXTURES[type] && isLastLayer)) {
-            this._prevType = type;
+        if (this._prevDraped || (draped && isLastLayer)) {
+            this._prevDraped = draped;
             this._renderStack(renderContext);
-            return LAYERS_TO_TEXTURES[type];
+            return draped;
         }
 
         return false;

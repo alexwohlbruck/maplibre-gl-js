@@ -37,3 +37,17 @@ layout(std140) uniform FrameUBO {
     highp vec2 u_pixel_extrude_scale;
     highp float u_pitch;
 };
+
+#ifdef LINE_ELEVATION
+// Keeps an elevated line's fragment to its own tile, whose neighbours draw the rest of the line from their buffers,
+// and to the side of the terrain the pass draws.
+void elevated_line_fragment(highp vec2 tile_pos, float lift) {
+    if (tile_pos.x < 0.0 || tile_pos.y < 0.0 || tile_pos.x > 8192.0 || tile_pos.y > 8192.0) discard;
+    #ifdef LINE_UNDERGROUND
+        if (lift >= 0.0) discard;
+    #endif
+    #ifdef LINE_OVERGROUND
+        if (lift < 0.0) discard;
+    #endif
+}
+#endif

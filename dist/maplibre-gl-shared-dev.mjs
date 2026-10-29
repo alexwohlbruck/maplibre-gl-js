@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.8/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.15/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -9754,6 +9754,7 @@ function createVisibility(visibility, rootKey, globalState) {
 */
 const layoutSymbol = latest.layout_symbol;
 const layoutLine = latest.layout_line;
+const paintLine = latest.paint_line;
 if (!layoutLine["line-rounded-corner-distance"]) layoutLine["line-rounded-corner-distance"] = {
 	"type": "number",
 	"default": 0,
@@ -9765,6 +9766,54 @@ if (!layoutLine["line-rounded-corner-distance"]) layoutLine["line-rounded-corner
 		"parameters": []
 	},
 	"property-type": "data-constant"
+};
+if (!layoutLine["line-elevation-profile"]) {
+	layoutLine["line-elevation-profile"] = {
+		"type": "string",
+		"default": "",
+		"doc": "Heights along the line, as runs separated by `;`. Each run is a comma-separated list of integer triples: the first is longitude and latitude in 1e-7 degrees and height in decimetres, each later one the change in longitude and latitude from the point before and its own height. Heights are above sea level in the terrain's datum, or above the terrain under the point for a run prefixed with `~`. Points lie on the line in its direction; within a run the height is interpolated between its points, and outside the runs the line lies on the terrain. A layer with a profile is drawn in 3D rather than draped over terrain, and only while terrain is enabled.",
+		"expression": {
+			"interpolated": false,
+			"parameters": ["zoom", "feature"]
+		},
+		"property-type": "data-driven"
+	};
+	paintLine["line-pitch-alignment"] = {
+		"type": "enum",
+		"values": {
+			"map": { "doc": "The line lies in the plane of the map, so it narrows as the map tilts away." },
+			"viewport": { "doc": "The line keeps its width and offset in pixels however the map is tilted." }
+		},
+		"default": "map",
+		"doc": "How a line drawn with `line-elevation-profile` is widened under a tilted camera.",
+		"requires": ["line-elevation-profile"],
+		"expression": {
+			"interpolated": false,
+			"parameters": ["zoom"]
+		},
+		"property-type": "data-constant"
+	};
+	paintLine["line-depth-occlusion-factor"] = {
+		"type": "number",
+		"default": 1,
+		"minimum": 0,
+		"maximum": 1,
+		"doc": "Whether a line drawn with `line-elevation-profile` is hidden behind 3D features nearer the camera: 0 draws it over them, any larger value hides it. Underground stretches are never hidden by the terrain over them.",
+		"requires": ["line-elevation-profile"],
+		"expression": {
+			"interpolated": false,
+			"parameters": ["zoom"]
+		},
+		"property-type": "data-constant"
+	};
+}
+if (layoutSymbol["symbol-height-anchor"]?.["property-type"] === "data-constant") layoutSymbol["symbol-height-anchor"] = {
+	...layoutSymbol["symbol-height-anchor"],
+	"expression": {
+		"interpolated": false,
+		"parameters": ["zoom", "feature"]
+	},
+	"property-type": "data-driven"
 };
 if (!layoutSymbol["symbol-anchor-offset"]) {
 	layoutSymbol["symbol-anchor-offset"] = {
@@ -14401,29 +14450,33 @@ register("StructArrayLayout2i4ub8", StructArrayLayout2i4ub8);
 /**
 * @internal
 * Implementation of the StructArray layout:
-* [0] - Float32[3]
+* [0] - Float32[7]
 *
 */
-var StructArrayLayout3f12 = class extends StructArray {
+var StructArrayLayout7f28 = class extends StructArray {
 	_refreshViews() {
 		this.uint8 = new Uint8Array(this.arrayBuffer);
 		this.float32 = new Float32Array(this.arrayBuffer);
 	}
-	emplaceBack(v0, v1, v2) {
+	emplaceBack(v0, v1, v2, v3, v4, v5, v6) {
 		const i = this.length;
 		this.resize(i + 1);
-		return this.emplace(i, v0, v1, v2);
+		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6);
 	}
-	emplace(i, v0, v1, v2) {
-		const o4 = i * 3;
+	emplace(i, v0, v1, v2, v3, v4, v5, v6) {
+		const o4 = i * 7;
 		this.float32[o4 + 0] = v0;
 		this.float32[o4 + 1] = v1;
 		this.float32[o4 + 2] = v2;
+		this.float32[o4 + 3] = v3;
+		this.float32[o4 + 4] = v4;
+		this.float32[o4 + 5] = v5;
+		this.float32[o4 + 6] = v6;
 		return i;
 	}
 };
-StructArrayLayout3f12.prototype.bytesPerElement = 12;
-register("StructArrayLayout3f12", StructArrayLayout3f12);
+StructArrayLayout7f28.prototype.bytesPerElement = 28;
+register("StructArrayLayout7f28", StructArrayLayout7f28);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -14494,25 +14547,25 @@ register("StructArrayLayout8ui16", StructArrayLayout8ui16);
 * [0] - Int16[4]
 * [8] - Uint16[4]
 * [16] - Int16[4]
-* [24] - Float32[1]
-* [28] - Int16[2]
+* [24] - Float32[2]
+* [32] - Int16[2]
 *
 */
-var StructArrayLayout4i4ui4i1f2i32 = class extends StructArray {
+var StructArrayLayout4i4ui4i2f2i36 = class extends StructArray {
 	_refreshViews() {
 		this.uint8 = new Uint8Array(this.arrayBuffer);
 		this.int16 = new Int16Array(this.arrayBuffer);
 		this.uint16 = new Uint16Array(this.arrayBuffer);
 		this.float32 = new Float32Array(this.arrayBuffer);
 	}
-	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14) {
+	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15) {
 		const i = this.length;
 		this.resize(i + 1);
-		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14);
+		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15);
 	}
-	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14) {
-		const o2 = i * 16;
-		const o4 = i * 8;
+	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15) {
+		const o2 = i * 18;
+		const o4 = i * 9;
 		this.int16[o2 + 0] = v0;
 		this.int16[o2 + 1] = v1;
 		this.int16[o2 + 2] = v2;
@@ -14526,13 +14579,40 @@ var StructArrayLayout4i4ui4i1f2i32 = class extends StructArray {
 		this.int16[o2 + 10] = v10;
 		this.int16[o2 + 11] = v11;
 		this.float32[o4 + 6] = v12;
-		this.int16[o2 + 14] = v13;
-		this.int16[o2 + 15] = v14;
+		this.float32[o4 + 7] = v13;
+		this.int16[o2 + 16] = v14;
+		this.int16[o2 + 17] = v15;
 		return i;
 	}
 };
-StructArrayLayout4i4ui4i1f2i32.prototype.bytesPerElement = 32;
-register("StructArrayLayout4i4ui4i1f2i32", StructArrayLayout4i4ui4i1f2i32);
+StructArrayLayout4i4ui4i2f2i36.prototype.bytesPerElement = 36;
+register("StructArrayLayout4i4ui4i2f2i36", StructArrayLayout4i4ui4i2f2i36);
+/**
+* @internal
+* Implementation of the StructArray layout:
+* [0] - Float32[3]
+*
+*/
+var StructArrayLayout3f12 = class extends StructArray {
+	_refreshViews() {
+		this.uint8 = new Uint8Array(this.arrayBuffer);
+		this.float32 = new Float32Array(this.arrayBuffer);
+	}
+	emplaceBack(v0, v1, v2) {
+		const i = this.length;
+		this.resize(i + 1);
+		return this.emplace(i, v0, v1, v2);
+	}
+	emplace(i, v0, v1, v2) {
+		const o4 = i * 3;
+		this.float32[o4 + 0] = v0;
+		this.float32[o4 + 1] = v1;
+		this.float32[o4 + 2] = v2;
+		return i;
+	}
+};
+StructArrayLayout3f12.prototype.bytesPerElement = 12;
+register("StructArrayLayout3f12", StructArrayLayout3f12);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -14729,9 +14809,10 @@ register("StructArrayLayout3ui6", StructArrayLayout3ui6);
 * [40] - Uint32[1]
 * [44] - Int16[1]
 * [48] - Float32[1]
+* [52] - Uint8[1]
 *
 */
-var StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 = class extends StructArray {
+var StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 = class extends StructArray {
 	_refreshViews() {
 		this.uint8 = new Uint8Array(this.arrayBuffer);
 		this.int16 = new Int16Array(this.arrayBuffer);
@@ -14739,15 +14820,15 @@ var StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 = class extends StructArray {
 		this.uint32 = new Uint32Array(this.arrayBuffer);
 		this.float32 = new Float32Array(this.arrayBuffer);
 	}
-	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17) {
+	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18) {
 		const i = this.length;
 		this.resize(i + 1);
-		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17);
+		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18);
 	}
-	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17) {
-		const o2 = i * 26;
-		const o4 = i * 13;
-		const o1 = i * 52;
+	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18) {
+		const o2 = i * 28;
+		const o4 = i * 14;
+		const o1 = i * 56;
 		this.int16[o2 + 0] = v0;
 		this.int16[o2 + 1] = v1;
 		this.uint16[o2 + 2] = v2;
@@ -14766,11 +14847,12 @@ var StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 = class extends StructArray {
 		this.uint32[o4 + 10] = v15;
 		this.int16[o2 + 22] = v16;
 		this.float32[o4 + 12] = v17;
+		this.uint8[o1 + 52] = v18;
 		return i;
 	}
 };
-StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52.prototype.bytesPerElement = 52;
-register("StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52", StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52);
+StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56.prototype.bytesPerElement = 56;
+register("StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56", StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -14780,9 +14862,10 @@ register("StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52", StructArrayLayout2i2ui3ul
 * [52] - Float32[2]
 * [60] - Uint16[2]
 * [64] - Float32[3]
+* [76] - Uint8[1]
 *
 */
-var StructArrayLayout8i15ui1ul2f2ui3f76 = class extends StructArray {
+var StructArrayLayout8i15ui1ul2f2ui3f1ub80 = class extends StructArray {
 	_refreshViews() {
 		this.uint8 = new Uint8Array(this.arrayBuffer);
 		this.int16 = new Int16Array(this.arrayBuffer);
@@ -14790,14 +14873,15 @@ var StructArrayLayout8i15ui1ul2f2ui3f76 = class extends StructArray {
 		this.uint32 = new Uint32Array(this.arrayBuffer);
 		this.float32 = new Float32Array(this.arrayBuffer);
 	}
-	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30) {
+	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30, v31) {
 		const i = this.length;
 		this.resize(i + 1);
-		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30);
+		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30, v31);
 	}
-	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30) {
-		const o2 = i * 38;
-		const o4 = i * 19;
+	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24, v25, v26, v27, v28, v29, v30, v31) {
+		const o2 = i * 40;
+		const o4 = i * 20;
+		const o1 = i * 80;
 		this.int16[o2 + 0] = v0;
 		this.int16[o2 + 1] = v1;
 		this.int16[o2 + 2] = v2;
@@ -14829,11 +14913,12 @@ var StructArrayLayout8i15ui1ul2f2ui3f76 = class extends StructArray {
 		this.float32[o4 + 16] = v28;
 		this.float32[o4 + 17] = v29;
 		this.float32[o4 + 18] = v30;
+		this.uint8[o1 + 76] = v31;
 		return i;
 	}
 };
-StructArrayLayout8i15ui1ul2f2ui3f76.prototype.bytesPerElement = 76;
-register("StructArrayLayout8i15ui1ul2f2ui3f76", StructArrayLayout8i15ui1ul2f2ui3f76);
+StructArrayLayout8i15ui1ul2f2ui3f1ub80.prototype.bytesPerElement = 80;
+register("StructArrayLayout8i15ui1ul2f2ui3f1ub80", StructArrayLayout8i15ui1ul2f2ui3f1ub80);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -15127,10 +15212,13 @@ var PlacedSymbolStruct = class extends Struct {
 	get heightOffset() {
 		return this._structArray.float32[this._pos4 + 12];
 	}
+	get heightGround() {
+		return this._structArray.uint8[this._pos1 + 52];
+	}
 };
-PlacedSymbolStruct.prototype.size = 52;
+PlacedSymbolStruct.prototype.size = 56;
 /** @internal */
-var PlacedSymbolArray = class extends StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 {
+var PlacedSymbolArray = class extends StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 {
 	/**
 	* Return the PlacedSymbolStruct at the given location in the array.
 	* @param index - The index of the element.
@@ -15238,10 +15326,13 @@ var SymbolInstanceStruct = class extends Struct {
 	get anchorOffsetY() {
 		return this._structArray.float32[this._pos4 + 18];
 	}
+	get heightGround() {
+		return this._structArray.uint8[this._pos1 + 76];
+	}
 };
-SymbolInstanceStruct.prototype.size = 76;
+SymbolInstanceStruct.prototype.size = 80;
 /** @internal */
-var SymbolInstanceArray = class extends StructArrayLayout8i15ui1ul2f2ui3f76 {
+var SymbolInstanceArray = class extends StructArrayLayout8i15ui1ul2f2ui3f1ub80 {
 	/**
 	* Return the SymbolInstanceStruct at the given location in the array.
 	* @param index - The index of the element.
@@ -15326,10 +15417,10 @@ var CircleLayoutArray = class extends StructArrayLayout2i4 {};
 var FillLayoutArray = class extends StructArrayLayout2i4 {};
 var FillExtrusionLayoutArray = class extends StructArrayLayout2i4i12 {};
 var LineLayoutArray = class extends StructArrayLayout2i4ub8 {};
-var LineExtLayoutArray = class extends StructArrayLayout3f12 {};
+var LineExtLayoutArray = class extends StructArrayLayout7f28 {};
 var PatternLayoutArray = class extends StructArrayLayout10ui20 {};
 var DashLayoutArray = class extends StructArrayLayout8ui16 {};
-var SymbolLayoutArray = class extends StructArrayLayout4i4ui4i1f2i32 {};
+var SymbolLayoutArray = class extends StructArrayLayout4i4ui4i2f2i36 {};
 var SymbolDynamicLayoutArray = class extends StructArrayLayout3f12 {};
 var SymbolOpacityArray = class extends StructArrayLayout1ul4 {};
 var CollisionBoxLayoutArray = class extends StructArrayLayout2i2i2i12 {};
@@ -22120,11 +22211,165 @@ const lineLayoutAttributesExt = createLayout([
 		name: "a_line_offset",
 		components: 1,
 		type: "Float32"
+	},
+	{
+		name: "a_elevation",
+		components: 4,
+		type: "Float32"
 	}
 ]);
 const members = lineLayoutAttributesExt.members;
 lineLayoutAttributesExt.size;
 lineLayoutAttributesExt.alignment;
+//#endregion
+//#region src/data/bucket/line_elevation.ts
+/** A run's prefix for heights measured from the terrain rather than from sea level. */
+const RELATIVE_PREFIX = "~";
+/** How far from the line, in tile units, a profile point may lie and still be placed on it. */
+const SNAP_TOLERANCE = 8;
+/** Projections closer than this to a vertex, as a fraction of their segment, land on the vertex. */
+const VERTEX_EPSILON = 1e-6;
+function tileX(lng, canonical) {
+	return ((lng + 180) / 360 * (1 << canonical.z) - canonical.x) * EXTENT;
+}
+function tileY(lat, canonical) {
+	const sin = Math.sin(lat * Math.PI / 180);
+	return ((.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * (1 << canonical.z) - canonical.y) * EXTENT;
+}
+/** Decodes a `line-elevation-profile` string into runs in the tile's units. */
+function parseElevationProfile(profile, canonical) {
+	const runs = [];
+	if (!profile) return runs;
+	for (const text of profile.split(";")) {
+		const relative = text.startsWith(RELATIVE_PREFIX);
+		const values = (relative ? text.slice(1) : text).split(",").map(Number);
+		if (values.length < 6 || values.length % 3 !== 0 || values.some((v) => !Number.isFinite(v))) continue;
+		const run = {
+			points: [],
+			heights: [],
+			relative
+		};
+		let lng = 0, lat = 0;
+		for (let i = 0; i < values.length; i += 3) {
+			lng += values[i];
+			lat += values[i + 1];
+			run.points.push(new Point(tileX(lng * 1e-7, canonical), tileY(lat * 1e-7, canonical)));
+			run.heights.push(values[i + 2] / 10);
+		}
+		runs.push(run);
+	}
+	return runs;
+}
+/** Where on the line, searched from `from` onwards, a point falls; null if it lies off the line. */
+function place(vertices, point, from) {
+	let best = null;
+	for (let i = from; i < vertices.length - 1; i++) {
+		const a = vertices[i], b = vertices[i + 1];
+		const dx = b.x - a.x, dy = b.y - a.y;
+		const length2 = dx * dx + dy * dy;
+		const t = length2 ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length2)) : 0;
+		const distance = Math.hypot(a.x + dx * t - point.x, a.y + dy * t - point.y);
+		if (distance <= SNAP_TOLERANCE && (!best || distance < best.distance)) best = {
+			segment: i,
+			t,
+			distance
+		};
+	}
+	return best;
+}
+/**
+* The line with the profile's points added as vertices, and where each vertex is drawn. A vertex between no two of a
+* run's points on this piece of the line, as when the tile cut the run's ends off, takes the height of the run's path
+* where it passes within `reach` tile units.
+*/
+function elevateLine(vertices, runs, reach = SNAP_TOLERANCE) {
+	const placed = [];
+	for (const [r, run] of runs.entries()) {
+		let from = 0;
+		for (const [i, point] of run.points.entries()) {
+			const hit = place(vertices, point, from);
+			if (!hit) continue;
+			from = hit.segment;
+			const length = vertices[hit.segment].dist(vertices[hit.segment + 1]);
+			const t = hit.t * length <= SNAP_TOLERANCE ? 0 : (1 - hit.t) * length <= SNAP_TOLERANCE ? 1 : hit.t;
+			const next = t >= .999999;
+			placed.push({
+				segment: hit.segment + (next ? 1 : 0),
+				t: next ? 0 : t,
+				height: run.heights[i],
+				run: r
+			});
+		}
+	}
+	placed.sort((a, b) => a.segment - b.segment || a.t - b.t);
+	const out = [];
+	const heights = [];
+	const runOf = [];
+	let p = 0;
+	for (let i = 0; i < vertices.length; i++) {
+		out.push(vertices[i]);
+		heights.push(0);
+		runOf.push(-1);
+		for (; p < placed.length && placed[p].segment === i; p++) {
+			const { t, height, run } = placed[p];
+			if (t <= VERTEX_EPSILON) {
+				heights[out.length - 1] = height;
+				runOf[out.length - 1] = run;
+				continue;
+			}
+			const a = vertices[i], b = vertices[i + 1];
+			out.push(new Point(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t));
+			heights.push(height);
+			runOf.push(run);
+		}
+	}
+	interpolate(out, heights, runOf);
+	for (const [i, vertex] of out.entries()) {
+		if (runOf[i] >= 0) continue;
+		const on = nearestOnRun(runs, vertex, reach);
+		if (on) [heights[i], runOf[i]] = [on.height, on.run];
+	}
+	return {
+		vertices: out,
+		heights,
+		ground: runOf.map((r) => r < 0 || runs[r].relative ? 1 : 0)
+	};
+}
+/** The height of the nearest run whose path passes within `reach` of a point, interpolated along it there. */
+function nearestOnRun(runs, p, reach) {
+	let best = null;
+	for (const [r, { points, heights }] of runs.entries()) for (let i = 1; i < points.length; i++) {
+		const a = points[i - 1], b = points[i];
+		const dx = b.x - a.x, dy = b.y - a.y;
+		const length2 = dx * dx + dy * dy;
+		const t = length2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2)) : 0;
+		const distance = Math.hypot(a.x + dx * t - p.x, a.y + dy * t - p.y);
+		if (distance <= reach && (!best || distance < best.distance)) best = {
+			height: heights[i - 1] + (heights[i] - heights[i - 1]) * t,
+			run: r,
+			distance
+		};
+	}
+	return best;
+}
+/** Fills in the vertices between two placed points of one run by distance along the line. */
+function interpolate(vertices, heights, runOf) {
+	const along = [0];
+	for (let i = 1; i < vertices.length; i++) along.push(along[i - 1] + vertices[i].dist(vertices[i - 1]));
+	let last = -1;
+	for (let i = 0; i < vertices.length; i++) {
+		if (runOf[i] < 0) continue;
+		if (last >= 0 && runOf[last] === runOf[i] && i - last > 1) {
+			const span = along[i] - along[last];
+			for (let k = last + 1; k < i; k++) {
+				const f = span ? (along[k] - along[last]) / span : 0;
+				heights[k] = heights[last] + (heights[i] - heights[last]) * f;
+				runOf[k] = runOf[i];
+			}
+		}
+		last = i;
+	}
+}
 //#endregion
 //#region src/data/bucket/line_bucket.ts
 const EXTRUDE_SCALE = 63;
@@ -22133,6 +22378,8 @@ const SHARP_CORNER_OFFSET = 15;
 const DEG_PER_TRIANGLE = 20;
 const LINE_DISTANCE_SCALE = 1 / 2;
 const MAX_LINE_DISTANCE = Math.pow(2, 14) / LINE_DISTANCE_SCALE;
+const ELEVATED_GRANULARITY = 64;
+const ELEVATION_REACH_METERS = 4;
 /**
 * @internal
 * Line bucket class
@@ -22163,6 +22410,12 @@ var LineBucket = class {
 			this.variableOffsetExpression = layer.offsetExpression();
 			break;
 		}
+		const profile = this.layers[0].layout.get("line-elevation-profile");
+		this.elevated = !profile.isConstant() || !!profile.constantOr("");
+		this.vertexHeight = 0;
+		this.vertexGround = 1;
+		this.tangentX = 1;
+		this.tangentY = 0;
 		this.stateDependentLayerIds = this.layers.filter((l) => l.isStateDependent()).map((l) => l.id);
 	}
 	populate(features, options, canonical) {
@@ -22249,6 +22502,7 @@ var LineBucket = class {
 		const roundLimit = layout.get("line-round-limit").evaluate(feature, {});
 		this.lineClips = this.lineFeatureClips(feature);
 		this.currentLineFeature = feature;
+		this.elevationRuns = this.elevated ? parseElevationProfile(this.layers[0].layout.get("line-elevation-profile").evaluate(feature, {}, canonical), canonical) : [];
 		for (const line of geometry) this.addLine(line, feature, join, cap, miterLimit, roundLimit, canonical, subdivisionGranularity);
 		this.programConfigurations.populatePaintArrays(this.layoutVertexArray.length, feature, index, {
 			imagePositions,
@@ -22261,7 +22515,10 @@ var LineBucket = class {
 		this.scaledDistance = 0;
 		this.totalDistance = 0;
 		const granularity = canonical ? subdivisionGranularity.line.getGranularityForZoomLevel(canonical.z) : 1;
-		vertices = subdivideVertexLine(vertices, granularity);
+		vertices = subdivideVertexLine(vertices, this.elevated ? Math.max(granularity, ELEVATED_GRANULARITY) : granularity);
+		let heights = null;
+		let ground = null;
+		if (this.elevated) ({vertices, heights, ground} = elevateLine(vertices, this.elevationRuns, canonical ? ELEVATION_REACH_METERS * getTileUnitsForMeters(1, canonical) : 0));
 		if (this.lineClips) {
 			this.lineClipsArray.push(this.lineClips);
 			for (let i = 0; i < vertices.length - 1; i++) this.totalDistance += vertices[i].dist(vertices[i + 1]);
@@ -22293,6 +22550,10 @@ var LineBucket = class {
 			if (nextNormal) prevNormal = nextNormal;
 			if (currentVertex) prevVertex = currentVertex;
 			currentVertex = vertices[i];
+			if (heights) {
+				this.vertexHeight = heights[i];
+				this.vertexGround = ground[i];
+			}
 			nextNormal = nextVertex ? nextVertex.sub(currentVertex)._unit()._perp() : prevNormal;
 			prevNormal ||= nextNormal;
 			let joinNormal = prevNormal.add(nextNormal);
@@ -22342,6 +22603,7 @@ var LineBucket = class {
 				if (prevVertex) this.addCurrentVertex(currentVertex, prevNormal, offsetA, offsetB, segment);
 				if (currentJoin === "fakeround") {
 					const n = Math.round(approxAngle * 180 / Math.PI / DEG_PER_TRIANGLE);
+					this.setTangent(joinNormal);
 					for (let m = 1; m < n; m++) {
 						let t = m / n;
 						if (t !== .5) {
@@ -22391,6 +22653,7 @@ var LineBucket = class {
 	* @param round - whether this is a round cap
 	*/
 	addCurrentVertex(p, normal, endLeft, endRight, segment, round = false) {
+		this.setTangent(normal);
 		const leftX = normal.x + normal.y * endLeft;
 		const leftY = normal.y - normal.x * endLeft;
 		const rightX = -normal.x + normal.y * endRight;
@@ -22406,15 +22669,15 @@ var LineBucket = class {
 	addHalfVertex({ x, y }, extrudeX, extrudeY, round, up, dir, segment) {
 		const linesofarScaled = (this.lineClips ? this.scaledDistance * (MAX_LINE_DISTANCE - 1) : this.scaledDistance) * LINE_DISTANCE_SCALE;
 		this.layoutVertexArray.emplaceBack((x << 1) + (round ? 1 : 0), (y << 1) + (up ? 1 : 0), Math.round(EXTRUDE_SCALE * extrudeX) + 128, Math.round(EXTRUDE_SCALE * extrudeY) + 128, (dir === 0 ? 0 : dir < 0 ? -1 : 1) + 1 | (linesofarScaled & 63) << 2, linesofarScaled >> 6);
-		if (this.lineClips) {
-			const uvX = (this.scaledDistance - this.lineClips.start) / (this.lineClips.end - this.lineClips.start);
+		if (this.lineClips || this.elevated) {
+			const uvX = this.lineClips ? (this.scaledDistance - this.lineClips.start) / (this.lineClips.end - this.lineClips.start) : 0;
 			let lineOffset = 0;
-			if (this.variableOffsetExpression) {
+			if (this.variableOffsetExpression && this.lineClips) {
 				this.evaluationGlobals.zoom = this.zoom;
 				this.evaluationGlobals.lineProgress = this.scaledDistance;
 				lineOffset = this.variableOffsetExpression.evaluate(this.evaluationGlobals, this.currentLineFeature) || 0;
 			}
-			this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length, lineOffset);
+			this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length, lineOffset, this.vertexHeight, this.vertexGround, this.tangentX, this.tangentY);
 		}
 		const e = segment.vertexLength++;
 		if (this.e1 >= 0 && this.e2 >= 0) {
@@ -22423,6 +22686,14 @@ var LineBucket = class {
 		}
 		if (up) this.e2 = e;
 		else this.e1 = e;
+	}
+	/** The line's direction, from the normal it is extruded along. */
+	setTangent(normal) {
+		const length = Math.hypot(normal.x, normal.y);
+		if (length) {
+			this.tangentX = normal.y / length;
+			this.tangentY = -normal.x / length;
+		}
 	}
 	updateScaledDistance() {
 		this.scaledDistance = this.lineClips ? this.lineClips.start + (this.lineClips.end - this.lineClips.start) * this.distance / this.totalDistance : this.distance;
@@ -22473,7 +22744,8 @@ register("LineBucket", LineBucket, { omit: [
 	"layers",
 	"patternFeatures",
 	"variableOffsetExpression",
-	"currentLineFeature"
+	"currentLineFeature",
+	"elevationRuns"
 ] });
 /** Polygon outlines take `line-rounded-corner-distance`; real lines are left alone. */
 function roundOutline(geometry, type, layer, canonical) {
@@ -22490,7 +22762,8 @@ const getLayout$1 = () => layout$1 = layout$1 || new Properties({
 	"line-miter-limit": new DataDrivenProperty(latest["layout_line"]["line-miter-limit"], "line-miter-limit"),
 	"line-round-limit": new DataDrivenProperty(latest["layout_line"]["line-round-limit"], "line-round-limit"),
 	"line-sort-key": new DataDrivenProperty(latest["layout_line"]["line-sort-key"], "line-sort-key"),
-	"line-rounded-corner-distance": new DataConstantProperty(latest["layout_line"]["line-rounded-corner-distance"], "line-rounded-corner-distance")
+	"line-rounded-corner-distance": new DataConstantProperty(latest["layout_line"]["line-rounded-corner-distance"], "line-rounded-corner-distance"),
+	"line-elevation-profile": new DataDrivenProperty(latest["layout_line"]["line-elevation-profile"], "line-elevation-profile")
 });
 let paint$2;
 const getPaint$2 = () => paint$2 = paint$2 || new Properties({
@@ -22505,7 +22778,9 @@ const getPaint$2 = () => paint$2 = paint$2 || new Properties({
 	"line-blur": new DataDrivenProperty(latest["paint_line"]["line-blur"], "line-blur"),
 	"line-dasharray": new CrossFadedDataDrivenProperty(latest["paint_line"]["line-dasharray"], "line-dasharray"),
 	"line-pattern": new CrossFadedDataDrivenProperty(latest["paint_line"]["line-pattern"], "line-pattern"),
-	"line-gradient": new ColorRampProperty(latest["paint_line"]["line-gradient"], "line-gradient")
+	"line-gradient": new ColorRampProperty(latest["paint_line"]["line-gradient"], "line-gradient"),
+	"line-pitch-alignment": new DataConstantProperty(latest["paint_line"]["line-pitch-alignment"], "line-pitch-alignment"),
+	"line-depth-occlusion-factor": new DataConstantProperty(latest["paint_line"]["line-depth-occlusion-factor"], "line-depth-occlusion-factor")
 });
 var line_style_layer_properties_g_default = {
 	get paint() {
@@ -22565,6 +22840,11 @@ var LineStyleLayer = class extends StyleLayer {
 	*/
 	hasVariableOffset() {
 		return expressionReferencesLineProgress(this.offsetExpression());
+	}
+	/** True when a `line-elevation-profile` lifts the line off the terrain, so it is drawn in 3D rather than draped. */
+	isElevated() {
+		const profile = this.layout.get("line-elevation-profile");
+		return !profile.isConstant() || !!profile.constantOr("");
 	}
 	recalculate(parameters, availableImages) {
 		super.recalculate(parameters, availableImages);
@@ -22635,7 +22915,7 @@ const symbolLayoutAttributes = createLayout([
 	},
 	{
 		name: "a_height_offset",
-		components: 1,
+		components: 2,
 		type: "Float32"
 	},
 	{
@@ -22820,6 +23100,10 @@ createLayout([
 	{
 		type: "Float32",
 		name: "heightOffset"
+	},
+	{
+		type: "Uint8",
+		name: "heightGround"
 	}
 ]);
 createLayout([
@@ -22946,6 +23230,10 @@ createLayout([
 	{
 		type: "Float32",
 		name: "anchorOffsetY"
+	},
+	{
+		type: "Uint8",
+		name: "heightGround"
 	}
 ]);
 createLayout([{
@@ -28004,7 +28292,7 @@ function addTextVariableAnchorOffsets(textAnchorOffsets, variableAnchorOffset) {
 	}
 	return [startIndex, textAnchorOffsets.length];
 }
-function addTextVertices(bucket, anchor, shapedText, imageMap, layer, textAlongLine, feature, textOffset, elevation, lineArray, writingMode, placementTypes, placedTextSymbolIndices, placedIconIndex, sizes, canonical) {
+function addTextVertices(bucket, anchor, shapedText, imageMap, layer, textAlongLine, feature, textOffset, elevation, ground, lineArray, writingMode, placementTypes, placedTextSymbolIndices, placedIconIndex, sizes, canonical) {
 	const glyphQuads = getGlyphQuads(anchor, shapedText, textOffset, layer, textAlongLine, feature, imageMap, bucket.allowVerticalPlacement);
 	const sizeData = bucket.textSizeData;
 	let textSizeData = null;
@@ -28015,7 +28303,7 @@ function addTextVertices(bucket, anchor, shapedText, imageMap, layer, textAlongL
 		textSizeData = [128 * sizes.compositeTextSizes[0].evaluate(feature, {}, canonical), 128 * sizes.compositeTextSizes[1].evaluate(feature, {}, canonical)];
 		if (textSizeData[0] > 32640 || textSizeData[1] > 32640) warnOnce(`${bucket.layerIds[0]}: Value for "text-size" is >= 255. Reduce your "text-size".`);
 	}
-	bucket.addSymbols(bucket.text, glyphQuads, textSizeData, textOffset, textAlongLine, feature, writingMode, anchor, lineArray.lineStartIndex, lineArray.lineLength, placedIconIndex, canonical, elevation);
+	bucket.addSymbols(bucket.text, glyphQuads, textSizeData, textOffset, textAlongLine, feature, writingMode, anchor, lineArray.lineStartIndex, lineArray.lineLength, placedIconIndex, canonical, elevation, ground);
 	for (const placementType of placementTypes) placedTextSymbolIndices[placementType] = bucket.text.placedSymbolArray.length - 1;
 	return glyphQuads.length * 4;
 }
@@ -28029,6 +28317,7 @@ function getDefaultHorizontalShaping(horizontalShaping) {
 function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, imageMap, verticallyShapedIcon, layer, collisionBoxArray, featureIndex, sourceLayerIndex, bucketIndex, textBoxScale, textPadding, textAlongLine, textOffset, iconBoxScale, iconPadding, iconAlongLine, iconOffset, feature, sizes, isSDFIcon, canonical, layoutTextSize, hasPromoteId) {
 	const lineArray = bucket.addToLineVertexArray(anchor, line);
 	const elevation = layer.layout.get("symbol-height-offset").evaluate(feature, {}, canonical);
+	const ground = layer.layout.get("symbol-height-anchor").evaluate(feature, {}, canonical) === "ground" ? 1 : 0;
 	if (elevation > bucket.maxHeightOffset) bucket.maxHeightOffset = elevation;
 	let textCollisionFeature, iconCollisionFeature, verticalTextCollisionFeature, verticalIconCollisionFeature;
 	let numIconVertices = 0;
@@ -28061,11 +28350,11 @@ function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, ima
 			iconSizeData = [128 * sizes.compositeIconSizes[0].evaluate(feature, {}, canonical), 128 * sizes.compositeIconSizes[1].evaluate(feature, {}, canonical)];
 			if (iconSizeData[0] > 32640 || iconSizeData[1] > 32640) warnOnce(`${bucket.layerIds[0]}: Value for "icon-size" is >= 255. Reduce your "icon-size".`);
 		}
-		bucket.addSymbols(bucket.icon, iconQuads, iconSizeData, iconOffset, iconAlongLine, feature, 0, anchor, lineArray.lineStartIndex, lineArray.lineLength, -1, canonical, elevation);
+		bucket.addSymbols(bucket.icon, iconQuads, iconSizeData, iconOffset, iconAlongLine, feature, 0, anchor, lineArray.lineStartIndex, lineArray.lineLength, -1, canonical, elevation, ground);
 		placedIconSymbolIndex = bucket.icon.placedSymbolArray.length - 1;
 		if (verticalIconQuads) {
 			numVerticalIconVertices = verticalIconQuads.length * 4;
-			bucket.addSymbols(bucket.icon, verticalIconQuads, iconSizeData, iconOffset, iconAlongLine, feature, 2, anchor, lineArray.lineStartIndex, lineArray.lineLength, -1, canonical, elevation);
+			bucket.addSymbols(bucket.icon, verticalIconQuads, iconSizeData, iconOffset, iconAlongLine, feature, 2, anchor, lineArray.lineStartIndex, lineArray.lineLength, -1, canonical, elevation, ground);
 			verticalPlacedIconSymbolIndex = bucket.icon.placedSymbolArray.length - 1;
 		}
 	}
@@ -28077,10 +28366,10 @@ function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, ima
 			textCollisionFeature = new CollisionFeature(collisionBoxArray, anchor, featureIndex, sourceLayerIndex, bucketIndex, shaping, textBoxScale, textPadding, textAlongLine, layer.layout.get("text-rotate").evaluate(feature, {}, canonical));
 		}
 		const singleLine = shaping.positionedLines.length === 1;
-		numHorizontalGlyphVertices += addTextVertices(bucket, anchor, shaping, imageMap, layer, textAlongLine, feature, textOffset, elevation, lineArray, shapedTextOrientations.vertical ? 1 : 3, singleLine ? justifications : [justification], placedTextSymbolIndices, placedIconSymbolIndex, sizes, canonical);
+		numHorizontalGlyphVertices += addTextVertices(bucket, anchor, shaping, imageMap, layer, textAlongLine, feature, textOffset, elevation, ground, lineArray, shapedTextOrientations.vertical ? 1 : 3, singleLine ? justifications : [justification], placedTextSymbolIndices, placedIconSymbolIndex, sizes, canonical);
 		if (singleLine) break;
 	}
-	if (shapedTextOrientations.vertical) numVerticalGlyphVertices += addTextVertices(bucket, anchor, shapedTextOrientations.vertical, imageMap, layer, textAlongLine, feature, textOffset, elevation, lineArray, 2, ["vertical"], placedTextSymbolIndices, verticalPlacedIconSymbolIndex, sizes, canonical);
+	if (shapedTextOrientations.vertical) numVerticalGlyphVertices += addTextVertices(bucket, anchor, shapedTextOrientations.vertical, imageMap, layer, textAlongLine, feature, textOffset, elevation, ground, lineArray, 2, ["vertical"], placedTextSymbolIndices, verticalPlacedIconSymbolIndex, sizes, canonical);
 	const textBoxStartIndex = textCollisionFeature ? textCollisionFeature.boxStartIndex : bucket.collisionBoxArray.length;
 	const textBoxEndIndex = textCollisionFeature ? textCollisionFeature.boxEndIndex : bucket.collisionBoxArray.length;
 	const verticalTextBoxStartIndex = verticalTextCollisionFeature ? verticalTextCollisionFeature.boxStartIndex : bucket.collisionBoxArray.length;
@@ -28106,7 +28395,7 @@ function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, ima
 	const [textAnchorOffsetStartIndex, textAnchorOffsetEndIndex] = addTextVariableAnchorOffsets(bucket.textAnchorOffsets, variableAnchorOffset);
 	if (hasPromoteId) key = keyWithFeatureId(key, feature);
 	const instanceAnchorOffset = layer.layout.get("symbol-anchor-offset").evaluate(feature, {}, canonical) || [0, 0];
-	bucket.symbolInstances.emplaceBack(anchor.x, anchor.y, placedTextSymbolIndices.right >= 0 ? placedTextSymbolIndices.right : -1, placedTextSymbolIndices.center >= 0 ? placedTextSymbolIndices.center : -1, placedTextSymbolIndices.left >= 0 ? placedTextSymbolIndices.left : -1, placedTextSymbolIndices.vertical || -1, placedIconSymbolIndex, verticalPlacedIconSymbolIndex, key, textBoxStartIndex, textBoxEndIndex, verticalTextBoxStartIndex, verticalTextBoxEndIndex, iconBoxStartIndex, iconBoxEndIndex, verticalIconBoxStartIndex, verticalIconBoxEndIndex, featureIndex, numHorizontalGlyphVertices, numVerticalGlyphVertices, numIconVertices, numVerticalIconVertices, useRuntimeCollisionCircles, 0, textBoxScale, collisionCircleDiameter, textAnchorOffsetStartIndex, textAnchorOffsetEndIndex, elevation, instanceAnchorOffset[0], instanceAnchorOffset[1]);
+	bucket.symbolInstances.emplaceBack(anchor.x, anchor.y, placedTextSymbolIndices.right >= 0 ? placedTextSymbolIndices.right : -1, placedTextSymbolIndices.center >= 0 ? placedTextSymbolIndices.center : -1, placedTextSymbolIndices.left >= 0 ? placedTextSymbolIndices.left : -1, placedTextSymbolIndices.vertical || -1, placedIconSymbolIndex, verticalPlacedIconSymbolIndex, key, textBoxStartIndex, textBoxEndIndex, verticalTextBoxStartIndex, verticalTextBoxEndIndex, iconBoxStartIndex, iconBoxEndIndex, verticalIconBoxStartIndex, verticalIconBoxEndIndex, featureIndex, numHorizontalGlyphVertices, numVerticalGlyphVertices, numIconVertices, numVerticalIconVertices, useRuntimeCollisionCircles, 0, textBoxScale, collisionCircleDiameter, textAnchorOffsetStartIndex, textAnchorOffsetEndIndex, elevation, instanceAnchorOffset[0], instanceAnchorOffset[1], ground);
 }
 function anchorIsTooClose(bucket, text, repeatDistance, anchor) {
 	const compareText = bucket.compareText;
@@ -28145,10 +28434,10 @@ const shaderOpacityAttributes = [{
 	type: "Uint8",
 	offset: 0
 }];
-function addVertex(array, anchorX, anchorY, ox, oy, tx, ty, sizeVertex, isSDF, pixelOffsetX, pixelOffsetY, minFontScaleX, minFontScaleY, elevation, anchorOffsetX, anchorOffsetY) {
+function addVertex(array, anchorX, anchorY, ox, oy, tx, ty, sizeVertex, isSDF, pixelOffsetX, pixelOffsetY, minFontScaleX, minFontScaleY, elevation, ground, anchorOffsetX, anchorOffsetY) {
 	const aSizeX = sizeVertex ? Math.min(MAX_PACKED_SIZE, Math.round(sizeVertex[0])) : 0;
 	const aSizeY = sizeVertex ? Math.min(MAX_PACKED_SIZE, Math.round(sizeVertex[1])) : 0;
-	array.emplaceBack(anchorX, anchorY, Math.round(ox * 32), Math.round(oy * 32), tx, ty, (aSizeX << 1) + (isSDF ? 1 : 0), aSizeY, pixelOffsetX * 16, pixelOffsetY * 16, minFontScaleX * 256, minFontScaleY * 256, elevation, Math.round(anchorOffsetX * 16), Math.round(anchorOffsetY * 16));
+	array.emplaceBack(anchorX, anchorY, Math.round(ox * 32), Math.round(oy * 32), tx, ty, (aSizeX << 1) + (isSDF ? 1 : 0), aSizeY, pixelOffsetX * 16, pixelOffsetY * 16, minFontScaleX * 256, minFontScaleY * 256, elevation, ground, Math.round(anchorOffsetX * 16), Math.round(anchorOffsetY * 16));
 }
 function addDynamicAttributes(dynamicLayoutVertexArray, p, angle) {
 	dynamicLayoutVertexArray.emplaceBack(p.x, p.y, angle);
@@ -28452,7 +28741,7 @@ var SymbolBucket = class {
 			lineLength: this.lineVertexArray.length - lineStartIndex
 		};
 	}
-	addSymbols(arrays, quads, sizeVertex, lineOffset, alongLine, feature, writingMode, labelAnchor, lineStartIndex, lineLength, associatedIconIndex, canonical, elevation) {
+	addSymbols(arrays, quads, sizeVertex, lineOffset, alongLine, feature, writingMode, labelAnchor, lineStartIndex, lineLength, associatedIconIndex, canonical, elevation, ground) {
 		const indexArray = arrays.indexArray;
 		const layoutVertexArray = arrays.layoutVertexArray;
 		const segment = arrays.segments.prepareSegment(4 * quads.length, layoutVertexArray, indexArray, this.canOverlap ? feature.sortKey : void 0);
@@ -28467,10 +28756,10 @@ var SymbolBucket = class {
 			const { tl, tr, bl, br, tex, pixelOffsetTL, pixelOffsetBR, minFontScaleX, minFontScaleY, glyphOffset, isSDF, sectionIndex } = quads[i];
 			const index = segment.vertexLength;
 			const y = glyphOffset[1];
-			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tl.x, y + tl.y, tex.x, tex.y, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
-			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tr.x, y + tr.y, tex.x + tex.w, tex.y, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
-			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, bl.x, y + bl.y, tex.x, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
-			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, br.x, y + br.y, tex.x + tex.w, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, aox, aoy);
+			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tl.x, y + tl.y, tex.x, tex.y, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
+			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, tr.x, y + tr.y, tex.x + tex.w, tex.y, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetTL.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
+			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, bl.x, y + bl.y, tex.x, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetTL.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
+			addVertex(layoutVertexArray, labelAnchor.x, labelAnchor.y, br.x, y + br.y, tex.x + tex.w, tex.y + tex.h, sizeVertex, isSDF, pixelOffsetBR.x, pixelOffsetBR.y, minFontScaleX, minFontScaleY, elevation, ground, aox, aoy);
 			addDynamicAttributes(arrays.dynamicLayoutVertexArray, labelAnchor, angle);
 			indexArray.emplaceBack(index, index + 2, index + 1);
 			indexArray.emplaceBack(index + 1, index + 2, index + 3);
@@ -28483,7 +28772,7 @@ var SymbolBucket = class {
 				formattedSection: sections?.[sectionIndex]
 			});
 		}
-		arrays.placedSymbolArray.emplaceBack(labelAnchor.x, labelAnchor.y, glyphOffsetArrayStart, this.glyphOffsetArray.length - glyphOffsetArrayStart, vertexStartIndex, lineStartIndex, lineLength, labelAnchor.segment, sizeVertex ? sizeVertex[0] : 0, sizeVertex ? sizeVertex[1] : 0, lineOffset[0], lineOffset[1], writingMode, 0, false, 0, associatedIconIndex, elevation);
+		arrays.placedSymbolArray.emplaceBack(labelAnchor.x, labelAnchor.y, glyphOffsetArrayStart, this.glyphOffsetArray.length - glyphOffsetArrayStart, vertexStartIndex, lineStartIndex, lineLength, labelAnchor.segment, sizeVertex ? sizeVertex[0] : 0, sizeVertex ? sizeVertex[1] : 0, lineOffset[0], lineOffset[1], writingMode, 0, false, 0, associatedIconIndex, elevation, ground);
 	}
 	_addCollisionDebugVertex(layoutVertexArray, collisionVertexArray, point, anchorX, anchorY, extrude) {
 		collisionVertexArray.emplaceBack(0, 0);
@@ -28741,7 +29030,7 @@ const getLayout = () => layout = layout || new Properties({
 	"text-ignore-placement": new DataConstantProperty(latest["layout_symbol"]["text-ignore-placement"], "text-ignore-placement"),
 	"text-optional": new DataConstantProperty(latest["layout_symbol"]["text-optional"], "text-optional"),
 	"symbol-height-offset": new DataDrivenProperty(latest["layout_symbol"]["symbol-height-offset"], "symbol-height-offset"),
-	"symbol-height-anchor": new DataConstantProperty(latest["layout_symbol"]["symbol-height-anchor"], "symbol-height-anchor"),
+	"symbol-height-anchor": new DataDrivenProperty(latest["layout_symbol"]["symbol-height-anchor"], "symbol-height-anchor"),
 	"symbol-anchor-offset": new DataDrivenProperty(latest["layout_symbol"]["symbol-anchor-offset"], "symbol-anchor-offset"),
 	"symbol-anchor-offset-alignment": new DataConstantProperty(latest["layout_symbol"]["symbol-anchor-offset-alignment"], "symbol-anchor-offset-alignment")
 });

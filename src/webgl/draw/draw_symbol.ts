@@ -384,7 +384,9 @@ function drawLayerSymbols(
         const updateTextFitIcon = layer.layout.get('icon-text-fit') !== 'none' &&
             hasVariableAnchors &&
             bucket.hasIconData();
-        const isOffset = layer._unevaluatedLayout.hasValue('icon-offset');
+        // A layer with metadata `parchment:decal` is paint on the map: no perspective boost, so it shrinks with distance as the map does.
+        const isDecal = !!(layer.metadata as Record<string, unknown> | undefined)?.['parchment:decal'];
+        const isOffset = layer._unevaluatedLayout.hasValue('icon-offset') || isDecal;
 
         if (alongLine) {
             const pitchedLabelPlaneMatrixInverse = mat4.create();

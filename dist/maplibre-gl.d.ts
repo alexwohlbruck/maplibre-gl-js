@@ -359,18 +359,18 @@ declare class StructArrayLayout7f28 extends StructArray {
  * [0] - Int16[4]
  * [8] - Uint16[4]
  * [16] - Int16[4]
- * [24] - Float32[1]
- * [28] - Int16[2]
+ * [24] - Float32[2]
+ * [32] - Int16[2]
  *
  */
-declare class StructArrayLayout4i4ui4i1f2i32 extends StructArray {
+declare class StructArrayLayout4i4ui4i2f2i36 extends StructArray {
   uint8: Uint8Array;
   int16: Int16Array;
   uint16: Uint16Array;
   float32: Float32Array;
   _refreshViews(): void;
-  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number): number;
-  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number): number;
+  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number): number;
+  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number): number;
 }
 /**
  * @internal
@@ -456,17 +456,18 @@ declare class StructArrayLayout3ui6 extends StructArray {
  * [40] - Uint32[1]
  * [44] - Int16[1]
  * [48] - Float32[1]
+ * [52] - Uint8[1]
  *
  */
-declare class StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 extends StructArray {
+declare class StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 extends StructArray {
   uint8: Uint8Array;
   int16: Int16Array;
   uint16: Uint16Array;
   uint32: Uint32Array;
   float32: Float32Array;
   _refreshViews(): void;
-  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number): number;
-  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number): number;
+  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number): number;
+  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number): number;
 }
 /**
  * @internal
@@ -477,17 +478,18 @@ declare class StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 extends StructArray {
  * [52] - Float32[2]
  * [60] - Uint16[2]
  * [64] - Float32[3]
+ * [76] - Uint8[1]
  *
  */
-declare class StructArrayLayout8i15ui1ul2f2ui3f76 extends StructArray {
+declare class StructArrayLayout8i15ui1ul2f2ui3f1ub80 extends StructArray {
   uint8: Uint8Array;
   int16: Int16Array;
   uint16: Uint16Array;
   uint32: Uint32Array;
   float32: Float32Array;
   _refreshViews(): void;
-  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number, v19: number, v20: number, v21: number, v22: number, v23: number, v24: number, v25: number, v26: number, v27: number, v28: number, v29: number, v30: number): number;
-  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number, v19: number, v20: number, v21: number, v22: number, v23: number, v24: number, v25: number, v26: number, v27: number, v28: number, v29: number, v30: number): number;
+  emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number, v19: number, v20: number, v21: number, v22: number, v23: number, v24: number, v25: number, v26: number, v27: number, v28: number, v29: number, v30: number, v31: number): number;
+  emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number, v19: number, v20: number, v21: number, v22: number, v23: number, v24: number, v25: number, v26: number, v27: number, v28: number, v29: number, v30: number, v31: number): number;
 }
 /**
  * @internal
@@ -604,10 +606,11 @@ declare class PlacedSymbolStruct extends Struct {
   set crossTileID(x: number);
   get associatedIconIndex(): number;
   get heightOffset(): number;
+  get heightGround(): number;
 }
 type PlacedSymbol = PlacedSymbolStruct;
 /** @internal */
-declare class PlacedSymbolArray extends StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f52 {
+declare class PlacedSymbolArray extends StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 {
   /**
    * Return the PlacedSymbolStruct at the given location in the array.
    * @param index - The index of the element.
@@ -649,10 +652,11 @@ declare class SymbolInstanceStruct extends Struct {
   get heightOffset(): number;
   get anchorOffsetX(): number;
   get anchorOffsetY(): number;
+  get heightGround(): number;
 }
 type SymbolInstance = SymbolInstanceStruct;
 /** @internal */
-declare class SymbolInstanceArray extends StructArrayLayout8i15ui1ul2f2ui3f76 {
+declare class SymbolInstanceArray extends StructArrayLayout8i15ui1ul2f2ui3f1ub80 {
   /**
    * Return the SymbolInstanceStruct at the given location in the array.
    * @param index - The index of the element.
@@ -707,7 +711,7 @@ declare class FillLayoutArray extends StructArrayLayout2i4 {}
 declare class FillExtrusionLayoutArray extends StructArrayLayout2i4i12 {}
 declare class LineLayoutArray extends StructArrayLayout2i4ub8 {}
 declare class LineExtLayoutArray extends StructArrayLayout7f28 {}
-declare class SymbolLayoutArray extends StructArrayLayout4i4ui4i1f2i32 {}
+declare class SymbolLayoutArray extends StructArrayLayout4i4ui4i2f2i36 {}
 declare class SymbolDynamicLayoutArray extends StructArrayLayout3f12 {}
 declare class SymbolOpacityArray extends StructArrayLayout1ul4 {}
 declare class CollisionVertexArray extends StructArrayLayout2ub2f2i16 {}
@@ -4127,7 +4131,7 @@ type SymbolLayoutProps = {
   "text-ignore-placement": DataConstantProperty<boolean>;
   "text-optional": DataConstantProperty<boolean>;
   "symbol-height-offset": DataDrivenProperty<number>;
-  "symbol-height-anchor": DataConstantProperty<"ground" | "absolute">;
+  "symbol-height-anchor": DataDrivenProperty<"ground" | "absolute">;
   "symbol-anchor-offset": DataDrivenProperty<[number, number]>;
   "symbol-anchor-offset-alignment": DataConstantProperty<"map" | "viewport">;
 };
@@ -4177,7 +4181,7 @@ type SymbolLayoutPropsPossiblyEvaluated = {
   "text-ignore-placement": boolean;
   "text-optional": boolean;
   "symbol-height-offset": PossiblyEvaluatedPropertyValue<number>;
-  "symbol-height-anchor": "ground" | "absolute";
+  "symbol-height-anchor": PossiblyEvaluatedPropertyValue<"ground" | "absolute">;
   "symbol-anchor-offset": PossiblyEvaluatedPropertyValue<[number, number]>;
   "symbol-anchor-offset-alignment": "map" | "viewport";
 };
@@ -4472,7 +4476,7 @@ declare class SymbolBucket implements Bucket {
     lineStartIndex: number;
     lineLength: number;
   };
-  addSymbols(arrays: SymbolBuffers, quads: SymbolQuad[], sizeVertex: any, lineOffset: [number, number], alongLine: boolean, feature: SymbolFeature, writingMode: WritingMode, labelAnchor: Anchor, lineStartIndex: number, lineLength: number, associatedIconIndex: number, canonical: CanonicalTileID, elevation: number): void;
+  addSymbols(arrays: SymbolBuffers, quads: SymbolQuad[], sizeVertex: any, lineOffset: [number, number], alongLine: boolean, feature: SymbolFeature, writingMode: WritingMode, labelAnchor: Anchor, lineStartIndex: number, lineLength: number, associatedIconIndex: number, canonical: CanonicalTileID, elevation: number, ground: number): void;
   _addCollisionDebugVertex(layoutVertexArray: StructArray, collisionVertexArray: StructArray, point: Point$1, anchorX: number, anchorY: number, extrude: Point$1): number;
   addCollisionDebugVertices(x1: number, y1: number, x2: number, y2: number, arrays: CollisionBuffers, boxAnchorPoint: Point$1, symbolInstance: SymbolInstance): void;
   addDebugCollisionBoxes(startIndex: number, endIndex: number, symbolInstance: SymbolInstance, isText: boolean): void;

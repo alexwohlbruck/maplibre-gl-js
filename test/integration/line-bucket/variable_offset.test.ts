@@ -1,3 +1,4 @@
+import '../../../src/style-spec/fork_extensions.ts';
 import {describe, test, expect} from 'vitest';
 import Point from '@mapbox/point-geometry';
 import {GEOJSONVT_CLIP_END, GEOJSONVT_CLIP_START} from '@maplibre/geojson-vt';
@@ -73,7 +74,7 @@ describe('LineBucket variable line-offset', () => {
         const f32 = bucket.layoutVertexArray2.float32;
         const offsets: number[] = [];
         for (let i = 0; i < bucket.layoutVertexArray2.length; i++) {
-            offsets.push(f32[i * 3 + 2]);
+            offsets.push(f32[i * (bucket.layoutVertexArray2.bytesPerElement / 4) + 2]);
         }
         const maxOffset = Math.max(...offsets.map(Math.abs));
         // the middle of the line should bow out towards 60px
@@ -87,7 +88,25 @@ describe('LineBucket variable line-offset', () => {
 
         const f32 = bucket.layoutVertexArray2.float32;
         for (let i = 0; i < bucket.layoutVertexArray2.length; i++) {
-            expect(f32[i * 3 + 2]).toBe(0);
+            expect(f32[i * (bucket.layoutVertexArray2.bytesPerElement / 4) + 2]).toBe(0);
         }
+    });
+
+    test('a vector-tile line with no clip tags eases over its own length', () => {
+        const layer = makeLayer({'line-offset': ['interpolate', ['linear'], ['line-progress'], 0, 0, 1, 60]});
+        const bucket = makeBucket(layer);
+        bucket.addFeature({type: 2, properties: {}} as unknown as BucketFeature, geometry, 0, undefined, {}, {}, SubdivisionGranularitySetting.noSubdivision);
+
+        const stride = bucket.layoutVertexArray2.bytesPerElement / 4;
+        const f32 = bucket.layoutVertexArray2.float32;
+        const offsets = Array.from({length: bucket.layoutVertexArray2.length}, (_, i) => f32[i * stride + 2]);
+        expect(Math.min(...offsets)).toBeCloseTo(0);
+        expect(Math.max(...offsets)).toBeCloseTo(60);
+    });
+
+    test('a vector-tile line with no clip tags and a constant offset gets no progress', () => {
+        const bucket = makeBucket(makeLayer({'line-offset': 50}));
+        bucket.addFeature({type: 2, properties: {}} as unknown as BucketFeature, geometry, 0, undefined, {}, {}, SubdivisionGranularitySetting.noSubdivision);
+        expect(bucket.layoutVertexArray2.length).toBe(0);
     });
 });

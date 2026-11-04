@@ -5212,6 +5212,9 @@ declare class LineBucket implements Bucket {
     lineProgress: number;
   };
   currentLineFeature: BucketFeature;
+  offsetFeature?: BucketFeature;
+  offsetProgress: number;
+  offsetValue: number;
   elevated: boolean;
   elevationRuns: ElevationRun[];
   vertexHeight: number;

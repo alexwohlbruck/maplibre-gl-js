@@ -73,6 +73,8 @@ const LINE_DISTANCE_BUFFER_BITS = 15;
 // value. This lets us store longer distances while sacrificing precision.
 const LINE_DISTANCE_SCALE = 1 / 2;
 
+const WHOLE_LINE: LineClips = {start: 0, end: 1};
+
 // The maximum line distance, in tile units, that fits in the buffer.
 const MAX_LINE_DISTANCE = Math.pow(2, LINE_DISTANCE_BUFFER_BITS - 1) / LINE_DISTANCE_SCALE;
 
@@ -138,6 +140,9 @@ export class LineBucket implements Bucket {
     evaluationGlobals: {zoom: number; lineProgress: number};
     // The feature currently being added, so `addHalfVertex` can evaluate data-driven offsets.
     currentLineFeature: BucketFeature;
+    offsetFeature?: BucketFeature;
+    offsetProgress: number = NaN;
+    offsetValue: number = 0;
     // Whether the layers draw off the ground with `line-elevation-profile`, each vertex's height in the ext buffer.
     elevated: boolean;
     // The current feature's profile, and where the vertex being added is drawn: metres, plus this much of the terrain.
@@ -306,7 +311,8 @@ export class LineBucket implements Bucket {
         const cap = layout.get('line-cap').evaluate(feature, {});
         const miterLimit = layout.get('line-miter-limit').evaluate(feature, {});
         const roundLimit = layout.get('line-round-limit').evaluate(feature, {});
-        this.lineClips = this.lineFeatureClips(feature);
+        // PARCHMENT: with no clip tags, an eased offset runs over the line as the tile holds it, which a tiler that ships it whole makes the true one.
+        this.lineClips = this.lineFeatureClips(feature) ?? (this.variableOffsetExpression ? WHOLE_LINE : undefined);
         // Retained so `addHalfVertex` can evaluate a data-driven `line-offset` per vertex.
         this.currentLineFeature = feature;
         this.elevationRuns = this.elevated ?
@@ -641,10 +647,16 @@ export class LineBucket implements Bucket {
             // gradient texture path.
             let lineOffset = 0;
             if (this.variableOffsetExpression && this.lineClips) {
-                this.evaluationGlobals.zoom = this.zoom;
-                this.evaluationGlobals.lineProgress = this.scaledDistance;
-                lineOffset = (this.variableOffsetExpression.evaluate(
-                    this.evaluationGlobals, this.currentLineFeature) as number) || 0;
+                // Both halves of a vertex, and every vertex of a round join, share one progress.
+                if (this.offsetFeature !== this.currentLineFeature || this.offsetProgress !== this.scaledDistance) {
+                    this.evaluationGlobals.zoom = this.zoom;
+                    this.evaluationGlobals.lineProgress = this.scaledDistance;
+                    this.offsetValue = (this.variableOffsetExpression.evaluate(
+                        this.evaluationGlobals, this.currentLineFeature) as number) || 0;
+                    this.offsetFeature = this.currentLineFeature;
+                    this.offsetProgress = this.scaledDistance;
+                }
+                lineOffset = this.offsetValue;
             }
 
             this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length, lineOffset, this.vertexHeight, this.vertexGround, this.tangentX, this.tangentY);
@@ -732,7 +744,7 @@ export class LineBucket implements Bucket {
     }
 }
 
-register('LineBucket', LineBucket, {omit: ['layers', 'patternFeatures', 'variableOffsetExpression', 'currentLineFeature', 'elevationRuns']});
+register('LineBucket', LineBucket, {omit: ['layers', 'patternFeatures', 'variableOffsetExpression', 'currentLineFeature', 'offsetFeature', 'offsetProgress', 'offsetValue', 'elevationRuns']});
 
 /** Polygon outlines take `line-rounded-corner-distance`; real lines are left alone. */
 export function roundOutline(geometry: Point[][], type: number, layer: LineStyleLayer, canonical: CanonicalTileID): Point[][] {

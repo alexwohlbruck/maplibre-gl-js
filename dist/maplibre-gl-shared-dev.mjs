@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.16/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.17/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -16399,14 +16399,74 @@ const MIN = -MAX - 1;
 function loadGeometry(feature) {
 	const scale = EXTENT / feature.extent;
 	const geometry = feature.loadGeometry();
+	let outside = false;
 	for (const ring of geometry) for (const point of ring) {
-		const x = Math.round(point.x * scale);
-		const y = Math.round(point.y * scale);
+		point.x = Math.round(point.x * scale);
+		point.y = Math.round(point.y * scale);
+		if (point.x < MIN || point.x > MAX || point.y < MIN || point.y > MAX) outside = true;
+	}
+	if (!outside) return geometry;
+	if (feature.type === 2) return clipLines$2(geometry);
+	for (const ring of geometry) for (const point of ring) {
+		const { x, y } = point;
 		point.x = clamp$1(x, MIN, MAX);
 		point.y = clamp$1(y, MIN, MAX);
 		if (x < point.x || x > point.x + 1 || y < point.y || y > point.y + 1) warnOnce("Geometry exceeds allowed extent, reduce your vector tile buffer size");
 	}
 	return geometry;
+}
+const inRange = (p) => p.x >= MIN && p.x <= MAX && p.y >= MIN && p.y <= MAX;
+/** Cuts each line to the representable range, splitting it where it leaves and comes back. */
+function clipLines$2(lines) {
+	const out = [];
+	for (const line of lines) {
+		let part = [];
+		for (let i = 0; i < line.length - 1; i++) {
+			const seg = clipSegment(line[i], line[i + 1]);
+			if (!seg) continue;
+			const [a, b] = seg;
+			const last = part[part.length - 1];
+			if (!last || !last.equals(a)) {
+				if (part.length > 1) out.push(part);
+				part = [a];
+			}
+			part.push(b);
+		}
+		if (part.length > 1) out.push(part);
+	}
+	return out;
+}
+/** Liang–Barsky against [MIN, MAX]², with intersections rounded back onto the integer grid. */
+function clipSegment(a, b) {
+	if (inRange(a) && inRange(b)) return [a, b];
+	const dx = b.x - a.x;
+	const dy = b.y - a.y;
+	let t0 = 0;
+	let t1 = 1;
+	for (const [p, q] of [
+		[-dx, a.x - MIN],
+		[dx, MAX - a.x],
+		[-dy, a.y - MIN],
+		[dy, MAX - a.y]
+	]) {
+		if (p === 0) {
+			if (q < 0) return null;
+			continue;
+		}
+		const t = q / p;
+		if (p < 0) t0 = Math.max(t0, t);
+		else t1 = Math.min(t1, t);
+		if (t0 > t1) return null;
+	}
+	const at = (t) => {
+		if (t === 0) return a;
+		if (t === 1) return b;
+		const p = a.clone()._add(b.sub(a)._mult(t))._round();
+		p.x = clamp$1(p.x, MIN, MAX);
+		p.y = clamp$1(p.y, MIN, MAX);
+		return p;
+	};
+	return [at(t0), at(t1)];
 }
 //#endregion
 //#region src/data/evaluation_feature.ts
@@ -22377,6 +22437,10 @@ const COS_HALF_SHARP_CORNER = Math.cos(75 / 2 * (Math.PI / 180));
 const SHARP_CORNER_OFFSET = 15;
 const DEG_PER_TRIANGLE = 20;
 const LINE_DISTANCE_SCALE = 1 / 2;
+const WHOLE_LINE = {
+	start: 0,
+	end: 1
+};
 const MAX_LINE_DISTANCE = Math.pow(2, 14) / LINE_DISTANCE_SCALE;
 const ELEVATED_GRANULARITY = 64;
 const ELEVATION_REACH_METERS = 4;
@@ -22386,6 +22450,8 @@ const ELEVATION_REACH_METERS = 4;
 */
 var LineBucket = class {
 	constructor(options) {
+		this.offsetProgress = NaN;
+		this.offsetValue = 0;
 		this.zoom = options.zoom;
 		this.overscaling = options.overscaling;
 		this.layers = options.layers;
@@ -22500,7 +22566,7 @@ var LineBucket = class {
 		const cap = layout.get("line-cap").evaluate(feature, {});
 		const miterLimit = layout.get("line-miter-limit").evaluate(feature, {});
 		const roundLimit = layout.get("line-round-limit").evaluate(feature, {});
-		this.lineClips = this.lineFeatureClips(feature);
+		this.lineClips = this.lineFeatureClips(feature) ?? (this.variableOffsetExpression ? WHOLE_LINE : void 0);
 		this.currentLineFeature = feature;
 		this.elevationRuns = this.elevated ? parseElevationProfile(this.layers[0].layout.get("line-elevation-profile").evaluate(feature, {}, canonical), canonical) : [];
 		for (const line of geometry) this.addLine(line, feature, join, cap, miterLimit, roundLimit, canonical, subdivisionGranularity);
@@ -22673,9 +22739,14 @@ var LineBucket = class {
 			const uvX = this.lineClips ? (this.scaledDistance - this.lineClips.start) / (this.lineClips.end - this.lineClips.start) : 0;
 			let lineOffset = 0;
 			if (this.variableOffsetExpression && this.lineClips) {
-				this.evaluationGlobals.zoom = this.zoom;
-				this.evaluationGlobals.lineProgress = this.scaledDistance;
-				lineOffset = this.variableOffsetExpression.evaluate(this.evaluationGlobals, this.currentLineFeature) || 0;
+				if (this.offsetFeature !== this.currentLineFeature || this.offsetProgress !== this.scaledDistance) {
+					this.evaluationGlobals.zoom = this.zoom;
+					this.evaluationGlobals.lineProgress = this.scaledDistance;
+					this.offsetValue = this.variableOffsetExpression.evaluate(this.evaluationGlobals, this.currentLineFeature) || 0;
+					this.offsetFeature = this.currentLineFeature;
+					this.offsetProgress = this.scaledDistance;
+				}
+				lineOffset = this.offsetValue;
 			}
 			this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length, lineOffset, this.vertexHeight, this.vertexGround, this.tangentX, this.tangentY);
 		}
@@ -22745,6 +22816,9 @@ register("LineBucket", LineBucket, { omit: [
 	"patternFeatures",
 	"variableOffsetExpression",
 	"currentLineFeature",
+	"offsetFeature",
+	"offsetProgress",
+	"offsetValue",
 	"elevationRuns"
 ] });
 /** Polygon outlines take `line-rounded-corner-distance`; real lines are left alone. */

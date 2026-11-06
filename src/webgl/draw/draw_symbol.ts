@@ -20,6 +20,7 @@ import {
     symbolTextAndIconUniformValues
 } from '../program/symbol_program.ts';
 import {getProjectionDataForTile, getTerrainDataForTile, type RenderContext} from '../../render/render_context.ts';
+import {horizonFadeDefines} from './horizon_fade.ts';
 
 import type {Painter} from '../../render/painter.ts';
 import type {TileManager} from '../../tile/tile_manager.ts';
@@ -343,7 +344,7 @@ function drawLayerSymbols(
         const sizeData = isText ? bucket.textSizeData : bucket.iconSizeData;
         const transformed = pitchWithMap || transform.pitch !== 0;
 
-        const program = painter.useProgram(getSymbolProgramName(isSDF, isText, bucket), programConfiguration);
+        const program = painter.useProgram(getSymbolProgramName(isSDF, isText, bucket), programConfiguration, false, horizonFadeDefines(layer));
         const size = evaluateSizeForZoom(sizeData, transform.zoom);
         const terrainData = getTerrainDataForTile(renderContext, coord);
 

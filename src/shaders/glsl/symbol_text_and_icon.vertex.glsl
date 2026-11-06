@@ -81,6 +81,9 @@ void main() {
     float fade_change = fade_opacity[1] > 0.5 ? u_symbol_fade_change : -u_symbol_fade_change;
     float interpolated_fade_opacity = max(0.0, min(visibility, fade_opacity[0] + fade_change));
     float total_opacity = opacity * interpolated_fade_opacity;
+    #ifdef HORIZON_FADE
+        total_opacity *= horizon_fade(projectedPoint.w);
+    #endif
     if (total_opacity < 0.1){
         gl_Position = vec4(-2., -2., -2., 1.);
         return;

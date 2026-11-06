@@ -51,3 +51,10 @@ void elevated_line_fragment(highp vec2 tile_pos, float lift) {
     #endif
 }
 #endif
+
+#ifdef HORIZON_FADE
+// 1 near the camera, easing to 0 between 2.5 and 5 times the map centre's distance, which only steep pitches reach.
+float horizon_fade(highp float depth) {
+    return 1.0 - smoothstep(2.5, 5.0, depth / u_camera_to_center_distance);
+}
+#endif

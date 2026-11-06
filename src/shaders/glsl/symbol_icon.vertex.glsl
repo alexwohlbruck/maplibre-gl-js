@@ -65,6 +65,9 @@ void main() {
     // Below ground it is judged where it stands at the surface, so the terrain over it does not hide it.
     float visibility = calculate_visibility(ele < ground_ele ? projectTileWithElevation(translated_a_pos, ground_ele) : projectedPoint);
     v_total_opacity = opacity * max(0.0, min(visibility, fade_opacity[0] + fade_change));
+    #ifdef HORIZON_FADE
+        v_total_opacity *= horizon_fade(projectedPoint.w);
+    #endif
     if (v_total_opacity < 0.1){
         gl_Position = vec4(-2., -2., -2., 1.);
         return;

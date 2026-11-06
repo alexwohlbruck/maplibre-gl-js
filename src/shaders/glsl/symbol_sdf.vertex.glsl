@@ -83,6 +83,9 @@ void main() {
 
     // Move vertex outside clip space to discard triangle when opacity is negligible
     float total_opacity = opacity * interpolated_fade_opacity;
+    #ifdef HORIZON_FADE
+        total_opacity *= horizon_fade(projectedPoint.w);
+    #endif
     if (total_opacity < 0.1){
         gl_Position = vec4(-2., -2., -2., 1.);
         return;

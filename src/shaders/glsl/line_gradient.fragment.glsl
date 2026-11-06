@@ -48,6 +48,10 @@ void main() {
     }
     #endif
 
+#ifdef HORIZON_FADE
+    fragColor *= horizon_fade(1.0 / gl_FragCoord.w);
+#endif
+
 #ifdef OVERDRAW_INSPECTOR
     fragColor = vec4(1.0);
 #endif

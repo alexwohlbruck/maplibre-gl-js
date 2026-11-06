@@ -14,6 +14,7 @@ import {renderColorRamp} from '../../util/color_ramp.ts';
 import {EXTENT} from '../../data/extent.ts';
 import {drawLayerOpacity, prepareDrawLayerOpacity} from './draw_layer_opacity.ts';
 import {getProjectionDataForTile, getTerrainDataForTile, type RenderContext} from '../../render/render_context.ts';
+import {horizonFadeDefines} from './horizon_fade.ts';
 
 import type {Painter} from '../../render/painter.ts';
 import type {TileManager} from '../../tile/tile_manager.ts';
@@ -188,11 +189,11 @@ function drawLineTiles(
     const depthMode = pass === 'flat' ? painter.getDepthModeForSublayer(0, DepthMode.ReadOnly) :
         pass === 'overground' ? new DepthMode(painter.context.gl.LEQUAL, DepthMode.ReadOnly, painter.renderContext.depthRangeFor3D) :
             DepthMode.disabled;
-    const defines = !elevated ? [] : [
+    const defines = [...horizonFadeDefines(layer), ...(!elevated ? [] : [
         '#define LINE_ELEVATION',
         ...(layer.paint.get('line-pitch-alignment') === 'viewport' ? ['#define LINE_VIEWPORT'] : []),
         ...(pass === 'underground' ? ['#define LINE_UNDERGROUND'] : pass === 'overground' ? ['#define LINE_OVERGROUND'] : []),
-    ];
+    ])];
     const colorMode = painter.colorModeForRenderPass();
 
     const dasharrayProperty = layer.paint.get('line-dasharray');

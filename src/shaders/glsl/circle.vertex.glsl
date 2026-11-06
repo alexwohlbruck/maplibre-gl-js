@@ -34,7 +34,11 @@ void main(void) {
     // in extrusion data
     vec2 circle_center = vec2(pos_raw >> 3) + u_translate;
     float ele = get_elevation(circle_center);
-    v_visibility = calculate_visibility(projectTileWithElevation(circle_center, ele));
+    vec4 projected_center = projectTileWithElevation(circle_center, ele);
+    v_visibility = calculate_visibility(projected_center);
+    #ifdef HORIZON_FADE
+        v_visibility *= horizon_fade(projected_center.w);
+    #endif
 
     if (u_pitch_with_map) {
 #ifdef GLOBE

@@ -5,6 +5,7 @@ import {circleUniformValues} from '../program/circle_program.ts';
 import {SegmentVector} from '../../data/segment.ts';
 import {getProjectionDataForTile, getTerrainDataForTile, type RenderContext} from '../../render/render_context.ts';
 import {translatePosition} from '../../util/util.ts';
+import {horizonFadeDefines} from './horizon_fade.ts';
 
 import type {OverscaledTileID} from '../../tile/tile_id.ts';
 import type {Program} from '../program.ts';
@@ -74,7 +75,7 @@ export function drawCircles(painter: Painter, tileManager: TileManager, layer: C
         const translateForUniforms = translatePosition(transform, tile, styleTranslate, styleTranslateAnchor);
 
         const programConfiguration = bucket.programConfigurations.get(layer.id);
-        const program = painter.useProgram('circle', programConfiguration);
+        const program = painter.useProgram('circle', programConfiguration, false, horizonFadeDefines(layer));
         const layoutVertexBuffer = bucket.layoutVertexBuffer;
         const indexBuffer = bucket.indexBuffer;
         const terrainData = getTerrainDataForTile(renderContext, coord);

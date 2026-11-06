@@ -191,3 +191,10 @@ layout(std140) uniform FrameUBO {
     highp vec2 u_pixel_extrude_scale;
     highp float u_pitch;
 };
+
+#ifdef HORIZON_FADE
+// 1 near the camera, easing to 0 between 2.5 and 5 times the map centre's distance, which only steep pitches reach.
+float horizon_fade(highp float depth) {
+    return 1.0 - smoothstep(2.5, 5.0, depth / u_camera_to_center_distance);
+}
+#endif

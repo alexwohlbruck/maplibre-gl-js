@@ -32,4 +32,6 @@ void main() {
     } else {
         fragColor = surface_color;
     }
+    // The draped ground carries flat lines, which cannot fade on their own: the whole surface hazes into the fog instead.
+    fragColor = mix(u_fog_color, fragColor, horizon_fade(1.0 / gl_FragCoord.w));
 }

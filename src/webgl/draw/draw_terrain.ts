@@ -44,7 +44,7 @@ function drawTerrain(painter: Painter, terrain: Terrain, tiles: Tile[], renderCo
     const tr = painter.transform;
     const colorMode = painter.colorModeForRenderPass();
     const depthMode = painter.getDepthModeFor3D();
-    const program = painter.useProgram('terrain');
+    const program = painter.useProgram('terrain', null, false, ['#define HORIZON_FADE']);
 
     context.bindFramebuffer.set(null);
     context.viewport.set([0, 0, painter.width, painter.height]);

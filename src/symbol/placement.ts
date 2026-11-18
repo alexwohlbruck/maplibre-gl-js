@@ -9,6 +9,7 @@ import Point from '@mapbox/point-geometry';
 import {getOverlapMode, type OverlapMode} from '../style/style_layer/overlap_mode.ts';
 import {TextAnchorEnum, type TextAnchor} from '../style/style_layer/variable_text_anchor.ts';
 import {translatePosition, warnOnce} from '../util/util.ts';
+import {symbolClipTester, type SymbolClip} from './symbol_clip.ts';
 
 import type {mat4} from 'gl-matrix';
 import type {FeatureKey, PlacedBox, PlacedCircles} from './collision_index.ts';
@@ -219,6 +220,8 @@ export class Placement {
         text: number[];
         icon: number[];
     }>>;
+    /** Where symbols are left unplaced; see {@link SymbolClip}. */
+    symbolClip: SymbolClip | null = null;
 
     constructor(transform: ITransform, terrain: Terrain, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement, isolatedCollisionLayers?: ReadonlySet<string>) {
         this.transform = transform.clone();
@@ -244,6 +247,20 @@ export class Placement {
         }
 
         this.placedOrientations = {};
+    }
+
+    /** Whether a symbol lies in the clip: the line it is placed along, or its anchor where it has none. */
+    private _isClipped(bucket: SymbolBucket, symbolInstance: SymbolInstance, clipped: (points: number[]) => boolean): boolean {
+        const textIndex = [symbolInstance.centerJustifiedTextSymbolIndex, symbolInstance.leftJustifiedTextSymbolIndex, symbolInstance.rightJustifiedTextSymbolIndex, symbolInstance.verticalPlacedTextSymbolIndex].find(i => i >= 0);
+        const placedSymbol = textIndex !== undefined ? bucket.text.placedSymbolArray.get(textIndex) :
+            symbolInstance.placedIconSymbolIndex >= 0 ? bucket.icon.placedSymbolArray.get(symbolInstance.placedIconSymbolIndex) : null;
+        if (!placedSymbol || placedSymbol.lineLength < 2) return clipped([symbolInstance.anchorX, symbolInstance.anchorY]);
+        const line = bucket.lineVertexArray;
+        const points: number[] = [];
+        for (let i = placedSymbol.lineStartIndex; i < placedSymbol.lineStartIndex + placedSymbol.lineLength; i++) {
+            points.push(line.getx(i), line.gety(i));
+        }
+        return clipped(points);
     }
 
     private _getTerrainElevationFunc(tileID: OverscaledTileID): GetElevation | undefined {
@@ -484,9 +501,14 @@ export class Placement {
         const tileID = this.retainedQueryData[bucket.bucketInstanceId].tileID;
         const getElevation = this._getTerrainElevationFunc(tileID);
         const simpleProjectionMatrix = this.transform.getFastPathSimpleProjectionMatrix(tileID);
+        const clipped = this.symbolClip ? symbolClipTester(this.symbolClip, bucket.layerIds, tileID.canonical) : null;
 
         const placeSymbol = (symbolInstance: SymbolInstance, collisionArrays: CollisionArrays, symbolIndex: number) => {
             if (seenCrossTileIDs[symbolInstance.crossTileID]) return;
+            if (clipped && this._isClipped(bucket, symbolInstance, clipped)) {
+                this.placements[symbolInstance.crossTileID] = new JointPlacement(false, false, false);
+                return;
+            }
 
             // symbol-anchor-offset: shift this instance's collision/query
             // boxes exactly as the shader shifts its quads — expressed as a

@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.1/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.2/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -13911,6 +13911,7 @@ const ERROR_LAYOUT_NOT_PAINT = " is a LAYOUT property not a PAINT property. Use 
 var StyleLayer = class extends Evented {
 	constructor(layer, properties, globalState) {
 		super();
+		this.muted = false;
 		this.id = layer.id;
 		this.type = layer.type;
 		this._globalState = globalState;

@@ -41,6 +41,12 @@ void main() {
     #pragma maplibre: initialize lowp float pixel_ratio_from
     #pragma maplibre: initialize lowp float pixel_ratio_to
 
+    // Hidden by a negative height, as in fill_extrusion.vertex.glsl.
+    if (height < 0.0) {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        return;
+    }
+
     vec2 pattern_tl_a = pattern_from.xy;
     vec2 pattern_br_a = pattern_from.zw;
     vec2 pattern_tl_b = pattern_to.xy;

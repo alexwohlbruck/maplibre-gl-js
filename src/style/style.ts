@@ -26,6 +26,7 @@ import {getGlobalWorkerPool} from '../util/global_worker_pool.ts';
 import {rtlMainThreadPluginFactory} from '../source/rtl_text_plugin_main_thread.ts';
 import {RTLPluginLoadedEventName} from '../source/rtl_text_plugin_status.ts';
 import {PauseablePlacement} from './pauseable_placement.ts';
+import {createSymbolClip, type SymbolClip} from '../symbol/symbol_clip.ts';
 import {ZoomHistory} from './zoom_history.ts';
 import {CrossTileSymbolIndex} from '../symbol/cross_tile_symbol_index.ts';
 import {validateCustomStyleLayer} from './style_layer/custom_style_layer.ts';
@@ -231,6 +232,7 @@ export class Style extends Evented<MapEventType> {
     _glyphsDidChange: boolean;
     _updatedPaintProps: {[layer: string]: true};
     _layerOrderChanged: boolean;
+    _symbolClip: SymbolClip | null = null;
     _symbolPlacementTriggered: boolean;
     _placedProjectionTransition: number;
     _globalState: Record<string, any>;
@@ -1330,6 +1332,26 @@ export class Style extends Evented<MapEventType> {
         this._updateLayer(layer);
     }
 
+    /** Draw a layer or leave it undrawn, its tiles and buckets untouched either way. */
+    setLayerMuted(layerId: string, muted: boolean): void {
+        this._checkLoaded();
+
+        const layer = this.getLayer(layerId);
+        if (!layer) {
+            this.fire(new ErrorEvent(new Error(`Cannot mute non-existing layer "${layerId}".`)));
+            return;
+        }
+        layer.muted = muted;
+    }
+
+    /** Leave the symbols of these layers unplaced wherever they lie wholly in an area; null clears it. */
+    setSymbolClip(layerIds: string[], area: GeoJSON.Polygon | GeoJSON.MultiPolygon | null): void {
+        this._checkLoaded();
+
+        this._symbolClip = area ? createSymbolClip(layerIds, area) : null;
+        this.placement?.setStale();
+    }
+
     setFilter(layerId: string, filter?: FilterSpecification | null,  options: StyleSetterOptions = {}): void {
         this._checkLoaded();
 
@@ -1941,6 +1963,7 @@ export class Style extends Evented<MapEventType> {
             this._symbolPlacementTriggered = false;
             this._placedProjectionTransition = this.projection?.transitionState;
             this.pauseablePlacement = new PauseablePlacement(transform, this.map.terrain, this._order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, this.placement, isolatedCollisionLayers);
+            this.pauseablePlacement.placement.symbolClip = this._symbolClip;
             this._layerOrderChanged = false;
         }
 

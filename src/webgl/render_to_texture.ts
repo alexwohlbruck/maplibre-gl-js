@@ -121,7 +121,7 @@ export class RenderToTexture {
         this._prevDraped = false;
         this._rttTiles = [];
         this._renderableTiles = this.terrain.tileManager.getRenderableTiles();
-        this._renderableLayerIds = style._order.filter(id => !style._layers[id].isHidden(zoom));
+        this._renderableLayerIds = style._order.filter(id => !style._layers[id].muted && !style._layers[id].isHidden(zoom));
         // Draped beneath, a texture holds only the draped layers: a label entering its zoom range leaves it as it is.
         this._drapedLayerIds = this.drapeBeneath ? this._renderableLayerIds.filter(id => drapes(style._layers[id])) : null;
         const visibleLayerIds = (this._drapedLayerIds ?? this._renderableLayerIds).join();
@@ -204,7 +204,7 @@ export class RenderToTexture {
      * @returns if true layer is rendered to texture, otherwise false
      */
     renderLayer(layer: StyleLayer, renderContext: RenderContext): boolean {
-        if (layer.isHidden(this.painter.transform.zoom)) return false;
+        if (layer.muted || layer.isHidden(this.painter.transform.zoom)) return false;
 
         const draped = drapes(layer);
         if (this._drapedLayerIds) {

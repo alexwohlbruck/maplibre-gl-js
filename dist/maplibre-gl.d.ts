@@ -4975,6 +4975,25 @@ declare enum TextAnchorEnum {
 }
 type TextAnchor = keyof typeof TextAnchorEnum;
 //#endregion
+//#region src/symbol/symbol_clip.d.ts
+type ClipPolygon = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  /** Each ring as flat mercator x, y pairs. */
+  rings: number[][];
+};
+/**
+ * An area whose symbols are left out at placement, for a set of layers: those placed along a line lying within
+ * one of its polygons, and those at a point in one, as a `within` filter has it. Unlike the filter it costs no
+ * tile reload to change: the symbols stay in their buckets and are only never placed.
+ */
+type SymbolClip = {
+  layerIds: ReadonlySet<string>;
+  polygons: ClipPolygon[];
+};
+//#endregion
 //#region src/symbol/placement.d.ts
 declare class OpacityState {
   opacity: number;
@@ -5079,7 +5098,11 @@ declare class Placement {
     text: number[];
     icon: number[];
   }>>;
+  /** Where symbols are left unplaced; see {@link SymbolClip}. */
+  symbolClip: SymbolClip | null;
   constructor(transform: ITransform, terrain: Terrain, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement, isolatedCollisionLayers?: ReadonlySet<string>);
+  /** Whether a symbol lies in the clip: the line it is placed along, or its anchor where it has none. */
+  private _isClipped;
   private _getTerrainElevationFunc;
   getBucketParts(results: BucketPart[], styleLayer: StyleLayer, tile: Tile, sortAcrossTiles: boolean): void;
   attemptAnchorPlacement(textAnchorOffset: TextAnchorOffset, textBox: SingleCollisionBox, width: number, height: number, textBoxScale: number, rotateWithMap: boolean, pitchWithMap: boolean, textPixelRatio: number, tileID: OverscaledTileID, unwrappedTileID: UnwrappedTileID, collisionGroup: CollisionGroup, textOverlapMode: OverlapMode, symbolInstance: SymbolInstance, bucket: SymbolBucket, orientation: number, translationText: [number, number], translationIcon: [number, number], iconBox?: SingleCollisionBox | null, getElevation?: GetElevation, simpleProjectionMatrix?: mat4, heightOffset?: number, heightAnchorGround?: boolean): {
@@ -9926,6 +9949,7 @@ export declare class Style extends Evented<MapEventType> {
     [layer: string]: true;
   };
   _layerOrderChanged: boolean;
+  _symbolClip: SymbolClip | null;
   _symbolPlacementTriggered: boolean;
   _placedProjectionTransition: number;
   _globalState: Record<string, any>;
@@ -10075,6 +10099,10 @@ export declare class Style extends Evented<MapEventType> {
    */
   hasLayer(id: string): boolean;
   setLayerZoomRange(layerId: string, minzoom?: number | null, maxzoom?: number | null): void;
+  /** Draw a layer or leave it undrawn, its tiles and buckets untouched either way. */
+  setLayerMuted(layerId: string, muted: boolean): void;
+  /** Leave the symbols of these layers unplaced wherever they lie wholly in an area; null clears it. */
+  setSymbolClip(layerIds: string[], area: GeoJSON.Polygon | GeoJSON.MultiPolygon | null): void;
   setFilter(layerId: string, filter?: FilterSpecification | null, options?: StyleSetterOptions): void;
   /**
    * Get a layer's filter object
@@ -10251,6 +10279,11 @@ declare abstract class StyleLayer extends Evented<ErrorEventType> {
   maxzoom: number;
   filter: FilterSpecification | void;
   visibility: VisibilitySpecification;
+  /**
+   * Left undrawn while its tiles keep loading and its buckets keep being built: unlike `visibility` or
+   * an opacity of zero on a data-driven property, turning it on and off reloads nothing.
+   */
+  muted: boolean;
   private _evaluatedVisibility;
   _crossfadeParameters: CrossfadeParameters;
   _unevaluatedLayout: Layout<any>;
@@ -15149,6 +15182,24 @@ declare class Map$1 extends Evented<MapEventType> {
    * ```
    */
   setLayerZoomRange(layerId: string, minzoom: number, maxzoom: number): this;
+  /**
+   * Draws a layer or leaves it undrawn, without reloading its tiles: a muted layer's source keeps loading and
+   * its features stay queryable with {@link Map.querySourceFeatures}. Setting `visibility` to `none` would stop
+   * the source loading, and zeroing a data-driven opacity re-parses every tile of the source.
+   *
+   * @param layerId - The ID of the layer to mute.
+   * @param muted - Whether the layer is left undrawn.
+   */
+  setLayerMuted(layerId: string, muted: boolean): this;
+  /**
+   * Leaves the symbols of the given layers unplaced wherever the line they are placed along, or the point they
+   * stand at, lies wholly inside an area, without reloading their tiles as a `within` filter would. One clip
+   * holds at a time; `null` clears it.
+   *
+   * @param layerIds - The IDs of the symbol layers to clip.
+   * @param area - The area to clip them in, in longitude and latitude.
+   */
+  setSymbolClip(layerIds: string[], area: GeoJSON.Polygon | GeoJSON.MultiPolygon | null): this;
   /**
    * Sets the filter for the specified style layer.
    *

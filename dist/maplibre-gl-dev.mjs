@@ -1,10 +1,10 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.1/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.2/LICENSE.txt
 */
 import { $ as projectToWorldCoordinates, $n as getRollPitchBearing, $r as rotateZ$1, $t as Transitionable, A as evaluateSizeForZoom, Ai as isOffscreenCanvasDistorted, An as arrayBufferToImageBitmap, Ar as create$3, At as toEvaluationFeature, B as isCluster, Bi as ValidationError, Bn as defaultEasing, Br as scale$2, Bt as SegmentVector, C as addDynamicAttributes, Ci as translate, Cn as AbortError, Cr as translatePosition, Ct as HEATMAP_FULL_RENDER_FBO_KEY, Di as determinant, Dn as MAX_VALID_LATITUDE, Dr as zoomScale, Dt as RGBAImage, E as TextAnchorEnum, Ei as create$2, Er as wrap, Et as AlphaImage, F as potpack, Fi as featureFilter, Fn as createIdentityMat4f64, Fr as fromEuler, Ft as Uniform4f, Gn as evaluateZoomSnap, Gr as distance, Gt as PosArray, Hi as derefLayers, Hn as differenceOfAnglesDegrees, Hr as add, Ht as CollisionCircleLayoutArray, I as isStyleImageWebGLData, In as createMat4f64, Ir as fromValues, It as UniformColor, J as cameraDirectionFromPitchBearing, Jn as findLineIntersection, Jr as length, Jt as TriangleIndexArray, K as isFillExtrusionStyleLayer, Kn as extend, Kr as dot, Kt as QuadTriangleArray, L as renderStyleImage, Li as interpolateFactory, Ln as createVec3f64, Lr as multiply$1, Lt as UniformColorArray, M as getAnchorAlignment, Mi as Point, Mn as clamp, Mr as scale$3, Mt as Uniform1i, Ni as emptyStyle, Nn as clone$2, Nr as sqrLen, Nt as Uniform2f, O as clipLine, Oi as invert, On as angleToRotateBetweenVectors2D, Or as pixelsToTileUnits, Ot as isCircleStyleLayer, P as ImagePosition, Pn as createIdentityMat4f32, Pr as zero, Pt as Uniform3f, Q as maxMercatorHorizonAngle, Qr as rotateY, Qt as Properties, R as parseGlyphPbf, Ri as ProjectionDefinition, Rn as createVec4f64, Rr as slerp, Rt as UniformFloatArray, S as SymbolBucket, Si as scale, Sn as config, Sr as threePlaneIntersection, St as isHillshadeStyleLayer, T as getAnchorJustification, Ti as fromRotation, Tn as throwIfAborted, Tr as warnOnce, Tt as renderColorRamp, U as collisionCircleLayout, Ui as latest, Un as distanceOfAnglesRadians, Ur as clone, Ut as LineStripIndexArray, V as codePointUsesLocalIdeographFontFamily, Vi as diff, Vn as degreesToRadians, Vr as transformMat4, Vt as CollisionBoxArray, W as isLineStyleLayer, Wn as ensureError, Wr as cross, Wt as Pos3dArray, X as cameraMercatorCoordinateFromCenterAndRotation, Xn as getAngleDelta, Xr as normalize, Xt as isRasterStyleLayer, Y as cameraMercatorCoordinate, Yn as getAABB, Yr as negate, Yt as createLayout, Z as getMercatorHorizon, Zn as getEdgeTiles, Zr as rotateX$1, Zt as DataConstantProperty, _ as createStyleLayer, _i as ortho, _n as makeRequest, _r as rollPitchBearingEqual, _t as SubdivisionGranularityExpression, a as GeoJSONFeature, ai as transformMat4$1, an as validateAndEmit, ar as isWorker, at as lngFromMercatorX, b as isBackgroundStyleLayer, bi as rotateY$1, bn as getProtocol, br as sphericalToCartesian, ci as clone$1, cn as ErrorEvent, cr as mod, ct as mercatorZfromAltitude, d as OverscaledTileID, di as equals, dn as AJAXError, dr as pick, ei as scale$1, en as EvaluationParameters, er as isImageBitmap, et as tileCoordinatesToMercatorCoordinates, f as UnwrappedTileID, fi as exactEquals, fn as GLOBAL_DISPATCHER_ID, fr as pointPlaneSignedDistance, ft as EXTENT_BOUNDS, g as Actor, gi as multiply, gn as getVideo, gr as remapSaturate, gt as SOUTH_POLE_Y, h as isInBoundsForZoomLngLat, hi as invert$1, hn as getReferrer, hr as readImageUsingVideoFrame, ht as NORTH_POLE_Y, ii as transformMat3, in as emitValidationErrors, ir as isTouchableOrPointableType, it as latFromMercatorY, ji as offscreenCanvasSupported, jn as bezier, jr as length$1, jt as Uniform1f, k as evaluateSizeForFeature, ki as rotate, kn as arrayBufferToImage, kr as EXTENT, kt as polygonIntersectsPolygon, li as copy, ln as Event, lr as nextPowerOfTwo, lt as LngLat, m as compareTileId, mi as identity, mn as getJSON, mr as rayPlaneIntersection, mt as isFillStyleLayer, n as TileCache, ni as sub, nr as isSafari, nt as MercatorCoordinate, oi as transformQuat, on as validateStyle, or as lerp, ot as mercatorXfromLng, p as calculateTileKey, pi as fromScaling, pn as getArrayBuffer, pr as radiansToDegrees, pt as Bounds, q as calculateTileMatrix, qn as filterObject, qr as len, qt as RasterBoundsArray, ri as subtract, rn as SPEC_SOURCE_TYPES, rr as isTouchableEvent, rt as altitudeFromMercatorZ, s as GEOJSON_TILE_LAYER_NAME, si as zero$1, sn as validateStyleAndEmit, sr as mapObject, st as mercatorYfromLat, ti as scaleAndAdd, tn as ZoomHistory, tr as isPointableEvent, tt as unprojectFromWorldCoordinates, u as CanonicalTileID, ui as create$1, un as Evented, ur as parseCacheControl, ut as earthRadius, v as isCustomStyleLayer, vi as perspective, vn as sameOrigin, vr as rollPitchBearingToQuat, vt as SubdivisionGranularitySetting, w as getOverlapMode, wi as create$4, wn as isAbortError, wr as uniqueId, wt as isHeatmapStyleLayer, x as isSymbolStyleLayer, xi as rotateZ, xn as removeProtocol, xr as subscribe, xt as Texture, y as validateCustomStyleLayer, yi as rotateX, yn as addProtocol, yr as scaleZoom, yt as isColorReliefStyleLayer, zi as Color, zn as deepEqual, zr as mul, zt as UniformMatrix4f } from "./maplibre-gl-shared-dev.mjs";
 //#region package.json
-var version$2 = "6.11.2-transit.18-terrain.1";
+var version$2 = "6.11.2-transit.18-terrain.2";
 //#endregion
 //#region src/util/browser.ts
 let linkEl;
@@ -8425,6 +8425,92 @@ var CollisionIndex = class {
 	}
 };
 //#endregion
+//#region src/symbol/symbol_clip.ts
+function createSymbolClip(layerIds, area) {
+	const polygons = [];
+	for (const polygon of area.type === "Polygon" ? [area.coordinates] : area.coordinates) {
+		const clip = {
+			minX: Infinity,
+			minY: Infinity,
+			maxX: -Infinity,
+			maxY: -Infinity,
+			rings: []
+		};
+		for (const ring of polygon) {
+			const flat = [];
+			for (const [lng, lat] of ring) {
+				const x = mercatorXfromLng(lng);
+				const y = mercatorYfromLat(lat);
+				flat.push(x, y);
+				clip.minX = Math.min(clip.minX, x);
+				clip.minY = Math.min(clip.minY, y);
+				clip.maxX = Math.max(clip.maxX, x);
+				clip.maxY = Math.max(clip.maxY, y);
+			}
+			clip.rings.push(flat);
+		}
+		if (clip.rings.length) polygons.push(clip);
+	}
+	return {
+		layerIds: new Set(layerIds),
+		polygons
+	};
+}
+function contains(polygon, x, y) {
+	if (x < polygon.minX || x > polygon.maxX || y < polygon.minY || y > polygon.maxY) return false;
+	let inside = false;
+	for (const ring of polygon.rings) for (let i = 0, j = ring.length - 2; i < ring.length; j = i, i += 2) {
+		const [xi, yi, xj, yj] = [
+			ring[i],
+			ring[i + 1],
+			ring[j],
+			ring[j + 1]
+		];
+		if (yi > y !== yj > y && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+	}
+	return inside;
+}
+/** Whether a and b lie strictly on opposite sides of the line through c and d. */
+function twoSided(ax, ay, bx, by, cx, cy, dx, dy) {
+	const side1 = (ax - cx) * (dy - cy) - (dx - cx) * (ay - cy);
+	const side2 = (bx - cx) * (dy - cy) - (dx - cx) * (by - cy);
+	return side1 > 0 && side2 < 0 || side1 < 0 && side2 > 0;
+}
+function crosses(polygon, ax, ay, bx, by) {
+	for (const ring of polygon.rings) for (let i = 0; i < ring.length - 2; i += 2) {
+		const [cx, cy, dx, dy] = [
+			ring[i],
+			ring[i + 1],
+			ring[i + 2],
+			ring[i + 3]
+		];
+		if (twoSided(ax, ay, bx, by, cx, cy, dx, dy) && twoSided(cx, cy, dx, dy, ax, ay, bx, by)) return true;
+	}
+	return false;
+}
+/** As the `within` expression has it: every point in one polygon, and no segment across its edge. */
+function holds(polygon, points) {
+	for (let i = 0; i < points.length; i += 2) if (!contains(polygon, points[i], points[i + 1])) return false;
+	for (let i = 0; i < points.length - 2; i += 2) if (crosses(polygon, points[i], points[i + 1], points[i + 2], points[i + 3])) return false;
+	return true;
+}
+/**
+* A test of a symbol's point or line, as flat x, y pairs in tile units, against the clip; null where the
+* clip leaves the tile's symbols alone, so the common case costs nothing per symbol.
+*/
+function symbolClipTester(clip, layerIds, tile) {
+	if (!layerIds.some((id) => clip.layerIds.has(id))) return null;
+	const size = 1 / (1 << tile.z);
+	const [x0, y0] = [tile.x * size, tile.y * size];
+	const near = clip.polygons.filter((p) => p.minX <= x0 + size && p.maxX >= x0 && p.minY <= y0 + size && p.maxY >= y0);
+	if (!near.length) return null;
+	const unit = size / EXTENT;
+	return (points) => {
+		const world = points.map((v, i) => (i % 2 ? y0 : x0) + v * unit);
+		return near.some((p) => holds(p, world));
+	};
+}
+//#endregion
 //#region src/symbol/placement.ts
 var OpacityState = class {
 	constructor(prevState, increment, placed, skipFade) {
@@ -8497,6 +8583,7 @@ function calculateVariableLayoutShift(anchor, width, height, textOffset, textBox
 }
 var Placement = class {
 	constructor(transform, terrain, fadeDuration, crossSourceCollisions, prevPlacement, isolatedCollisionLayers) {
+		this.symbolClip = null;
 		this.transform = transform.clone();
 		this.terrain = terrain;
 		this.collisionIndex = new CollisionIndex(this.transform);
@@ -8513,6 +8600,21 @@ var Placement = class {
 		this.prevPlacement = prevPlacement;
 		if (prevPlacement) prevPlacement.prevPlacement = void 0;
 		this.placedOrientations = {};
+	}
+	/** Whether a symbol lies in the clip: the line it is placed along, or its anchor where it has none. */
+	_isClipped(bucket, symbolInstance, clipped) {
+		const textIndex = [
+			symbolInstance.centerJustifiedTextSymbolIndex,
+			symbolInstance.leftJustifiedTextSymbolIndex,
+			symbolInstance.rightJustifiedTextSymbolIndex,
+			symbolInstance.verticalPlacedTextSymbolIndex
+		].find((i) => i >= 0);
+		const placedSymbol = textIndex !== void 0 ? bucket.text.placedSymbolArray.get(textIndex) : symbolInstance.placedIconSymbolIndex >= 0 ? bucket.icon.placedSymbolArray.get(symbolInstance.placedIconSymbolIndex) : null;
+		if (!placedSymbol || placedSymbol.lineLength < 2) return clipped([symbolInstance.anchorX, symbolInstance.anchorY]);
+		const line = bucket.lineVertexArray;
+		const points = [];
+		for (let i = placedSymbol.lineStartIndex; i < placedSymbol.lineStartIndex + placedSymbol.lineLength; i++) points.push(line.getx(i), line.gety(i));
+		return clipped(points);
 	}
 	_getTerrainElevationFunc(tileID) {
 		const terrain = this.terrain;
@@ -8616,8 +8718,13 @@ var Placement = class {
 		const tileID = this.retainedQueryData[bucket.bucketInstanceId].tileID;
 		const getElevation = this._getTerrainElevationFunc(tileID);
 		const simpleProjectionMatrix = this.transform.getFastPathSimpleProjectionMatrix(tileID);
+		const clipped = this.symbolClip ? symbolClipTester(this.symbolClip, bucket.layerIds, tileID.canonical) : null;
 		const placeSymbol = (symbolInstance, collisionArrays, symbolIndex) => {
 			if (seenCrossTileIDs[symbolInstance.crossTileID]) return;
+			if (clipped && this._isClipped(bucket, symbolInstance, clipped)) {
+				this.placements[symbolInstance.crossTileID] = new JointPlacement(false, false, false);
+				return;
+			}
 			let translationText = translationTextBase;
 			let translationIcon = translationIconBase;
 			{
@@ -9783,13 +9890,13 @@ var fill_pattern_vertex_glsl_g_default = "uniform vec2 u_pixel_coord_upper;unifo
 var fill_extrusion_fragment_glsl_g_default = "in vec4 v_color;void main() {fragColor=v_color;\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}";
 //#endregion
 //#region src/shaders/glsl/fill_extrusion.vertex.glsl.g.ts
-var fill_extrusion_vertex_glsl_g_default = "uniform vec3 u_lightcolor;uniform lowp vec3 u_lightpos;uniform lowp vec3 u_lightpos_globe;uniform lowp float u_lightintensity;uniform float u_vertical_gradient;uniform lowp float u_opacity;uniform vec2 u_fill_translate;layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in vec2 a_centroid;\n#endif\nout vec4 v_color;\n#pragma maplibre: define highp float base\n#pragma maplibre: define highp float height\n#pragma maplibre: define highp vec4 color\nvoid main() {\n#pragma maplibre: initialize highp float base\n#pragma maplibre: initialize highp float height\n#pragma maplibre: initialize highp vec4 color\nvec3 normal=vec3(a_normal_ed.xyz);float gradient_base=max(0.0,base);float gradient_height=max(0.0,height);\n#ifdef TERRAIN3D\nfloat height_terrain3d_offset=get_elevation(a_centroid);float base_terrain3d_offset=height_terrain3d_offset-(base > 0.0 ? 0.0 : 10.0);\n#else\nfloat height_terrain3d_offset=0.0;float base_terrain3d_offset=0.0;\n#endif\nbase=max(0.0,base)+base_terrain3d_offset;height=max(0.0,height)+height_terrain3d_offset;float t=float(a_normal_ed.x & 1);float elevation=t > 0.0 ? height : base;vec2 posInTile=a_pos+u_fill_translate;\n#ifdef GLOBE\nvec3 spherePos=projectToSphere(posInTile,a_pos);gl_Position=interpolateProjectionFor3D(posInTile,spherePos,elevation);\n#else\ngl_Position=u_projection_matrix*vec4(posInTile,elevation,1.0);\n#endif\nfloat colorvalue=color.r*0.2126+color.g*0.7152+color.b*0.0722;v_color=vec4(0.0,0.0,0.0,1.0);vec4 ambientlight=vec4(0.03,0.03,0.03,1.0);color+=ambientlight;vec3 normalForLighting=normal/16384.0;float directional=clamp(dot(normalForLighting,u_lightpos),0.0,1.0);\n#ifdef GLOBE\nmat3 rotMatrix=globeGetRotationMatrix(spherePos);normalForLighting=rotMatrix*normalForLighting;directional=mix(directional,clamp(dot(normalForLighting,u_lightpos_globe),0.0,1.0),u_projection_transition);\n#endif\ndirectional=mix((1.0-u_lightintensity),max((1.0-colorvalue+u_lightintensity),1.0),directional);if (normal.y !=0.0) {directional*=((1.0-u_vertical_gradient)+(u_vertical_gradient*clamp((t+gradient_base)*pow(gradient_height/150.0,0.5),mix(0.7,0.98,1.0-u_lightintensity),1.0)));}v_color.r+=clamp(color.r*directional*u_lightcolor.r,mix(0.0,0.3,1.0-u_lightcolor.r),1.0);v_color.g+=clamp(color.g*directional*u_lightcolor.g,mix(0.0,0.3,1.0-u_lightcolor.g),1.0);v_color.b+=clamp(color.b*directional*u_lightcolor.b,mix(0.0,0.3,1.0-u_lightcolor.b),1.0);v_color*=u_opacity;}";
+var fill_extrusion_vertex_glsl_g_default = "uniform vec3 u_lightcolor;uniform lowp vec3 u_lightpos;uniform lowp vec3 u_lightpos_globe;uniform lowp float u_lightintensity;uniform float u_vertical_gradient;uniform lowp float u_opacity;uniform vec2 u_fill_translate;layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in vec2 a_centroid;\n#endif\nout vec4 v_color;\n#pragma maplibre: define highp float base\n#pragma maplibre: define highp float height\n#pragma maplibre: define highp vec4 color\nvoid main() {\n#pragma maplibre: initialize highp float base\n#pragma maplibre: initialize highp float height\n#pragma maplibre: initialize highp vec4 color\nif (height < 0.0) {gl_Position=vec4(2.0,2.0,2.0,1.0);return;}vec3 normal=vec3(a_normal_ed.xyz);float gradient_base=max(0.0,base);float gradient_height=max(0.0,height);\n#ifdef TERRAIN3D\nfloat height_terrain3d_offset=get_elevation(a_centroid);float base_terrain3d_offset=height_terrain3d_offset-(base > 0.0 ? 0.0 : 10.0);\n#else\nfloat height_terrain3d_offset=0.0;float base_terrain3d_offset=0.0;\n#endif\nbase=max(0.0,base)+base_terrain3d_offset;height=max(0.0,height)+height_terrain3d_offset;float t=float(a_normal_ed.x & 1);float elevation=t > 0.0 ? height : base;vec2 posInTile=a_pos+u_fill_translate;\n#ifdef GLOBE\nvec3 spherePos=projectToSphere(posInTile,a_pos);gl_Position=interpolateProjectionFor3D(posInTile,spherePos,elevation);\n#else\ngl_Position=u_projection_matrix*vec4(posInTile,elevation,1.0);\n#endif\nfloat colorvalue=color.r*0.2126+color.g*0.7152+color.b*0.0722;v_color=vec4(0.0,0.0,0.0,1.0);vec4 ambientlight=vec4(0.03,0.03,0.03,1.0);color+=ambientlight;vec3 normalForLighting=normal/16384.0;float directional=clamp(dot(normalForLighting,u_lightpos),0.0,1.0);\n#ifdef GLOBE\nmat3 rotMatrix=globeGetRotationMatrix(spherePos);normalForLighting=rotMatrix*normalForLighting;directional=mix(directional,clamp(dot(normalForLighting,u_lightpos_globe),0.0,1.0),u_projection_transition);\n#endif\ndirectional=mix((1.0-u_lightintensity),max((1.0-colorvalue+u_lightintensity),1.0),directional);if (normal.y !=0.0) {directional*=((1.0-u_vertical_gradient)+(u_vertical_gradient*clamp((t+gradient_base)*pow(gradient_height/150.0,0.5),mix(0.7,0.98,1.0-u_lightintensity),1.0)));}v_color.r+=clamp(color.r*directional*u_lightcolor.r,mix(0.0,0.3,1.0-u_lightcolor.r),1.0);v_color.g+=clamp(color.g*directional*u_lightcolor.g,mix(0.0,0.3,1.0-u_lightcolor.g),1.0);v_color.b+=clamp(color.b*directional*u_lightcolor.b,mix(0.0,0.3,1.0-u_lightcolor.b),1.0);v_color*=u_opacity;}";
 //#endregion
 //#region src/shaders/glsl/fill_extrusion_pattern.fragment.glsl.g.ts
 var fill_extrusion_pattern_fragment_glsl_g_default = "uniform vec2 u_texsize;uniform float u_fade;uniform sampler2D u_image;in vec2 v_pos_a;in vec2 v_pos_b;in vec4 v_lighting;\n#pragma maplibre: define lowp float base\n#pragma maplibre: define lowp float height\n#pragma maplibre: define lowp vec4 pattern_from\n#pragma maplibre: define lowp vec4 pattern_to\n#pragma maplibre: define lowp float pixel_ratio_from\n#pragma maplibre: define lowp float pixel_ratio_to\nvoid main() {\n#pragma maplibre: initialize lowp float base\n#pragma maplibre: initialize lowp float height\n#pragma maplibre: initialize mediump vec4 pattern_from\n#pragma maplibre: initialize mediump vec4 pattern_to\n#pragma maplibre: initialize lowp float pixel_ratio_from\n#pragma maplibre: initialize lowp float pixel_ratio_to\nvec2 pattern_tl_a=pattern_from.xy;vec2 pattern_br_a=pattern_from.zw;vec2 pattern_tl_b=pattern_to.xy;vec2 pattern_br_b=pattern_to.zw;vec2 imagecoord=mod(v_pos_a,1.0);vec2 pos=mix(pattern_tl_a/u_texsize,pattern_br_a/u_texsize,imagecoord);vec4 color1=texture(u_image,pos);vec2 imagecoord_b=mod(v_pos_b,1.0);vec2 pos2=mix(pattern_tl_b/u_texsize,pattern_br_b/u_texsize,imagecoord_b);vec4 color2=texture(u_image,pos2);vec4 mixedColor=mix(color1,color2,u_fade);fragColor=mixedColor*v_lighting;\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}";
 //#endregion
 //#region src/shaders/glsl/fill_extrusion_pattern.vertex.glsl.g.ts
-var fill_extrusion_pattern_vertex_glsl_g_default = "uniform vec2 u_pixel_coord_upper;uniform vec2 u_pixel_coord_lower;uniform float u_height_factor;uniform vec3 u_scale;uniform float u_vertical_gradient;uniform lowp float u_opacity;uniform vec2 u_fill_translate;uniform vec3 u_lightcolor;uniform lowp vec3 u_lightpos;uniform lowp vec3 u_lightpos_globe;uniform lowp float u_lightintensity;layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in vec2 a_centroid;\n#endif\n#ifdef GLOBE\nout vec3 v_sphere_pos;\n#endif\nout vec2 v_pos_a;out vec2 v_pos_b;out vec4 v_lighting;\n#pragma maplibre: define lowp float base\n#pragma maplibre: define lowp float height\n#pragma maplibre: define lowp vec4 pattern_from\n#pragma maplibre: define lowp vec4 pattern_to\n#pragma maplibre: define lowp float pixel_ratio_from\n#pragma maplibre: define lowp float pixel_ratio_to\nvoid main() {\n#pragma maplibre: initialize lowp float base\n#pragma maplibre: initialize lowp float height\n#pragma maplibre: initialize mediump vec4 pattern_from\n#pragma maplibre: initialize mediump vec4 pattern_to\n#pragma maplibre: initialize lowp float pixel_ratio_from\n#pragma maplibre: initialize lowp float pixel_ratio_to\nvec2 pattern_tl_a=pattern_from.xy;vec2 pattern_br_a=pattern_from.zw;vec2 pattern_tl_b=pattern_to.xy;vec2 pattern_br_b=pattern_to.zw;float tileRatio=u_scale.x;float fromScale=u_scale.y;float toScale=u_scale.z;vec3 normal=vec3(a_normal_ed.xyz);float edgedistance=float(a_normal_ed.w);vec2 display_size_a=(pattern_br_a-pattern_tl_a)/pixel_ratio_from;vec2 display_size_b=(pattern_br_b-pattern_tl_b)/pixel_ratio_to;float gradient_base=max(0.0,base);float gradient_height=max(0.0,height);\n#ifdef TERRAIN3D\nfloat height_terrain3d_offset=get_elevation(a_centroid);float base_terrain3d_offset=height_terrain3d_offset-(base > 0.0 ? 0.0 : 10.0);\n#else\nfloat height_terrain3d_offset=0.0;float base_terrain3d_offset=0.0;\n#endif\nbase=max(0.0,base)+base_terrain3d_offset;height=max(0.0,height)+height_terrain3d_offset;float t=float(a_normal_ed.x & 1);float elevation=t > 0.0 ? height : base;vec2 posInTile=a_pos+u_fill_translate;\n#ifdef GLOBE\nvec3 spherePos=projectToSphere(posInTile,a_pos);vec3 elevatedPos=spherePos*(1.0+elevation/GLOBE_RADIUS);v_sphere_pos=elevatedPos;gl_Position=interpolateProjectionFor3D(posInTile,spherePos,elevation);\n#else\ngl_Position=u_projection_matrix*vec4(posInTile,elevation,1.0);\n#endif\nvec2 pos=a_normal_ed.x==1 && a_normal_ed.y==0 && a_normal_ed.z==16384\n? a_pos\n: vec2(edgedistance,elevation*u_height_factor);v_pos_a=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,fromScale*display_size_a,tileRatio,pos);v_pos_b=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,toScale*display_size_b,tileRatio,pos);v_lighting=vec4(0.0,0.0,0.0,1.0);float directional=clamp(dot(normal/16383.0,u_lightpos),0.0,1.0);directional=mix((1.0-u_lightintensity),max((0.5+u_lightintensity),1.0),directional);if (normal.y !=0.0) {directional*=((1.0-u_vertical_gradient)+(u_vertical_gradient*clamp((t+gradient_base)*pow(gradient_height/150.0,0.5),mix(0.7,0.98,1.0-u_lightintensity),1.0)));}v_lighting.rgb+=clamp(directional*u_lightcolor,mix(vec3(0.0),vec3(0.3),1.0-u_lightcolor),vec3(1.0));v_lighting*=u_opacity;}";
+var fill_extrusion_pattern_vertex_glsl_g_default = "uniform vec2 u_pixel_coord_upper;uniform vec2 u_pixel_coord_lower;uniform float u_height_factor;uniform vec3 u_scale;uniform float u_vertical_gradient;uniform lowp float u_opacity;uniform vec2 u_fill_translate;uniform vec3 u_lightcolor;uniform lowp vec3 u_lightpos;uniform lowp vec3 u_lightpos_globe;uniform lowp float u_lightintensity;layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in vec2 a_centroid;\n#endif\n#ifdef GLOBE\nout vec3 v_sphere_pos;\n#endif\nout vec2 v_pos_a;out vec2 v_pos_b;out vec4 v_lighting;\n#pragma maplibre: define lowp float base\n#pragma maplibre: define lowp float height\n#pragma maplibre: define lowp vec4 pattern_from\n#pragma maplibre: define lowp vec4 pattern_to\n#pragma maplibre: define lowp float pixel_ratio_from\n#pragma maplibre: define lowp float pixel_ratio_to\nvoid main() {\n#pragma maplibre: initialize lowp float base\n#pragma maplibre: initialize lowp float height\n#pragma maplibre: initialize mediump vec4 pattern_from\n#pragma maplibre: initialize mediump vec4 pattern_to\n#pragma maplibre: initialize lowp float pixel_ratio_from\n#pragma maplibre: initialize lowp float pixel_ratio_to\nif (height < 0.0) {gl_Position=vec4(2.0,2.0,2.0,1.0);return;}vec2 pattern_tl_a=pattern_from.xy;vec2 pattern_br_a=pattern_from.zw;vec2 pattern_tl_b=pattern_to.xy;vec2 pattern_br_b=pattern_to.zw;float tileRatio=u_scale.x;float fromScale=u_scale.y;float toScale=u_scale.z;vec3 normal=vec3(a_normal_ed.xyz);float edgedistance=float(a_normal_ed.w);vec2 display_size_a=(pattern_br_a-pattern_tl_a)/pixel_ratio_from;vec2 display_size_b=(pattern_br_b-pattern_tl_b)/pixel_ratio_to;float gradient_base=max(0.0,base);float gradient_height=max(0.0,height);\n#ifdef TERRAIN3D\nfloat height_terrain3d_offset=get_elevation(a_centroid);float base_terrain3d_offset=height_terrain3d_offset-(base > 0.0 ? 0.0 : 10.0);\n#else\nfloat height_terrain3d_offset=0.0;float base_terrain3d_offset=0.0;\n#endif\nbase=max(0.0,base)+base_terrain3d_offset;height=max(0.0,height)+height_terrain3d_offset;float t=float(a_normal_ed.x & 1);float elevation=t > 0.0 ? height : base;vec2 posInTile=a_pos+u_fill_translate;\n#ifdef GLOBE\nvec3 spherePos=projectToSphere(posInTile,a_pos);vec3 elevatedPos=spherePos*(1.0+elevation/GLOBE_RADIUS);v_sphere_pos=elevatedPos;gl_Position=interpolateProjectionFor3D(posInTile,spherePos,elevation);\n#else\ngl_Position=u_projection_matrix*vec4(posInTile,elevation,1.0);\n#endif\nvec2 pos=a_normal_ed.x==1 && a_normal_ed.y==0 && a_normal_ed.z==16384\n? a_pos\n: vec2(edgedistance,elevation*u_height_factor);v_pos_a=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,fromScale*display_size_a,tileRatio,pos);v_pos_b=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,toScale*display_size_b,tileRatio,pos);v_lighting=vec4(0.0,0.0,0.0,1.0);float directional=clamp(dot(normal/16383.0,u_lightpos),0.0,1.0);directional=mix((1.0-u_lightintensity),max((0.5+u_lightintensity),1.0),directional);if (normal.y !=0.0) {directional*=((1.0-u_vertical_gradient)+(u_vertical_gradient*clamp((t+gradient_base)*pow(gradient_height/150.0,0.5),mix(0.7,0.98,1.0-u_lightintensity),1.0)));}v_lighting.rgb+=clamp(directional*u_lightcolor,mix(vec3(0.0),vec3(0.3),1.0-u_lightcolor),vec3(1.0));v_lighting*=u_opacity;}";
 //#endregion
 //#region src/shaders/glsl/hillshade_prepare.fragment.glsl.g.ts
 var hillshade_prepare_fragment_glsl_g_default = "#ifdef GL_ES\nprecision highp float;\n#endif\nuniform sampler2D u_image;in vec2 v_pos;uniform vec2 u_dimension;uniform float u_zoom;uniform vec4 u_unpack;float getElevation(ivec2 texel) {vec4 data=texelFetch(u_image,texel,0)*255.0;data.a=-1.0;return dot(data,u_unpack);}void main() {ivec2 pos=ivec2(gl_FragCoord.xy)+ivec2(1);float tileSize=u_dimension.x-4.0;float a=getElevation(pos+ivec2(-1,-1));float b=getElevation(pos+ivec2(0,-1));float c=getElevation(pos+ivec2(1,-1));float d=getElevation(pos+ivec2(-1,0));float e=getElevation(pos);float f=getElevation(pos+ivec2(1,0));float g=getElevation(pos+ivec2(-1,1));float h=getElevation(pos+ivec2(0,1));float i=getElevation(pos+ivec2(1,1));float exaggerationFactor=u_zoom < 2.0 ? 0.4 : u_zoom < 4.5 ? 0.35 : 0.3;float exaggeration=u_zoom < 15.0 ? (u_zoom-15.0)*exaggerationFactor : 0.0;vec2 deriv=vec2((c+f+f+i)-(a+d+d+g),(g+h+h+i)-(a+b+b+c))*tileSize/pow(2.0,exaggeration+(28.2562-u_zoom));fragColor=clamp(vec4(deriv.x/8.0+128.0/255.0,deriv.y/8.0+128.0/255.0,1.0,1.0),0.0,1.0);\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}";
@@ -15079,6 +15186,7 @@ const empty = emptyStyle();
 var Style = class extends Evented {
 	constructor(map, options = {}) {
 		super();
+		this._symbolClip = null;
 		this._rtlPluginLoaded = () => {
 			for (const id in this.tileManagers) {
 				const sourceType = this.tileManagers[id].getSource().type;
@@ -15816,6 +15924,22 @@ var Style = class extends Evented {
 		if (maxzoom != null) layer.maxzoom = maxzoom;
 		this._updateLayer(layer);
 	}
+	/** Draw a layer or leave it undrawn, its tiles and buckets untouched either way. */
+	setLayerMuted(layerId, muted) {
+		this._checkLoaded();
+		const layer = this.getLayer(layerId);
+		if (!layer) {
+			this.fire(new ErrorEvent(/* @__PURE__ */ new Error(`Cannot mute non-existing layer "${layerId}".`)));
+			return;
+		}
+		layer.muted = muted;
+	}
+	/** Leave the symbols of these layers unplaced wherever they lie wholly in an area; null clears it. */
+	setSymbolClip(layerIds, area) {
+		this._checkLoaded();
+		this._symbolClip = area ? createSymbolClip(layerIds, area) : null;
+		this.placement?.setStale();
+	}
 	setFilter(layerId, filter, options = {}) {
 		this._checkLoaded();
 		const layer = this.getLayer(layerId);
@@ -16229,6 +16353,7 @@ var Style = class extends Evented {
 			this._symbolPlacementTriggered = false;
 			this._placedProjectionTransition = this.projection?.transitionState;
 			this.pauseablePlacement = new PauseablePlacement(transform, this.map.terrain, this._order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, this.placement, isolatedCollisionLayers);
+			this.pauseablePlacement.placement.symbolClip = this._symbolClip;
 			this._layerOrderChanged = false;
 		}
 		if (this.pauseablePlacement.isDone()) {
@@ -20368,7 +20493,7 @@ var Painter = class Painter {
 		renderContext.currentPass = "offscreen";
 		for (const layerId of layerIds) {
 			const layer = this.style._layers[layerId];
-			if (!layer.hasOffscreenPass() || layer.isHidden(this.transform.zoom)) continue;
+			if (!layer.hasOffscreenPass() || layer.muted || layer.isHidden(this.transform.zoom)) continue;
 			const coords = coordsDescending[layer.source];
 			if (layer.type !== "custom" && !coords.length) continue;
 			this.renderLayer(this, tileManagers[layer.source], layer, coords, renderContext);
@@ -20467,7 +20592,7 @@ var Painter = class Painter {
 		this.drawFunctions.terrainDepth(this, this.style.map.terrain);
 	}
 	renderLayer(painter, tileManager, layer, coords, renderContext) {
-		if (layer.isHidden(this.transform.zoom)) return;
+		if (layer.muted || layer.isHidden(this.transform.zoom)) return;
 		if (layer.type !== "background" && layer.type !== "custom" && !(coords || []).length) return;
 		this.id = layer.id;
 		const draw = this.drawFunctions;
@@ -24454,7 +24579,7 @@ var RenderToTexture = class {
 		this._prevDraped = false;
 		this._rttTiles = [];
 		this._renderableTiles = this.terrain.tileManager.getRenderableTiles();
-		this._renderableLayerIds = style._order.filter((id) => !style._layers[id].isHidden(zoom));
+		this._renderableLayerIds = style._order.filter((id) => !style._layers[id].muted && !style._layers[id].isHidden(zoom));
 		this._drapedLayerIds = this.drapeBeneath ? this._renderableLayerIds.filter((id) => drapes(style._layers[id])) : null;
 		const visibleLayerIds = (this._drapedLayerIds ?? this._renderableLayerIds).join();
 		const rttSourceIds = /* @__PURE__ */ new Set();
@@ -24524,7 +24649,7 @@ var RenderToTexture = class {
 	* @returns if true layer is rendered to texture, otherwise false
 	*/
 	renderLayer(layer, renderContext) {
-		if (layer.isHidden(this.painter.transform.zoom)) return false;
+		if (layer.muted || layer.isHidden(this.painter.transform.zoom)) return false;
 		const draped = drapes(layer);
 		if (this._drapedLayerIds) {
 			if (!this._stacks.length && this._drapedLayerIds.length) {
@@ -27202,6 +27327,32 @@ var Map$1 = class extends Evented {
 	setLayerZoomRange(layerId, minzoom, maxzoom) {
 		this.style.setLayerZoomRange(layerId, minzoom, maxzoom);
 		return this._update(true);
+	}
+	/**
+	* Draws a layer or leaves it undrawn, without reloading its tiles: a muted layer's source keeps loading and
+	* its features stay queryable with {@link Map.querySourceFeatures}. Setting `visibility` to `none` would stop
+	* the source loading, and zeroing a data-driven opacity re-parses every tile of the source.
+	*
+	* @param layerId - The ID of the layer to mute.
+	* @param muted - Whether the layer is left undrawn.
+	*/
+	setLayerMuted(layerId, muted) {
+		this.style.setLayerMuted(layerId, muted);
+		this.triggerRepaint();
+		return this;
+	}
+	/**
+	* Leaves the symbols of the given layers unplaced wherever the line they are placed along, or the point they
+	* stand at, lies wholly inside an area, without reloading their tiles as a `within` filter would. One clip
+	* holds at a time; `null` clears it.
+	*
+	* @param layerIds - The IDs of the symbol layers to clip.
+	* @param area - The area to clip them in, in longitude and latitude.
+	*/
+	setSymbolClip(layerIds, area) {
+		this.style.setSymbolClip(layerIds, area);
+		this.triggerRepaint();
+		return this;
 	}
 	/**
 	* Sets the filter for the specified style layer.

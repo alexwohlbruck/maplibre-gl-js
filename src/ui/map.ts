@@ -3616,6 +3616,34 @@ export class Map extends Evented<MapEventType> {
     }
 
     /**
+     * Draws a layer or leaves it undrawn, without reloading its tiles: a muted layer's source keeps loading and
+     * its features stay queryable with {@link Map.querySourceFeatures}. Setting `visibility` to `none` would stop
+     * the source loading, and zeroing a data-driven opacity re-parses every tile of the source.
+     *
+     * @param layerId - The ID of the layer to mute.
+     * @param muted - Whether the layer is left undrawn.
+     */
+    setLayerMuted(layerId: string, muted: boolean): this {
+        this.style.setLayerMuted(layerId, muted);
+        this.triggerRepaint();
+        return this;
+    }
+
+    /**
+     * Leaves the symbols of the given layers unplaced wherever the line they are placed along, or the point they
+     * stand at, lies wholly inside an area, without reloading their tiles as a `within` filter would. One clip
+     * holds at a time; `null` clears it.
+     *
+     * @param layerIds - The IDs of the symbol layers to clip.
+     * @param area - The area to clip them in, in longitude and latitude.
+     */
+    setSymbolClip(layerIds: string[], area: GeoJSON.Polygon | GeoJSON.MultiPolygon | null): this {
+        this.style.setSymbolClip(layerIds, area);
+        this.triggerRepaint();
+        return this;
+    }
+
+    /**
      * Sets the filter for the specified style layer.
      *
      * Filters control which features a style layer renders from its source.

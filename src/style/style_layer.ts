@@ -91,6 +91,11 @@ export abstract class StyleLayer extends Evented<ErrorEventType> {
     maxzoom: number;
     filter: FilterSpecification | void;
     visibility: VisibilitySpecification;
+    /**
+     * Left undrawn while its tiles keep loading and its buckets keep being built: unlike `visibility` or
+     * an opacity of zero on a data-driven property, turning it on and off reloads nothing.
+     */
+    muted: boolean = false;
     private _evaluatedVisibility: 'visible' | 'none' | void;
 
     _crossfadeParameters: CrossfadeParameters;

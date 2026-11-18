@@ -26,6 +26,13 @@ void main() {
     #pragma maplibre: initialize highp float height
     #pragma maplibre: initialize highp vec4 color
 
+    // A negative height takes the extrusion out of the frame: a feature state can hide it, where a filter
+    // would reload its tile to do the same.
+    if (height < 0.0) {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        return;
+    }
+
     vec3 normal = vec3(a_normal_ed.xyz);
 
     // The vertical gradient describes the structure itself, so it keeps the extrusion's own

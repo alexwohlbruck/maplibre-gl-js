@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.2/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.3/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -29926,6 +29926,61 @@ var DictionaryCoder = class {
 	}
 };
 //#endregion
+//#region src/source/lazy_vector_tile.ts
+const LAYER_TAG = 3;
+const NAME_TAG = 1;
+const LENGTH_DELIMITED = 2;
+/** The name of the layer message starting at the reader's position, which is left where it was. */
+function layerName(pbf, end) {
+	const start = pbf.pos;
+	let name = "";
+	while (pbf.pos < end) {
+		const key = pbf.readVarint();
+		if (key >> 3 === NAME_TAG) {
+			name = pbf.readString();
+			break;
+		}
+		pbf.skip(key);
+	}
+	pbf.pos = start;
+	return name;
+}
+/**
+* A vector tile's layers by name, each one parsed when it is first read. Parsing a layer decodes every key
+* and value it holds, so a query or a feature-state update that wants one layer of a large tile no longer
+* pays for all of them on the main thread.
+*/
+function lazyVectorTileLayers(data) {
+	const pbf = new PbfReader(data);
+	const layers = {};
+	while (pbf.pos < pbf.length) {
+		const key = pbf.readVarint();
+		if (key >> 3 !== LAYER_TAG || (key & 7) !== LENGTH_DELIMITED) {
+			pbf.skip(key);
+			continue;
+		}
+		const end = pbf.readVarint() + pbf.pos;
+		const start = pbf.pos;
+		const name = layerName(pbf, end);
+		pbf.pos = end;
+		if (!name) continue;
+		let layer;
+		Object.defineProperty(layers, name, {
+			enumerable: true,
+			configurable: true,
+			get: () => {
+				if (!layer) {
+					const reader = new PbfReader(data);
+					reader.pos = start;
+					layer = new VectorTileLayer(reader, end);
+				}
+				return layer;
+			}
+		});
+	}
+	return layers;
+}
+//#endregion
 //#region src/util/vectortile_to_geojson.ts
 /**
 * A geojson feature
@@ -34511,7 +34566,7 @@ var FeatureIndex = class {
 				case "mlt":
 					this.vtLayers = new MLTVectorTile(this.rawTileData).layers;
 					break;
-				default: this.vtLayers = new VectorTile(new PbfReader(this.rawTileData)).layers;
+				default: this.vtLayers = lazyVectorTileLayers(this.rawTileData);
 			}
 			this.sourceLayerCoder = new DictionaryCoder(this.vtLayers ? Object.keys(this.vtLayers).sort() : [GEOJSON_TILE_LAYER_NAME]);
 		}

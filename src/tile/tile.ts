@@ -538,9 +538,11 @@ export class Tile {
             const bucket = this.buckets[id];
             // Buckets are grouped by common source-layer
             const sourceLayerId = bucket.layers[0]['sourceLayer'] || GEOJSON_TILE_LAYER_NAME;
-            const sourceLayer = vtLayers[sourceLayerId];
+            // The states first: reading a layer parses it, and most of a tile's layers carry none.
             const sourceLayerStates = states[sourceLayerId];
-            if (!sourceLayer || !sourceLayerStates || sourceLayerStates.length === 0) continue;
+            if (!sourceLayerStates || Object.keys(sourceLayerStates).length === 0) continue;
+            const sourceLayer = vtLayers[sourceLayerId];
+            if (!sourceLayer) continue;
 
             bucket.update(sourceLayerStates, sourceLayer, this.imageAtlas?.patternPositions || {}, this.dashPositions || {});
             const layer = painter?.style?.getLayer(id);

@@ -4414,6 +4414,8 @@ export class Map extends Evented<MapEventType> {
 
         const isGlobeRendering = this.style.projection?.transitionState > 0;
 
+        this.terrain?.beginFrame();
+
         // A custom layer may have used the context asynchronously. Mark the state as dirty.
         this.painter.context.setDirty();
         this.painter.setBaseState();

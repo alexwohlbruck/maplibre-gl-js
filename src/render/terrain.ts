@@ -159,6 +159,7 @@ export class Terrain {
      * Missing DEM data is deliberately not cached so a later sample can retry.
      */
     _elevationSamplerCache: Map<string, TerrainElevationSampler>;
+    _minMaxCache: Map<string, {minElevation: number | null; maxElevation: number | null}> = new Map();
     /**
      * Index of the tiles the terrain draws, used by CPU raycasts and elevation lookups.
      * It is cleared together with the elevation sampler cache; undefined means not built yet.
@@ -503,13 +504,25 @@ export class Terrain {
      * exaggeration
      */
     getMinMaxElevation(tileID: OverscaledTileID): {minElevation: number | null; maxElevation: number | null} {
+        // Every source's tile cover asks this of the same tiles each frame, and finding a tile's DEM walks its parents.
+        const cached = this._minMaxCache.get(tileID.key);
+        if (cached) return cached;
         const tile = this.tileManager.getSourceTile(tileID, true);
         const minMax: {minElevation: number | null; maxElevation: number | null} = {minElevation: null, maxElevation: null};
         if (tile?.dem) {
             minMax.minElevation = tile.dem.min * this.exaggeration;
             minMax.maxElevation = tile.dem.max * this.exaggeration;
         }
+        this._minMaxCache.set(tileID.key, minMax);
         return minMax;
+    }
+
+    /**
+     * Drop what is only good for one frame: a DEM tile may load, or be edited in place, between two.
+     * @internal
+     */
+    beginFrame(): void {
+        this._minMaxCache.clear();
     }
 
     _getOverscaledTileIDFromLngLatZoom(lnglat: LngLat, zoom: number): { tileID: OverscaledTileID; mercatorX: number; mercatorY: number} {

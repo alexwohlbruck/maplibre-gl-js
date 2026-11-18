@@ -5,7 +5,7 @@ import {EXTENT} from './extent.ts';
 import {featureFilter} from '@maplibre/maplibre-gl-style-spec';
 import {TransferableGridIndex} from '../util/transferable_grid_index.ts';
 import {DictionaryCoder} from '../util/dictionary_coder.ts';
-import {PbfReader} from 'pbf';
+import {lazyVectorTileLayers} from '../source/lazy_vector_tile.ts';
 import {GeoJSONFeature} from '../util/vectortile_to_geojson.ts';
 import {mapObject, extend} from '../util/util.ts';
 import {register} from '../util/web_worker_transfer.ts';
@@ -15,7 +15,6 @@ import {PossiblyEvaluated} from '../style/properties.ts';
 import {FeatureIndexArray} from './array_types.g.ts';
 import {MLTVectorTile} from '../source/vector_tile_mlt.ts';
 import {Bounds} from '../geo/bounds.ts';
-import {VectorTile} from '@mapbox/vector-tile';
 
 import type Point from '@mapbox/point-geometry';
 import type {OverscaledTileID} from '../tile/tile_id.ts';
@@ -120,7 +119,7 @@ export class FeatureIndex {
                     break;
                 case 'mvt':
                 default:
-                    this.vtLayers = new VectorTile(new PbfReader(this.rawTileData)).layers;
+                    this.vtLayers = lazyVectorTileLayers(this.rawTileData);
             }
             this.sourceLayerCoder = new DictionaryCoder(this.vtLayers ? Object.keys(this.vtLayers).sort() : [GEOJSON_TILE_LAYER_NAME]);
         }

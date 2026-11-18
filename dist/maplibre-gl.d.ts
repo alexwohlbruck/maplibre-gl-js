@@ -8322,6 +8322,10 @@ declare class Terrain {
    * Missing DEM data is deliberately not cached so a later sample can retry.
    */
   _elevationSamplerCache: Map<string, TerrainElevationSampler>;
+  _minMaxCache: Map<string, {
+    minElevation: number | null;
+    maxElevation: number | null;
+  }>;
   /**
    * Index of the tiles the terrain draws, used by CPU raycasts and elevation lookups.
    * It is cleared together with the elevation sampler cache; undefined means not built yet.
@@ -8435,6 +8439,11 @@ declare class Terrain {
     minElevation: number | null;
     maxElevation: number | null;
   };
+  /**
+   * Drop what is only good for one frame: a DEM tile may load, or be edited in place, between two.
+   * @internal
+   */
+  beginFrame(): void;
   _getOverscaledTileIDFromLngLatZoom(lnglat: LngLat, zoom: number): {
     tileID: OverscaledTileID;
     mercatorX: number;

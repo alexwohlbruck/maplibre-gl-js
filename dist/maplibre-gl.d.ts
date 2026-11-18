@@ -5465,6 +5465,8 @@ declare class FillExtrusionBucket implements Bucket {
   layoutVertexBuffer: VertexBuffer;
   /** Each vertex's terrain anchor (see `terrainAnchor`), kept on the main thread to work its elevation out from. */
   centroidVertexArray: PosArray;
+  /** The anchors on the GPU, which nothing here reads: a custom layer drawing the bucket may tell buildings apart by them. */
+  centroidVertexBuffer: VertexBuffer;
   /** Each vertex's ground elevation under 3D terrain, for the DEM named by `anchorElevationKey`. */
   anchorElevationArray: StructArrayLayout1f4;
   anchorElevationBuffer: VertexBuffer;

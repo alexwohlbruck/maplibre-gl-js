@@ -1,5 +1,5 @@
 import {FillExtrusionLayoutArray, PosArray, StructArrayLayout1f4} from '../array_types.g.ts';
-import {members as layoutAttributes, anchorElevationAttributes} from './fill_extrusion_attributes.ts';
+import {members as layoutAttributes, anchorElevationAttributes, centroidAttributes} from './fill_extrusion_attributes.ts';
 import {anchorElevation, terrainAnchor} from './fill_extrusion_anchor.ts';
 import {type Segment, SegmentVector} from '../segment.ts';
 import {ProgramConfigurationSet} from '../program_configuration.ts';
@@ -72,6 +72,8 @@ export class FillExtrusionBucket implements Bucket {
 
     /** Each vertex's terrain anchor (see `terrainAnchor`), kept on the main thread to work its elevation out from. */
     centroidVertexArray: PosArray;
+    /** The anchors on the GPU, which nothing here reads: a custom layer drawing the bucket may tell buildings apart by them. */
+    centroidVertexBuffer: VertexBuffer;
     /** Each vertex's ground elevation under 3D terrain, for the DEM named by `anchorElevationKey`. */
     anchorElevationArray: StructArrayLayout1f4;
     anchorElevationBuffer: VertexBuffer;
@@ -165,6 +167,7 @@ export class FillExtrusionBucket implements Bucket {
     upload(context: Context): void {
         if (!this.uploaded) {
             this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, layoutAttributes);
+            this.centroidVertexBuffer = context.createVertexBuffer(this.centroidVertexArray, centroidAttributes.members, true);
             this.indexBuffer = context.createIndexBuffer(this.indexArray);
         }
         this.programConfigurations.upload(context);
@@ -177,6 +180,7 @@ export class FillExtrusionBucket implements Bucket {
         this.indexBuffer.destroy();
         this.programConfigurations.destroy();
         this.segments.destroy();
+        this.centroidVertexBuffer.destroy();
         this.anchorElevationBuffer?.destroy();
     }
 

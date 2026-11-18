@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.4/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.5/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -19163,7 +19163,7 @@ const layout$3 = createLayout([{
 	components: 4,
 	type: "Int16"
 }], 4);
-createLayout([{
+const centroidAttributes = createLayout([{
 	name: "a_centroid",
 	components: 2,
 	type: "Int16"
@@ -20185,6 +20185,7 @@ var FillExtrusionBucket = class {
 	upload(context) {
 		if (!this.uploaded) {
 			this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, members$2);
+			this.centroidVertexBuffer = context.createVertexBuffer(this.centroidVertexArray, centroidAttributes.members, true);
 			this.indexBuffer = context.createIndexBuffer(this.indexArray);
 		}
 		this.programConfigurations.upload(context);
@@ -20196,6 +20197,7 @@ var FillExtrusionBucket = class {
 		this.indexBuffer.destroy();
 		this.programConfigurations.destroy();
 		this.segments.destroy();
+		this.centroidVertexBuffer.destroy();
 		this.anchorElevationBuffer?.destroy();
 	}
 	/**

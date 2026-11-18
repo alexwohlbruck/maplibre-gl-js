@@ -14,6 +14,8 @@ import {isInBoundsForZoomLngLat} from '../util/world_bounds.ts';
 import {NORTH_POLE_Y, SOUTH_POLE_Y} from './subdivision.ts';
 import {coveringTiles} from '../geo/projection/covering_tiles.ts';
 
+import type {FillExtrusionBucket} from '../data/bucket/fill_extrusion_bucket.ts';
+import type {VertexBuffer} from '../webgl/vertex_buffer.ts';
 import type {Tile} from '../tile/tile.ts';
 import type {Framebuffer} from '../webgl/framebuffer.ts';
 import type {TileManager} from '../tile/tile_manager.ts';
@@ -274,6 +276,33 @@ export class Terrain {
     }
 
     /**
+     * A reader of a tile's elevation as the vertex shader's `get_elevation` has it: from the one DEM tile the
+     * tile is drawn with, clamped at its border, and exaggerated. In tile units; null while no DEM has loaded.
+     * @internal
+     */
+    getTileElevationReader(tileID: OverscaledTileID): ((x: number, y: number) => number) | null {
+        const sourceTile = this.tileManager.getSourceTile(tileID, true);
+        const dem = sourceTile?.dem;
+        if (!sourceTile || !dem) return null;
+        const matrix = this._getDEMTileMatrix(tileID, sourceTile);
+        const [scaleX, scaleY] = [matrix[0] * dem.dim, matrix[5] * dem.dim];
+        const [offsetX, offsetY] = [matrix[12] * dem.dim + DEM_CELL_CENTER_OFFSET, matrix[13] * dem.dim + DEM_CELL_CENTER_OFFSET];
+        const exaggeration = this.exaggeration;
+        return (x, y) => dem.sampleBilinearClamped(x * scaleX + offsetX, y * scaleY + offsetY) * exaggeration;
+    }
+
+    /**
+     * A fill-extrusion bucket's buffer of ground elevations, one a vertex, for the DEM its tile is drawn with now.
+     * For whatever draws the bucket, a custom layer included.
+     * @internal
+     */
+    getAnchorElevations(bucket: FillExtrusionBucket, tileID: OverscaledTileID): VertexBuffer {
+        const sourceTile = this.getTerrainData(tileID).tile;
+        const key = `${sourceTile?.uid}:${sourceTile?.demRevision}:${this.exaggeration}`;
+        return bucket.updateAnchorElevations(this.painter.context, key, () => this.getTileElevationReader(tileID) ?? (() => 0));
+    }
+
+    /**
      * Clear CPU elevation samplers that may retain a previously selected DEM tile.
      * @internal
      */
@@ -397,6 +426,7 @@ export class Terrain {
             else sourceTile.demTexture = new Texture(context, sourceTile.dem.getPixels(), context.gl.RGBA, {premultiply: false});
             sourceTile.demTexture.bind(context.gl.NEAREST, context.gl.CLAMP_TO_EDGE);
             sourceTile.needsTerrainPrepare = false;
+            sourceTile.demRevision++;
         }
         const terrainMatrix = sourceTile ? this._getDEMTileMatrix(tileID, sourceTile) : this._emptyDemMatrix;
         // return uniform values & textures

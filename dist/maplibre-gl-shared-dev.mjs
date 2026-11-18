@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.3/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.4/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -17396,6 +17396,11 @@ var DEMData = class DEMData {
 		const index = this._idx(x, y) * 4;
 		return this._unpackAtIndex(pixels, index);
 	}
+	/** `sampleBilinear`, with a point past the border read at the border, as the DEM texture clamps one. */
+	sampleBilinearClamped(x, y) {
+		const last = this.dim - .001;
+		return this.sampleBilinear(Math.max(-1, Math.min(last, x)), Math.max(-1, Math.min(last, y)));
+	}
 	sampleBilinear(x, y) {
 		const cx = Math.floor(x);
 		const cy = Math.floor(y);
@@ -19158,14 +19163,105 @@ const layout$3 = createLayout([{
 	components: 4,
 	type: "Int16"
 }], 4);
-const centroidAttributes = createLayout([{
+createLayout([{
 	name: "a_centroid",
 	components: 2,
 	type: "Int16"
 }], 4);
+const anchorElevationAttributes = createLayout([{
+	name: "a_anchor_elevation",
+	components: 1,
+	type: "Float32"
+}], 4);
 const members$2 = layout$3.members;
 layout$3.size;
 layout$3.alignment;
+//#endregion
+//#region src/data/bucket/fill_extrusion_anchor.ts
+const GRID = 8;
+const snapped = (v) => Math.max(0, Math.floor(v / GRID) * GRID);
+/** A half extent as the power of two that covers it, in three bits; zero for one within a grid cell. */
+const reach = (half) => half <= GRID ? 0 : Math.max(1, Math.min(7, Math.ceil(Math.log2(half / GRID))));
+/**
+* The anchor of a polygon, or null where the tile holding the centre of its bounds draws it instead.
+* A piece cut by a tile edge anchors on the edge, midway along what it cuts, where its neighbour's piece
+* anchors too; one cut by two edges anchors on their corner.
+*/
+function terrainAnchor(polygon) {
+	let [west, east, north, south] = [
+		Infinity,
+		-Infinity,
+		Infinity,
+		-Infinity
+	];
+	for (const ring of polygon) for (const p of ring) {
+		if (p.x < west) west = p.x;
+		if (p.x > east) east = p.x;
+		if (p.y < north) north = p.y;
+		if (p.y > south) south = p.y;
+	}
+	const [x, y] = [(west + east) / 2, (north + south) / 2];
+	if (!(east >= west) || x < 0 || x >= 8192 || y < 0 || y >= 8192) return null;
+	const cuts = [{
+		span: -1,
+		edge: 0,
+		middle: 0
+	}, {
+		span: -1,
+		edge: 0,
+		middle: 0
+	}];
+	for (const [vertical, edge] of [
+		[true, 0],
+		[true, EXTENT],
+		[false, 0],
+		[false, EXTENT]
+	]) {
+		if (vertical ? !(west < edge && east > edge) : !(north < edge && south > edge)) continue;
+		let [low, high] = [Infinity, -Infinity];
+		for (const ring of polygon) for (let i = 1; i < ring.length; i++) {
+			const [p, q] = [ring[i - 1], ring[i]];
+			const [pa, qa] = vertical ? [p.x, q.x] : [p.y, q.y];
+			if (pa < edge === qa < edge) continue;
+			const t = (edge - pa) / (qa - pa);
+			const crossing = vertical ? p.y + (q.y - p.y) * t : p.x + (q.x - p.x) * t;
+			if (crossing < low) low = crossing;
+			if (crossing > high) high = crossing;
+		}
+		const cut = cuts[vertical ? 0 : 1];
+		if (high >= low && high - low > cut.span) {
+			cut.span = high - low;
+			cut.edge = edge;
+			cut.middle = (low + high) / 2;
+		}
+	}
+	const [byColumn, byRow] = cuts;
+	if (byColumn.span >= 0 && byRow.span >= 0) return {
+		x: byColumn.edge,
+		y: byRow.edge
+	};
+	if (byColumn.span >= 0) return {
+		x: byColumn.edge,
+		y: snapped(byColumn.middle) + reach(byColumn.span / 2)
+	};
+	if (byRow.span >= 0) return {
+		x: snapped(byRow.middle) + reach(byRow.span / 2),
+		y: byRow.edge
+	};
+	return {
+		x: snapped(x) + reach((east - west) / 2),
+		y: snapped(y) + reach((south - north) / 2)
+	};
+}
+/** The lowest ground over an anchor's reach: at its point, and at the four corners around it. */
+function anchorElevation(x, y, elevationAt) {
+	const [px, py] = [Math.floor(x / GRID) * GRID, Math.floor(y / GRID) * GRID];
+	const [cx, cy] = [x - px, y - py];
+	const [rx, ry] = [cx < .5 ? 0 : GRID * 2 ** cx, cy < .5 ? 0 : GRID * 2 ** cy];
+	let lowest = elevationAt(px, py);
+	if (rx || ry) lowest = Math.min(lowest, elevationAt(px + rx, py + ry), elevationAt(px - rx, py - ry), elevationAt(px + rx, py - ry), elevationAt(px - rx, py + ry));
+	return lowest;
+}
 //#endregion
 //#region src/geo/bounds.ts
 /** A 2-d bounding box covering an X and Y range. */
@@ -20089,7 +20185,6 @@ var FillExtrusionBucket = class {
 	upload(context) {
 		if (!this.uploaded) {
 			this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, members$2);
-			this.centroidVertexBuffer = context.createVertexBuffer(this.centroidVertexArray, centroidAttributes.members, true);
 			this.indexBuffer = context.createIndexBuffer(this.indexArray);
 		}
 		this.programConfigurations.upload(context);
@@ -20101,10 +20196,44 @@ var FillExtrusionBucket = class {
 		this.indexBuffer.destroy();
 		this.programConfigurations.destroy();
 		this.segments.destroy();
-		this.centroidVertexBuffer.destroy();
+		this.anchorElevationBuffer?.destroy();
+	}
+	/**
+	* The buffer of each vertex's ground elevation, worked out again only when `key`, naming the DEM it is read
+	* from, changes. The vertex shader used to sample the DEM for every vertex of every building on every frame.
+	*/
+	updateAnchorElevations(context, key, reader) {
+		if (this.anchorElevationBuffer && this.anchorElevationKey === key) return this.anchorElevationBuffer;
+		const elevationAt = reader();
+		const anchors = this.centroidVertexArray.int16;
+		const count = this.centroidVertexArray.length;
+		if (!this.anchorElevationArray) {
+			this.anchorElevationArray = new StructArrayLayout1f4();
+			this.anchorElevationArray.resize(count);
+		}
+		const elevations = this.anchorElevationArray.float32;
+		let [lastX, lastY, elevation] = [
+			NaN,
+			NaN,
+			0
+		];
+		for (let i = 0; i < count; i++) {
+			const [x, y] = [anchors[i * 2], anchors[i * 2 + 1]];
+			if (x !== lastX || y !== lastY) {
+				elevation = anchorElevation(x, y, elevationAt);
+				[lastX, lastY] = [x, y];
+			}
+			elevations[i] = elevation;
+		}
+		if (this.anchorElevationBuffer) this.anchorElevationBuffer.updateData(this.anchorElevationArray);
+		else this.anchorElevationBuffer = context.createVertexBuffer(this.anchorElevationArray, anchorElevationAttributes.members, true);
+		this.anchorElevationKey = key;
+		return this.anchorElevationBuffer;
 	}
 	addFeature(feature, geometry, index, canonical, imagePositions, subdivisionGranularity) {
 		for (const polygon of classifyRings$1(geometry, EARCUT_MAX_RINGS)) {
+			const anchor = terrainAnchor(polygon);
+			if (!anchor) continue;
 			const centroid = {
 				x: 0,
 				y: 0,
@@ -20113,9 +20242,7 @@ var FillExtrusionBucket = class {
 			const oldVertexCount = this.layoutVertexArray.length;
 			this.processPolygon(centroid, canonical, feature, polygon, subdivisionGranularity);
 			const addedVertices = this.layoutVertexArray.length - oldVertexCount;
-			const centroidX = Math.floor(centroid.x / centroid.sampleCount);
-			const centroidY = Math.floor(centroid.y / centroid.sampleCount);
-			for (let i = 0; i < addedVertices; i++) this.centroidVertexArray.emplaceBack(centroidX, centroidY);
+			for (let i = 0; i < addedVertices; i++) this.centroidVertexArray.emplaceBack(Math.floor(anchor.x), Math.floor(anchor.y));
 		}
 		this.programConfigurations.populatePaintArrays(this.layoutVertexArray.length, feature, index, {
 			imagePositions,

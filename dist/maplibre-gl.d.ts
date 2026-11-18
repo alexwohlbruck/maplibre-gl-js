@@ -2649,6 +2649,8 @@ declare class DEMData {
 	*/
   constructor(uid: string | number, data: RGBAImage | ImageData, encoding: DEMEncoding, redFactor?: number, greenFactor?: number, blueFactor?: number, baseShift?: number);
   get(x: number, y: number): number;
+  /** `sampleBilinear`, with a point past the border read at the border, as the DEM texture clamps one. */
+  sampleBilinearClamped(x: number, y: number): number;
   sampleBilinear(x: number, y: number): number;
   getUnpackVector(): number[];
   _idx(x: number, y: number): number;
@@ -5461,8 +5463,12 @@ declare class FillExtrusionBucket implements Bucket {
   stateDependentLayerIds: string[];
   layoutVertexArray: FillExtrusionLayoutArray;
   layoutVertexBuffer: VertexBuffer;
+  /** Each vertex's terrain anchor (see `terrainAnchor`), kept on the main thread to work its elevation out from. */
   centroidVertexArray: PosArray;
-  centroidVertexBuffer: VertexBuffer;
+  /** Each vertex's ground elevation under 3D terrain, for the DEM named by `anchorElevationKey`. */
+  anchorElevationArray: StructArrayLayout1f4;
+  anchorElevationBuffer: VertexBuffer;
+  anchorElevationKey: string;
   indexArray: TriangleIndexArray;
   indexBuffer: IndexBuffer;
   hasDependencies: boolean;
@@ -5480,6 +5486,11 @@ declare class FillExtrusionBucket implements Bucket {
   uploadPending(): boolean;
   upload(context: Context): void;
   destroy(): void;
+  /**
+   * The buffer of each vertex's ground elevation, worked out again only when `key`, naming the DEM it is read
+   * from, changes. The vertex shader used to sample the DEM for every vertex of every building on every frame.
+   */
+  updateAnchorElevations(context: Context, key: string, reader: () => (x: number, y: number) => number): VertexBuffer;
   addFeature(feature: BucketFeature, geometry: Point$1[][], index: number, canonical: CanonicalTileID, imagePositions: {
     [_: string]: ImagePosition;
   }, subdivisionGranularity: SubdivisionGranularitySetting): void;
@@ -7321,6 +7332,8 @@ declare class Tile {
   aborted: boolean;
   needsHillshadePrepare: boolean;
   needsTerrainPrepare: boolean;
+  /** Counts the times this tile's DEM was handed to the GPU afresh, so what was derived from it can tell it has changed. */
+  demRevision: number;
   needsColorReliefPrepare: boolean;
   abortController: AbortController;
   texture: any;
@@ -8374,6 +8387,18 @@ declare class Terrain {
    * @returns the elevation
    */
   getElevation(tileID: OverscaledTileID, x: number, y: number, extent?: number): number;
+  /**
+   * A reader of a tile's elevation as the vertex shader's `get_elevation` has it: from the one DEM tile the
+   * tile is drawn with, clamped at its border, and exaggerated. In tile units; null while no DEM has loaded.
+   * @internal
+   */
+  getTileElevationReader(tileID: OverscaledTileID): ((x: number, y: number) => number) | null;
+  /**
+   * A fill-extrusion bucket's buffer of ground elevations, one a vertex, for the DEM its tile is drawn with now.
+   * For whatever draws the bucket, a custom layer included.
+   * @internal
+   */
+  getAnchorElevations(bucket: FillExtrusionBucket, tileID: OverscaledTileID): VertexBuffer;
   /**
    * Clear CPU elevation samplers that may retain a previously selected DEM tile.
    * @internal

@@ -105,6 +105,8 @@ export class Tile {
     aborted: boolean;
     needsHillshadePrepare: boolean;
     needsTerrainPrepare: boolean;
+    /** Counts the times this tile's DEM was handed to the GPU afresh, so what was derived from it can tell it has changed. */
+    demRevision: number = 0;
     needsColorReliefPrepare: boolean;
     abortController: AbortController;
     texture: any;

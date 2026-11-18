@@ -110,6 +110,12 @@ export class DEMData {
         return this._unpackAtIndex(pixels, index);
     }
 
+    /** `sampleBilinear`, with a point past the border read at the border, as the DEM texture clamps one. */
+    sampleBilinearClamped(x: number, y: number): number {
+        const last = this.dim - 1e-3;
+        return this.sampleBilinear(Math.max(-1, Math.min(last, x)), Math.max(-1, Math.min(last, y)));
+    }
+
     sampleBilinear(x: number, y: number): number {
         const cx = Math.floor(x);
         const cy = Math.floor(y);

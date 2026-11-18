@@ -15,7 +15,8 @@ layout(location = 0) in vec2 a_pos;
 layout(location = 1) in ivec4 a_normal_ed;
 
 #ifdef TERRAIN3D
-    layout(location = 2) in vec2 a_centroid;
+    // The ground under the building, worked out once on the CPU: see FillExtrusionBucket.updateAnchorElevations.
+    layout(location = 2) in float a_anchor_elevation;
 #endif
 
 #ifdef GLOBE
@@ -69,7 +70,7 @@ void main() {
 
     #ifdef TERRAIN3D
 	    // Raise the "ceiling" of elements by the elevation of the centroid, in meters.
-        float height_terrain3d_offset = get_elevation(a_centroid);
+        float height_terrain3d_offset = a_anchor_elevation;
         // To avoid having buildings "hang above a slope", create a "basement"
         // by lowering the "floor" of ground-level (and below) elements.
         // This is in addition to the elevation of the centroid, in meters.

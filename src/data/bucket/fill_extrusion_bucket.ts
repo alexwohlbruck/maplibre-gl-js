@@ -1,5 +1,6 @@
-import {FillExtrusionLayoutArray, PosArray} from '../array_types.g.ts';
-import {members as layoutAttributes, centroidAttributes} from './fill_extrusion_attributes.ts';
+import {FillExtrusionLayoutArray, PosArray, StructArrayLayout1f4} from '../array_types.g.ts';
+import {members as layoutAttributes, anchorElevationAttributes} from './fill_extrusion_attributes.ts';
+import {anchorElevation, terrainAnchor} from './fill_extrusion_anchor.ts';
 import {type Segment, SegmentVector} from '../segment.ts';
 import {ProgramConfigurationSet} from '../program_configuration.ts';
 import {TriangleIndexArray} from '../index_array_type.ts';
@@ -69,8 +70,12 @@ export class FillExtrusionBucket implements Bucket {
     layoutVertexArray: FillExtrusionLayoutArray;
     layoutVertexBuffer: VertexBuffer;
 
+    /** Each vertex's terrain anchor (see `terrainAnchor`), kept on the main thread to work its elevation out from. */
     centroidVertexArray: PosArray;
-    centroidVertexBuffer: VertexBuffer;
+    /** Each vertex's ground elevation under 3D terrain, for the DEM named by `anchorElevationKey`. */
+    anchorElevationArray: StructArrayLayout1f4;
+    anchorElevationBuffer: VertexBuffer;
+    anchorElevationKey: string;
 
     indexArray: TriangleIndexArray;
     indexBuffer: IndexBuffer;
@@ -160,7 +165,6 @@ export class FillExtrusionBucket implements Bucket {
     upload(context: Context): void {
         if (!this.uploaded) {
             this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, layoutAttributes);
-            this.centroidVertexBuffer = context.createVertexBuffer(this.centroidVertexArray, centroidAttributes.members, true);
             this.indexBuffer = context.createIndexBuffer(this.indexArray);
         }
         this.programConfigurations.upload(context);
@@ -173,26 +177,51 @@ export class FillExtrusionBucket implements Bucket {
         this.indexBuffer.destroy();
         this.programConfigurations.destroy();
         this.segments.destroy();
-        this.centroidVertexBuffer.destroy();
+        this.anchorElevationBuffer?.destroy();
+    }
+
+    /**
+     * The buffer of each vertex's ground elevation, worked out again only when `key`, naming the DEM it is read
+     * from, changes. The vertex shader used to sample the DEM for every vertex of every building on every frame.
+     */
+    updateAnchorElevations(context: Context, key: string, reader: () => (x: number, y: number) => number): VertexBuffer {
+        if (this.anchorElevationBuffer && this.anchorElevationKey === key) return this.anchorElevationBuffer;
+        const elevationAt = reader();
+        const anchors = this.centroidVertexArray.int16;
+        const count = this.centroidVertexArray.length;
+        if (!this.anchorElevationArray) {
+            this.anchorElevationArray = new StructArrayLayout1f4();
+            this.anchorElevationArray.resize(count);
+        }
+        const elevations = this.anchorElevationArray.float32;
+        let [lastX, lastY, elevation] = [NaN, NaN, 0];
+        for (let i = 0; i < count; i++) {
+            const [x, y] = [anchors[i * 2], anchors[i * 2 + 1]];
+            if (x !== lastX || y !== lastY) {
+                elevation = anchorElevation(x, y, elevationAt);
+                [lastX, lastY] = [x, y];
+            }
+            elevations[i] = elevation;
+        }
+        if (this.anchorElevationBuffer) this.anchorElevationBuffer.updateData(this.anchorElevationArray);
+        else this.anchorElevationBuffer = context.createVertexBuffer(this.anchorElevationArray, anchorElevationAttributes.members, true);
+        this.anchorElevationKey = key;
+        return this.anchorElevationBuffer;
     }
 
     addFeature(feature: BucketFeature, geometry: Point[][], index: number, canonical: CanonicalTileID, imagePositions: {[_: string]: ImagePosition}, subdivisionGranularity: SubdivisionGranularitySetting): void {
         for (const polygon of classifyRings(geometry, EARCUT_MAX_RINGS)) {
-            // Compute polygon centroid to calculate elevation in GPU
+            // A polygon is drawn by the one tile that holds the centre of its bounds, on ground every tile agrees on.
+            const anchor = terrainAnchor(polygon);
+            if (!anchor) continue;
             const centroid: CentroidAccumulator = {x: 0, y: 0, sampleCount: 0};
             const oldVertexCount = this.layoutVertexArray.length;
             this.processPolygon(centroid, canonical, feature, polygon, subdivisionGranularity);
 
             const addedVertices = this.layoutVertexArray.length - oldVertexCount;
 
-            const centroidX = Math.floor(centroid.x / centroid.sampleCount);
-            const centroidY = Math.floor(centroid.y / centroid.sampleCount);
-
             for (let i = 0; i < addedVertices; i++) {
-                this.centroidVertexArray.emplaceBack(
-                    centroidX,
-                    centroidY
-                );
+                this.centroidVertexArray.emplaceBack(Math.floor(anchor.x), Math.floor(anchor.y));
             }
         }
 

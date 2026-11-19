@@ -22,6 +22,7 @@ import type {ShadedExtrusionUniformsType, ShadingReceiverUniformsType} from '../
 /** The texture units the sun's shadow map and the ground occlusion are bound to while receivers draw. */
 export const SUN_SHADOW_UNIT = 5;
 export const OCCLUSION_UNIT = 6;
+export const LIGHTS_UNIT = 7;
 
 /** Texels on a side of the footprints drawn from overhead. */
 const OCCLUSION_SIZE = 1024;
@@ -63,6 +64,18 @@ export type GroundOcclusion = {
 };
 
 /**
+ * The lamplight on the ground for one frame, read at the ground occlusion's texture coordinates: `rgb` what lamps
+ * throw there and `a` what lit buildings spill, each to be multiplied by `strength`.
+ */
+export type GroundLights = {
+    /** Texture coordinates ← mercator. */
+    uv: Mat4;
+    texture: WebGLTexture;
+    strength: number;
+    spillColor: [number, number, number];
+};
+
+/**
  * Anything besides the extrusions that takes part in the shading, drawing with its own programs: a custom layer's
  * models. Each draw is called mid-pass with the target, depth and colour state already set.
  */
@@ -77,20 +90,26 @@ export type ShadingCaster = {
     receiveSun?(frame: SunFrame): void;
     /** This frame's ground occlusion, for what of it lies on the ground. */
     receiveOcclusion?(occlusion: GroundOcclusion): void;
+    /** Draw the light its lamps throw on the ground, from overhead: added together, in the lamp's colour. */
+    drawLights?(gl: WebGL2RenderingContext, frame: OcclusionFrame): void;
+    /** This frame's lamplight, to be lit by near the ground. */
+    receiveLights?(lights: GroundLights): void;
 };
 
 /**
  * GLSL that draws on a shaded wall, and the uniforms it declares. `source` defines
  * `vec3 shade_wall(vec3 color, vec3 wall, float seed, float style)`: `wall` is metres along the wall, metres up it
  * and the roof's height; `seed` a 0-1 hash of `fill-extrusion-facade-seed`, `style` its `fill-extrusion-facade-style`.
+ * With `light` set it also defines `float wall_light(float seed, float style, float height)`: how much light a
+ * building spills on the ground round it, 0 to 1.
  */
-export type WallShader = {source: string; uniforms?: {[name: string]: number | number[]}};
+export type WallShader = {source: string; uniforms?: {[name: string]: number | number[]}; light?: boolean};
 
 export type ShadingOptions = Partial<Pick<Shading,
 'enabled' | 'minZoom' | 'maxZoom' | 'strength' | 'band' | 'edge' | 'edgeWidth' | 'wallShader' | 'sunShadows' | 'groundOcclusion' |
 'visibility' | 'opacity' | 'sunCeiling' | 'heightScale' | 'shadowAlpha' | 'shadowOffset' | 'shadowColor' | 'sunTint' |
 'skyTint' | 'wallRise' | 'roofLift' | 'casters' | 'fadeZoom' | 'topDownOpacity' | 'topDownPitch' | 'aoRadiusMin' |
-'aoRadiusMax' | 'aoIntensity' | 'shadowMapSize'>>;
+'aoRadiusMax' | 'aoIntensity' | 'shadowMapSize' | 'lightIntensity' | 'spillColor' | 'lightBlur' | 'lightHeight'>>;
 
 type CastTile = {layer: FillExtrusionStyleLayer; coord: OverscaledTileID; bucket: FillExtrusionBucket};
 
@@ -168,6 +187,12 @@ export class Shading {
     aoRadiusMax = 120;
     aoIntensity = 0.8;
     shadowMapSize = 2048;
+    /** How much of the lamplight shows, 0 for none: a night's lever. */
+    lightIntensity = 0;
+    /** The colour lit buildings spill, the metres their spill and every lamp's pool is softened by, and the metres up a wall the light fades over. */
+    spillColor: [number, number, number] = [1, 0.8, 0.55];
+    lightBlur = 3;
+    lightHeight = 6;
 
     /** This frame's sun shadow map, or null with no sun. */
     frame: SunFrame | null = null;
@@ -176,7 +201,7 @@ export class Shading {
     /** The layer the flat ground's shading is drawn beneath. */
     groundLayer: string | null = null;
     /** How many times each map has been drawn: a camera move alone should add to neither. */
-    drawn: {sun: number; occlusion: number} = {sun: 0, occlusion: 0};
+    drawn: {sun: number; occlusion: number; lights: number} = {sun: 0, occlusion: 0, lights: 0};
 
     private fade = 0;
     private sunRegion: Region | null = null;
@@ -189,6 +214,10 @@ export class Shading {
     private occlusionKey: Key | null = null;
     private coverage: {texture: WebGLTexture; framebuffer: WebGLFramebuffer} | null = null;
     private blurred: Array<{texture: WebGLTexture; framebuffer: WebGLFramebuffer; size: number}> = [];
+    private lights: {region: Region; uv: Mat4} | null = null;
+    private lightsKey: Key | null = null;
+    private lamps: {texture: WebGLTexture; framebuffer: WebGLFramebuffer} | null = null;
+    private lit: Array<{texture: WebGLTexture; framebuffer: WebGLFramebuffer; size: number}> = [];
     private empty: WebGLTexture | null = null;
     private wallUniforms = new WeakMap<WebGLProgram, {[name: string]: WebGLUniformLocation | null}>();
 
@@ -241,6 +270,7 @@ export class Shading {
         const tr = painter.transform;
         this.frame = null;
         this.occlusion = null;
+        this.lights = null;
         this.groundLayer = null;
         this.active = this.enabled && tr.zoom >= this.minZoom;
         if (!this.active) return;
@@ -265,6 +295,7 @@ export class Shading {
         const drew = [
             this.groundOcclusion && this.aoIntensity > 0 && this.updateOcclusion(tiles),
             this.sunShadows && this.shadowAlpha > 0.001 && this.updateSun(tiles),
+            this.lightIntensity > 0 && this.updateLights(tiles),
         ].some(Boolean);
         if (drew) {
             const context = painter.context;
@@ -278,6 +309,14 @@ export class Shading {
             const occlusion = {uv: this.occlusion.uv, texture: this.blurred[0].texture, strength, power};
             for (const caster of this.casters) caster.receiveOcclusion?.(occlusion);
         }
+        if (this.lights) {
+            const lights = {uv: this.lights.uv, texture: this.lit[0].texture, strength: this.lightStrength(), spillColor: this.spillColor};
+            for (const caster of this.casters) caster.receiveLights?.(lights);
+        }
+    }
+
+    private lightStrength(): number {
+        return this.lights ? this.lightIntensity * this.groundOpacity() * this.opacity : 0;
     }
 
     /** How dark the ground occlusion is this frame, and the power that narrows what was baked to this zoom's radius. */
@@ -432,14 +471,9 @@ export class Shading {
         const painter = this.painter;
         const context = painter.context;
         const gl = context.gl;
-        const tr = painter.transform;
-        // Held for half a zoom: the radius is baked at its widest there and narrowed as it is read.
-        const zoom = Math.floor(tr.zoom * 2) / 2;
-        const centre = MercatorCoordinate.fromLngLat(tr.center);
-        const region = steadyRegion(centre.x, centre.y, OCCLUSION_REACH * 2 ** (16 - zoom) * perMetreAt(centre.y));
+        const {region, overhead, uv, zoom} = this.overhead();
         const radius = this.occlusionRadius(zoom, region.y);
-        const overhead = overheadMatrix(region);
-        this.occlusion = {region, uv: multiply(CLIP_TO_UV, overhead), radius};
+        this.occlusion = {region, uv, radius};
 
         const sigma = radius / RADIUS_IN_SIGMAS * perMetreAt(region.y) / (region.half * 2) * OCCLUSION_SIZE;
         const key: Key = [region.x, region.y, region.half, sigma];
@@ -458,30 +492,99 @@ export class Shading {
         gl.bindTexture(gl.TEXTURE_2D, this.coverage.texture);
         gl.generateMipmap(gl.TEXTURE_2D);
 
-        // Blurred where the sigma is two to four texels: a mip level of the footprints, then one pass each way.
+        this.blur(this.coverage.texture, this.blurred, sigma);
+        return true;
+    }
+
+    /** The square of ground about the view that the occlusion and the lamplight are both drawn over, from overhead. */
+    private overhead(): {region: Region; overhead: Mat4; uv: Mat4; zoom: number} {
+        const tr = this.painter.transform;
+        // Held for half a zoom: the occlusion's radius is baked at its widest there and narrowed as it is read.
+        const zoom = Math.floor(tr.zoom * 2) / 2;
+        const centre = MercatorCoordinate.fromLngLat(tr.center);
+        const region = steadyRegion(centre.x, centre.y, OCCLUSION_REACH * 2 ** (16 - zoom) * perMetreAt(centre.y));
+        const overhead = overheadMatrix(region);
+        return {region, overhead, uv: multiply(CLIP_TO_UV, overhead), zoom};
+    }
+
+    /** Blur a mipmapped map by `sigma` of its texels into `targets[0]`: a mip level of it, then one pass each way. */
+    private blur(source: WebGLTexture, targets: Array<{texture: WebGLTexture; framebuffer: WebGLFramebuffer; size: number}>, sigma: number): void {
+        const painter = this.painter;
+        const context = painter.context;
+        const gl = context.gl;
+        // Blurred where the sigma is two to four texels.
         const level = Math.min(Math.max(Math.floor(Math.log2(sigma / 2)), 0), 4);
         const size = OCCLUSION_SIZE >> level;
         for (let i = 0; i < 2; i++) {
-            if (this.blurred[i]?.size === size) continue;
-            if (this.blurred[i]) {
-                gl.deleteTexture(this.blurred[i].texture);
-                gl.deleteFramebuffer(this.blurred[i].framebuffer);
+            if (targets[i]?.size === size) continue;
+            if (targets[i]) {
+                gl.deleteTexture(targets[i].texture);
+                gl.deleteFramebuffer(targets[i].framebuffer);
             }
-            this.blurred[i] = this.colorTarget(size, false);
+            targets[i] = this.colorTarget(size, false);
         }
         const program = painter.useProgram('shadingBlur', null, true);
         const pass = (from: WebGLTexture, lod: number, to: number, step: [number, number]) => {
-            context.bindFramebuffer.set(this.blurred[to].framebuffer);
+            context.bindFramebuffer.set(targets[to].framebuffer);
             context.viewport.set([0, 0, size, size]);
             context.activeTexture.set(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, from);
             program.draw(context, gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, ColorMode.unblended, CullFaceMode.disabled,
-                {'u_image': 0, 'u_step': step, 'u_blur': [sigma / 2 ** level / 1.5, lod]}, null, null, 'shadingBlur',
+                {'u_image': 0, 'u_step': step, 'u_blur': [Math.max(sigma / 2 ** level / 1.5, 0.1), lod]}, null, null, 'shadingBlur',
                 painter.viewportBuffer, painter.quadTriangleIndexBuffer, painter.viewportSegments);
         };
-        pass(this.coverage.texture, level, 1, [1.5 / size, 0]);
-        pass(this.blurred[1].texture, 0, 0, [0, 1.5 / size]);
+        pass(source, level, 1, [1.5 / size, 0]);
+        pass(targets[1].texture, 0, 0, [0, 1.5 / size]);
+    }
+
+    /** Ready the lamplight: what lit buildings spill and the casters' lamps throw, from overhead, softened. Whether it was drawn again. */
+    private updateLights(tiles: CastTile[]): boolean {
+        const painter = this.painter;
+        const context = painter.context;
+        const gl = context.gl;
+        const {region, overhead, uv} = this.overhead();
+        this.lights = {region, uv};
+
+        const sigma = this.lightBlur * perMetreAt(region.y) / (region.half * 2) * OCCLUSION_SIZE;
+        const spills = !!this.wallShader?.light;
+        const key: Key = [region.x, region.y, region.half, sigma, spills ? idOf(this.wallShader) : 0];
+        this.castKey(tiles, key);
+        if (sameKey(key, this.lightsKey)) return false;
+        this.lightsKey = key;
+        this.drawn.lights++;
+
+        this.lamps ??= this.colorTarget(OCCLUSION_SIZE, true);
+        context.bindFramebuffer.set(this.lamps.framebuffer);
+        context.viewport.set([0, 0, OCCLUSION_SIZE, OCCLUSION_SIZE]);
+        context.clear({color: Color.transparent});
+        if (spills) this.drawLit(tiles, ({canonical: {z, x, y}, wrap}) => multiply(overhead, tileToMercator(z, x, y, wrap, 0)));
+        context.setDepthMode(DepthMode.disabled);
+        context.setStencilMode(StencilMode.disabled);
+        context.setColorMode(ADDED);
+        context.setCullFace(CullFaceMode.disabled);
+        for (const caster of this.casters) caster.drawLights?.(gl, {matrix: overhead});
+        context.setDirty();
+        gl.bindTexture(gl.TEXTURE_2D, this.lamps.texture);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        this.blur(this.lamps.texture, this.lit, sigma);
         return true;
+    }
+
+    /** The footprints of the extrusions whose wall shader says they are lit, into the lamplight's alpha. */
+    private drawLit(tiles: CastTile[], tileMatrix: (coord: OverscaledTileID) => ArrayLike<number>): void {
+        const painter = this.painter;
+        const context = painter.context;
+        const terrain = painter.style.map.terrain;
+        for (const {layer, coord, bucket} of tiles) {
+            const configuration = bucket.programConfigurations.get(layer.id);
+            const program = painter.useProgram('fillExtrusionDepth', configuration, true, ['#define LIGHT'], this.wallSource());
+            if (program.failedToCreate) continue;
+            context.program.set(program.program);
+            this.setWallUniforms(program.program);
+            program.draw(context, context.gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, ColorMode.unblended, CullFaceMode.disabled,
+                null, null, projectionOf(tileMatrix(coord)), `${layer.id}/lit`, bucket.layoutVertexBuffer, bucket.indexBuffer,
+                bucket.segments, layer.paint, painter.transform.zoom, configuration, terrain?.getAnchorElevations(bucket, coord));
+        }
     }
 
     /** A matrix from a tile's units into the sun's clip space; identity with no sun. */
@@ -494,14 +597,15 @@ export class Shading {
 
     /** A matrix from a tile's units into the ground occlusion's texture. */
     occlusionMatrix(coord: OverscaledTileID): Float32Array {
-        if (!this.occlusion) return IDENTITY;
+        const map = this.occlusion ?? this.lights;
+        if (!map) return IDENTITY;
         const {z, x, y} = coord.canonical;
-        return Float32Array.from(multiply(this.occlusion.uv, tileToMercator(z, x, y, coord.wrap, 0)));
+        return Float32Array.from(multiply(map.uv, tileToMercator(z, x, y, coord.wrap, 0)));
     }
 
     /** Whether anything is laid on the ground this frame. */
     shadesGround(): boolean {
-        return this.active && (!!this.frame || !!this.occlusion);
+        return this.active && (!!this.frame || !!this.occlusion || !!this.lights);
     }
 
     /** Bind the maps for a receiver, and give the uniforms that read them. */
@@ -515,8 +619,11 @@ export class Shading {
         gl.bindTexture(gl.TEXTURE_2D, frame ? frame.texture : (this.emptySun ??= this.depthTexture(1)));
         context.activeTexture.set(gl.TEXTURE0 + OCCLUSION_UNIT);
         gl.bindTexture(gl.TEXTURE_2D, occlusion ? this.blurred[0].texture : (this.empty ??= this.clearTexture()));
+        context.activeTexture.set(gl.TEXTURE0 + LIGHTS_UNIT);
+        gl.bindTexture(gl.TEXTURE_2D, this.lights ? this.lit[0].texture : (this.empty ??= this.clearTexture()));
         context.activeTexture.set(gl.TEXTURE0);
         const ground = this.groundOpacity() * this.opacity;
+        const light = this.lightStrength();
         return {
             'u_sun_shadow': SUN_SHADOW_UNIT,
             'u_sun': [frame ? frame.strength : 0, frame ? 1 / frame.size : 0, frame ? frame.depthPerMetre : 0],
@@ -524,6 +631,8 @@ export class Shading {
             'u_occlusion_strength': this.occlusionStrength(),
             'u_ground': [this.heightScale * Math.hypot(this.shadowOffset[0], this.shadowOffset[1]), this.shadowAlpha * ground],
             'u_shadow_color': this.shadowColor,
+            'u_lights': LIGHTS_UNIT,
+            'u_light': [this.spillColor[0] * light, this.spillColor[1] * light, this.spillColor[2] * light, light],
         };
     }
 
@@ -533,7 +642,7 @@ export class Shading {
         const painter = this.painter;
         const context = painter.context;
         const gl = context.gl;
-        const region = this.frame ? this.sunRegion : this.occlusion.region;
+        const region = this.frame ? this.sunRegion : (this.occlusion ?? this.lights).region;
         const quad = regionQuad(region);
         const camera = painter.transform.getProjectionDataForCustomLayer(false).mainMatrix;
         const program = painter.useProgram('shadingGround', null, true, ['#define SHADING']);
@@ -541,7 +650,7 @@ export class Shading {
             ...this.receive(),
             'u_matrix': Float32Array.from(multiply(camera, quad)),
             'u_sun_matrix': this.frame ? Float32Array.from(multiply(this.frame.light, quad)) : IDENTITY,
-            'u_occlusion_matrix': this.occlusion ? Float32Array.from(multiply(this.occlusion.uv, quad)) : IDENTITY,
+            'u_occlusion_matrix': (this.occlusion ?? this.lights) ? Float32Array.from(multiply((this.occlusion ?? this.lights).uv, quad)) : IDENTITY,
         }, null, null, 'shadingGround', painter.viewportBuffer, painter.quadTriangleIndexBuffer, painter.viewportSegments);
     }
 
@@ -554,6 +663,8 @@ export class Shading {
         return {
             ...this.receive(),
             'u_sun_matrix': this.sunMatrix(coord),
+            'u_occlusion_matrix': this.occlusionMatrix(coord),
+            'u_light_height': Math.max(this.lightHeight, 0.01),
             'u_shade_strength': this.strength,
             'u_shade_band': Math.max(0.01, this.band),
             'u_shade_edge': this.edge,
@@ -593,17 +704,21 @@ export class Shading {
 
     destroy(): void {
         const gl = this.painter.context.gl;
-        for (const texture of [this.sunTexture, this.emptySun, this.empty, this.coverage?.texture, ...this.blurred.map(b => b.texture)]) {
+        for (const texture of [this.sunTexture, this.emptySun, this.empty, this.coverage?.texture, this.lamps?.texture, ...[...this.blurred, ...this.lit].map(b => b.texture)]) {
             if (texture) gl.deleteTexture(texture);
         }
-        for (const framebuffer of [this.sunFramebuffer, this.coverage?.framebuffer, ...this.blurred.map(b => b.framebuffer)]) {
+        for (const framebuffer of [this.sunFramebuffer, this.coverage?.framebuffer, this.lamps?.framebuffer, ...[...this.blurred, ...this.lit].map(b => b.framebuffer)]) {
             if (framebuffer) gl.deleteFramebuffer(framebuffer);
         }
-        this.sunTexture = this.sunFramebuffer = this.emptySun = this.empty = this.coverage = null;
+        this.sunTexture = this.sunFramebuffer = this.emptySun = this.empty = this.coverage = this.lamps = null;
         this.blurred = [];
-        this.frame = this.occlusion = this.sunKey = this.occlusionKey = null;
+        this.lit = [];
+        this.frame = this.occlusion = this.lights = this.sunKey = this.occlusionKey = this.lightsKey = null;
         this.active = false;
     }
 }
+
+/** Each draw added to what is there, in every channel. */
+const ADDED = new ColorMode([1, 1], Color.transparent, [true, true, true, true]);
 
 const IDENTITY = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);

@@ -57,6 +57,17 @@ describe('Shading', () => {
         expect(shading.groundOpacity()).toBe(1);
     });
 
+    test('draws no lamplight until it is given an intensity', () => {
+        const drawLights = vi.fn();
+        const receiveLights = vi.fn();
+        const shading = new Shading(painterAt(16), {groundOcclusion: false, sunShadows: false, casters: new Set([{drawLights, receiveLights}])});
+        shading.prepare();
+        expect(drawLights).not.toHaveBeenCalled();
+        expect(receiveLights).not.toHaveBeenCalled();
+        expect(shading.shadesGround()).toBe(false);
+        expect(shading.drawn.lights).toBe(0);
+    });
+
     test('hands the wall shader over as fragment source, or nothing', () => {
         const shading = new Shading(painterAt(16));
         expect(shading.wallSource()).toBeNull();

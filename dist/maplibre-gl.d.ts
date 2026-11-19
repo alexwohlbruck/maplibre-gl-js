@@ -1513,6 +1513,10 @@ declare class Uniform3f extends Uniform<vec3> {
   constructor(context: Context, location: WebGLUniformLocation);
   set(v: vec3): void;
 }
+declare class Uniform4f extends Uniform<vec4> {
+  constructor(context: Context, location: WebGLUniformLocation);
+  set(v: vec4): void;
+}
 declare class UniformMatrix4f extends Uniform<mat4> {
   constructor(context: Context, location: WebGLUniformLocation);
   set(v: mat4): void;
@@ -1534,10 +1538,14 @@ type ShadingReceiverUniformsType = {
   "u_occlusion_strength": Uniform2f;
   "u_ground": Uniform2f;
   "u_shadow_color": Uniform3f;
+  "u_lights": Uniform1i;
+  "u_light": Uniform4f;
 };
 /** A shaded extrusion's own light: see the `SHADING` branch of the fill-extrusion shaders. */
 type ShadedExtrusionUniformsType = ShadingReceiverUniformsType & {
   "u_sun_matrix": UniformMatrix4f;
+  "u_occlusion_matrix": UniformMatrix4f;
+  "u_light_height": Uniform1f;
   "u_shade_strength": Uniform1f;
   "u_shade_band": Uniform1f;
   "u_shade_edge": Uniform1f;
@@ -6122,6 +6130,17 @@ type GroundOcclusion = {
   power: number;
 };
 /**
+ * The lamplight on the ground for one frame, read at the ground occlusion's texture coordinates: `rgb` what lamps
+ * throw there and `a` what lit buildings spill, each to be multiplied by `strength`.
+ */
+type GroundLights = {
+  /** Texture coordinates ← mercator. */
+  uv: Mat4;
+  texture: WebGLTexture;
+  strength: number;
+  spillColor: [number, number, number];
+};
+/**
  * Anything besides the extrusions that takes part in the shading, drawing with its own programs: a custom layer's
  * models. Each draw is called mid-pass with the target, depth and colour state already set.
  */
@@ -6136,19 +6155,26 @@ type ShadingCaster = {
   receiveSun?(frame: SunFrame): void;
   /** This frame's ground occlusion, for what of it lies on the ground. */
   receiveOcclusion?(occlusion: GroundOcclusion): void;
+  /** Draw the light its lamps throw on the ground, from overhead: added together, in the lamp's colour. */
+  drawLights?(gl: WebGL2RenderingContext, frame: OcclusionFrame): void;
+  /** This frame's lamplight, to be lit by near the ground. */
+  receiveLights?(lights: GroundLights): void;
 };
 /**
  * GLSL that draws on a shaded wall, and the uniforms it declares. `source` defines
  * `vec3 shade_wall(vec3 color, vec3 wall, float seed, float style)`: `wall` is metres along the wall, metres up it
  * and the roof's height; `seed` a 0-1 hash of `fill-extrusion-facade-seed`, `style` its `fill-extrusion-facade-style`.
+ * With `light` set it also defines `float wall_light(float seed, float style, float height)`: how much light a
+ * building spills on the ground round it, 0 to 1.
  */
 type WallShader = {
   source: string;
   uniforms?: {
     [name: string]: number | number[];
   };
+  light?: boolean;
 };
-type ShadingOptions = Partial<Pick<Shading, "enabled" | "minZoom" | "maxZoom" | "strength" | "band" | "edge" | "edgeWidth" | "wallShader" | "sunShadows" | "groundOcclusion" | "visibility" | "opacity" | "sunCeiling" | "heightScale" | "shadowAlpha" | "shadowOffset" | "shadowColor" | "sunTint" | "skyTint" | "wallRise" | "roofLift" | "casters" | "fadeZoom" | "topDownOpacity" | "topDownPitch" | "aoRadiusMin" | "aoRadiusMax" | "aoIntensity" | "shadowMapSize">>;
+type ShadingOptions = Partial<Pick<Shading, "enabled" | "minZoom" | "maxZoom" | "strength" | "band" | "edge" | "edgeWidth" | "wallShader" | "sunShadows" | "groundOcclusion" | "visibility" | "opacity" | "sunCeiling" | "heightScale" | "shadowAlpha" | "shadowOffset" | "shadowColor" | "sunTint" | "skyTint" | "wallRise" | "roofLift" | "casters" | "fadeZoom" | "topDownOpacity" | "topDownPitch" | "aoRadiusMin" | "aoRadiusMax" | "aoIntensity" | "shadowMapSize" | "lightIntensity" | "spillColor" | "lightBlur" | "lightHeight">>;
 /**
  * The map's shading: sunlight on the extrusions that cast (`fill-extrusion-cast-shadows`), the shadows they and the
  * registered casters throw on each other and on the ground, and the occlusion where a wall meets it.
@@ -6202,6 +6228,12 @@ declare class Shading {
   aoRadiusMax: number;
   aoIntensity: number;
   shadowMapSize: number;
+  /** How much of the lamplight shows, 0 for none: a night's lever. */
+  lightIntensity: number;
+  /** The colour lit buildings spill, the metres their spill and every lamp's pool is softened by, and the metres up a wall the light fades over. */
+  spillColor: [number, number, number];
+  lightBlur: number;
+  lightHeight: number;
   /** This frame's sun shadow map, or null with no sun. */
   frame: SunFrame | null;
   /** Whether cast extrusions are shaded this frame. */
@@ -6212,6 +6244,7 @@ declare class Shading {
   drawn: {
     sun: number;
     occlusion: number;
+    lights: number;
   };
   private fade;
   private sunRegion;
@@ -6224,6 +6257,10 @@ declare class Shading {
   private occlusionKey;
   private coverage;
   private blurred;
+  private lights;
+  private lightsKey;
+  private lamps;
+  private lit;
   private empty;
   private wallUniforms;
   constructor(painter: Painter, options?: ShadingOptions);
@@ -6241,6 +6278,7 @@ declare class Shading {
    * Called before anything is drawn to the screen.
    */
   prepare(): void;
+  private lightStrength;
   /** How dark the ground occlusion is this frame, and the power that narrows what was baked to this zoom's radius. */
   private occlusionStrength;
   /** What of a tile's extrusions the passes read, for telling whether they have changed. */
@@ -6256,6 +6294,14 @@ declare class Shading {
   private colorTarget;
   /** Ready the ground occlusion: the cast footprints from overhead, blurred to its radius. Whether it was drawn again. */
   private updateOcclusion;
+  /** The square of ground about the view that the occlusion and the lamplight are both drawn over, from overhead. */
+  private overhead;
+  /** Blur a mipmapped map by `sigma` of its texels into `targets[0]`: a mip level of it, then one pass each way. */
+  private blur;
+  /** Ready the lamplight: what lit buildings spill and the casters' lamps throw, from overhead, softened. Whether it was drawn again. */
+  private updateLights;
+  /** The footprints of the extrusions whose wall shader says they are lit, into the lamplight's alpha. */
+  private drawLit;
   /** A matrix from a tile's units into the sun's clip space; identity with no sun. */
   sunMatrix(coord: OverscaledTileID): Float32Array;
   /** A matrix from a tile's units into the ground occlusion's texture. */
@@ -18239,4 +18285,4 @@ declare function setWorkerUrl(value: string): void;
  */
 declare function importScriptInWorkers(workerUrl: string): Promise<void>;
 //#endregion
-export { type Actor, type ActorMessage, type AddLayerObject, type AddProtocolAction, type AddProtocolResponseData, type Alignment, type AlphaImage, type AnchoredCameraOptions, type AnimationOptions, type AroundCenterOptions, type AttributionControlOptions, type BoxZoomEndHandler, type BoxZoomHandlerOptions, type Bucket, type CalculateTileZoomFunction, type CameraForBoundsOptions, type CameraOptions, type CameraUpdateTransformFunction, type CanonicalTileRange, type CanvasSourceSpecification, type CenterZoomBearing, type CollisionBoxArray, type Complete, type ControlPosition, type Coordinates, type CoveringTilesOptions, type CreateTileMeshOptions, type CustomLayerInterface, type CustomLayerProjectionData, type CustomLayerProjectionDataParams, type CustomRenderMethod, type CustomRenderMethodInput, type DashEntry, type Dispatcher, type DistributiveKeys, type DistributiveOmit, type DragPanOptions, type EaseToOptions, type ErrorEventType, Event$1 as Event, type EventTypeMap, type EventedParentData, type ExpiryData, type FeatureIdentifier, type FeatureIndex, type FitBoundsOptions, type FlyToOptions, type FullscreenControlEventType, type FullscreenControlOptions, type GeoJSONFeature, type GeoJSONFeatureDiff, type GeoJSONFeatureId, type GeoJSONSourceDiff, type GeolocateControlEventType, type GeolocateControlOptions, type GestureOptions, type GetClusterOptions, type GetResourceResponse, type GlyphMap, type GlyphPosition, type GlyphPositions, type GroundOcclusion, type Handler, type HandlerResult, type IActor, type IControl, type ImageAtlas, type ImageSourceImage, type ImageSourceWarp, type IndicesType, type JumpToOptions, type Listener, type LngLatBoundsLike, type LngLatLike, type LoadTileResult, type LogoControlOptions, Map$1 as Map, Map$1 as MapLibreMap, type MapEventType, type MapGeoJSONFeature, type MapLayerEventType, type MapLayerMouseEvent, type MapLayerTouchEvent, type MapOptions, type MapSourceDataType, type MarkerEventType, type MarkerOptions, type Mat4f32, type Mat4f64, type MessageType, type MissingStyleImageResolver, type NavigationControlOptions, type OcclusionFrame, type Offset, type OverscaledTileID, type PaddingOptions, type PaintPropertyEntry, type Painter, Point, type PointLike, type PopupEventType, type PopupOptions, type PositionAnchor, type ProjectionData, type ProjectionDataParams, type ProjectionMatrix, type QueryRenderedFeaturesOptions, type QuerySourceFeatureOptions, type RendererProjectionData, type RequestParameters, type RequestResponseMessageMap, type RequestTransformFunction, type RequireAtLeastOne, type ResourceType, type ScaleControlOptions, type SetClusterOptions, type Shading, type ShadingCaster, type ShadingOptions, type Source, type SourceClass, type SourceEventType, type StyleGlyph, type StyleImage, type StyleImageData, type StyleImageInterface, type StyleImageMetadata, type StyleImageSource, type StyleImageWebGLData, type StyleImageWebGLTarget, type StyleLayer, type StyleOptions, type StyleSetterOptions, type StyleSwapOptions, type Subscription, type SunFrame, type TextFit, type Tile, type TileMesh, type TransformConstrainFunction, type TransformStyleFunction, type Unit, type UnwrappedTileIDLiteral, type UpdateImageOptions, type WallShader, type WebGLContextAttributesWithType, type WorkerGlobalScopeInterface, type WorkerTileResult, getMaxParallelImageRequests, getRTLTextPluginStatus, getVersion, getWorkerCount, getWorkerUrl, importScriptInWorkers, setMaxParallelImageRequests, setRTLTextPlugin, setWorkerCount, setWorkerUrl };
+export { type Actor, type ActorMessage, type AddLayerObject, type AddProtocolAction, type AddProtocolResponseData, type Alignment, type AlphaImage, type AnchoredCameraOptions, type AnimationOptions, type AroundCenterOptions, type AttributionControlOptions, type BoxZoomEndHandler, type BoxZoomHandlerOptions, type Bucket, type CalculateTileZoomFunction, type CameraForBoundsOptions, type CameraOptions, type CameraUpdateTransformFunction, type CanonicalTileRange, type CanvasSourceSpecification, type CenterZoomBearing, type CollisionBoxArray, type Complete, type ControlPosition, type Coordinates, type CoveringTilesOptions, type CreateTileMeshOptions, type CustomLayerInterface, type CustomLayerProjectionData, type CustomLayerProjectionDataParams, type CustomRenderMethod, type CustomRenderMethodInput, type DashEntry, type Dispatcher, type DistributiveKeys, type DistributiveOmit, type DragPanOptions, type EaseToOptions, type ErrorEventType, Event$1 as Event, type EventTypeMap, type EventedParentData, type ExpiryData, type FeatureIdentifier, type FeatureIndex, type FitBoundsOptions, type FlyToOptions, type FullscreenControlEventType, type FullscreenControlOptions, type GeoJSONFeature, type GeoJSONFeatureDiff, type GeoJSONFeatureId, type GeoJSONSourceDiff, type GeolocateControlEventType, type GeolocateControlOptions, type GestureOptions, type GetClusterOptions, type GetResourceResponse, type GlyphMap, type GlyphPosition, type GlyphPositions, type GroundLights, type GroundOcclusion, type Handler, type HandlerResult, type IActor, type IControl, type ImageAtlas, type ImageSourceImage, type ImageSourceWarp, type IndicesType, type JumpToOptions, type Listener, type LngLatBoundsLike, type LngLatLike, type LoadTileResult, type LogoControlOptions, Map$1 as Map, Map$1 as MapLibreMap, type MapEventType, type MapGeoJSONFeature, type MapLayerEventType, type MapLayerMouseEvent, type MapLayerTouchEvent, type MapOptions, type MapSourceDataType, type MarkerEventType, type MarkerOptions, type Mat4f32, type Mat4f64, type MessageType, type MissingStyleImageResolver, type NavigationControlOptions, type OcclusionFrame, type Offset, type OverscaledTileID, type PaddingOptions, type PaintPropertyEntry, type Painter, Point, type PointLike, type PopupEventType, type PopupOptions, type PositionAnchor, type ProjectionData, type ProjectionDataParams, type ProjectionMatrix, type QueryRenderedFeaturesOptions, type QuerySourceFeatureOptions, type RendererProjectionData, type RequestParameters, type RequestResponseMessageMap, type RequestTransformFunction, type RequireAtLeastOne, type ResourceType, type ScaleControlOptions, type SetClusterOptions, type Shading, type ShadingCaster, type ShadingOptions, type Source, type SourceClass, type SourceEventType, type StyleGlyph, type StyleImage, type StyleImageData, type StyleImageInterface, type StyleImageMetadata, type StyleImageSource, type StyleImageWebGLData, type StyleImageWebGLTarget, type StyleLayer, type StyleOptions, type StyleSetterOptions, type StyleSwapOptions, type Subscription, type SunFrame, type TextFit, type Tile, type TileMesh, type TransformConstrainFunction, type TransformStyleFunction, type Unit, type UnwrappedTileIDLiteral, type UpdateImageOptions, type WallShader, type WebGLContextAttributesWithType, type WorkerGlobalScopeInterface, type WorkerTileResult, getMaxParallelImageRequests, getRTLTextPluginStatus, getVersion, getWorkerCount, getWorkerUrl, importScriptInWorkers, setMaxParallelImageRequests, setRTLTextPlugin, setWorkerCount, setWorkerUrl };

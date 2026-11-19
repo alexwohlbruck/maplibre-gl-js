@@ -70,6 +70,10 @@ uniform highp vec2 u_occlusion_strength;
 // The ground's slope to the light, and how dark a shadow lies on it.
 uniform highp vec2 u_ground;
 uniform vec3 u_shadow_color;
+// The lamplight seen from overhead, at the occlusion's coordinates: rgb what lamps throw, a what lit buildings spill.
+uniform sampler2D u_lights;
+// The spill's colour at the light's strength, and that strength: 0 by day.
+uniform highp vec4 u_light;
 
 // 0 lit to 1 in the sun's shadow, for a point in the sun's clip space on a surface at `slope` to the light.
 float sun_shade(highp vec4 p, highp float slope) {
@@ -98,10 +102,22 @@ float ground_occlusion(highp vec2 uv) {
     return u_occlusion_strength.x * pow(near, u_occlusion_strength.y) * (1.0 - smoothstep(0.8, 1.0, reach));
 }
 
-// What the shading lays on the ground at a point, premultiplied: the shadow's tint and all it covers.
+// The lamplight at a point of the ground: rgb from lamps, at its strength, and a the share lit buildings spill.
+vec4 lamp_light(highp vec2 uv) {
+    if (u_light.a <= 0.0) return vec4(0.0);
+    highp vec2 edge = abs(uv * 2.0 - 1.0);
+    highp float reach = max(edge.x, edge.y);
+    if (reach >= 1.0) return vec4(0.0);
+    vec4 light = textureLod(u_lights, uv, 0.0) * (1.0 - smoothstep(0.8, 1.0, reach));
+    return vec4(light.rgb * u_light.a, light.a);
+}
+
+// What the shading lays on the ground at a point, premultiplied: the shadow's tint and all it covers, and the
+// lamplight added over them.
 vec4 ground_shade(highp vec4 sun, highp vec2 occlusion_uv) {
     float shadow = sun_shade(sun, u_ground.x) * u_ground.y;
     float occlusion = ground_occlusion(occlusion_uv);
-    return vec4(u_shadow_color * shadow, 1.0 - (1.0 - shadow) * (1.0 - occlusion));
+    vec4 light = lamp_light(occlusion_uv);
+    return vec4(u_shadow_color * shadow + light.rgb + u_light.rgb * light.a, 1.0 - (1.0 - shadow) * (1.0 - occlusion));
 }
 #endif

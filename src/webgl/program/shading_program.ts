@@ -1,4 +1,4 @@
-import {Uniform1i, Uniform1f, Uniform2f, Uniform3f, UniformMatrix4f} from '../uniform_binding.ts';
+import {Uniform1i, Uniform1f, Uniform2f, Uniform3f, Uniform4f, UniformMatrix4f} from '../uniform_binding.ts';
 
 import type {Context} from '../context.ts';
 import type {UniformLocations} from '../uniform_binding.ts';
@@ -11,6 +11,8 @@ export type ShadingReceiverUniformsType = {
     'u_occlusion_strength': Uniform2f;
     'u_ground': Uniform2f;
     'u_shadow_color': Uniform3f;
+    'u_lights': Uniform1i;
+    'u_light': Uniform4f;
 };
 
 export const shadingReceiverUniforms = (context: Context, locations: UniformLocations): ShadingReceiverUniformsType => ({
@@ -20,6 +22,8 @@ export const shadingReceiverUniforms = (context: Context, locations: UniformLoca
     'u_occlusion_strength': new Uniform2f(context, locations.u_occlusion_strength),
     'u_ground': new Uniform2f(context, locations.u_ground),
     'u_shadow_color': new Uniform3f(context, locations.u_shadow_color),
+    'u_lights': new Uniform1i(context, locations.u_lights),
+    'u_light': new Uniform4f(context, locations.u_light),
 });
 
 /** Where a point of a shaded surface lies in the sun's view and in the ground occlusion. */
@@ -58,6 +62,8 @@ export const shadingBlurUniforms = (context: Context, locations: UniformLocation
 /** A shaded extrusion's own light: see the `SHADING` branch of the fill-extrusion shaders. */
 export type ShadedExtrusionUniformsType = ShadingReceiverUniformsType & {
     'u_sun_matrix': UniformMatrix4f;
+    'u_occlusion_matrix': UniformMatrix4f;
+    'u_light_height': Uniform1f;
     'u_shade_strength': Uniform1f;
     'u_shade_band': Uniform1f;
     'u_shade_edge': Uniform1f;
@@ -73,6 +79,8 @@ export type ShadedExtrusionUniformsType = ShadingReceiverUniformsType & {
 export const shadedExtrusionUniforms = (context: Context, locations: UniformLocations): ShadedExtrusionUniformsType => ({
     ...shadingReceiverUniforms(context, locations),
     'u_sun_matrix': new UniformMatrix4f(context, locations.u_sun_matrix),
+    'u_occlusion_matrix': new UniformMatrix4f(context, locations.u_occlusion_matrix),
+    'u_light_height': new Uniform1f(context, locations.u_light_height),
     'u_shade_strength': new Uniform1f(context, locations.u_shade_strength),
     'u_shade_band': new Uniform1f(context, locations.u_shade_band),
     'u_shade_edge': new Uniform1f(context, locations.u_shade_edge),

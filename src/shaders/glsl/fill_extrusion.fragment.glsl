@@ -9,6 +9,8 @@ in float v_dark;
 in vec3 v_edge;
 in highp vec3 v_wall;
 in highp vec2 v_facade;
+in highp vec2 v_light;
+uniform float u_light_height;
 #endif
 
 void main() {
@@ -23,7 +25,10 @@ void main() {
     #ifdef SHADING_WALL
     if (v_wall.z > 0.0) color = shade_wall(color, v_wall, v_facade.y, v_facade.x);
     #endif
-    fragColor = vec4(color * (1.0 - u_shade_edge * edge) * v_color.a, v_color.a);
+    color *= 1.0 - u_shade_edge * edge;
+    // Lamplight reaches a wall near the ground, in the wall's own colour.
+    color += (color + 0.12) * lamp_light(v_light).rgb * exp(-max(v_wall.y, 0.0) / u_light_height);
+    fragColor = vec4(color * v_color.a, v_color.a);
     #endif
 
     #ifdef OVERDRAW_INSPECTOR

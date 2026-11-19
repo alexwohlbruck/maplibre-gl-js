@@ -27,6 +27,7 @@ uniform vec3 u_sky_tint;
 uniform float u_wall_rise;
 uniform float u_roof_lift;
 uniform mat4 u_sun_matrix;
+uniform mat4 u_occlusion_matrix;
 // Metres to a tile unit, and the tile's corner within its z14 tile: walls are measured on a grid no zoom moves.
 uniform float u_unit_metres;
 uniform vec2 u_wall_origin;
@@ -39,6 +40,7 @@ out vec3 v_edge;
 // Metres along the wall, metres up it, and the roof's height (0 on a roof).
 out vec3 v_wall;
 out vec2 v_facade;
+out vec2 v_light;
 
 float shade_hash(vec2 p) {
     vec3 q = fract(vec3(p.xyx) * 0.1031);
@@ -138,6 +140,7 @@ void main() {
     v_color = vec4(clamp(surface.rgb * directional * mix(u_sky_tint, u_sun_tint, clamp(v_facing, 0.0, 1.0)) * rise, 0.0, 1.0), u_opacity);
     v_ambient = clamp(surface.rgb * (1.0 - u_lightintensity) * u_sky_tint * rise, 0.0, 1.0);
     v_sun = u_sun_matrix * vec4(posInTile, elevation, 1.0);
+    v_light = (u_occlusion_matrix * vec4(posInTile, 0.0, 1.0)).xy;
     #else
     // Relative luminance (how dark/bright is the surface color?)
     float colorvalue = color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;

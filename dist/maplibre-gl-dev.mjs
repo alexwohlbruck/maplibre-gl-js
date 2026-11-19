@@ -1,10 +1,10 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.7/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.8/LICENSE.txt
 */
 import { $ as projectToWorldCoordinates, $n as getRollPitchBearing, $r as rotateZ$1, $t as Transitionable, A as evaluateSizeForZoom, Ai as isOffscreenCanvasDistorted, An as arrayBufferToImageBitmap, Ar as create$3, At as toEvaluationFeature, B as isCluster, Bi as ValidationError, Bn as defaultEasing, Br as scale$2, Bt as SegmentVector, C as addDynamicAttributes, Ci as translate, Cn as AbortError, Cr as translatePosition, Ct as HEATMAP_FULL_RENDER_FBO_KEY, Di as determinant, Dn as MAX_VALID_LATITUDE, Dr as zoomScale, Dt as RGBAImage, E as TextAnchorEnum, Ei as create$2, Er as wrap, Et as AlphaImage, F as potpack, Fi as featureFilter, Fn as createIdentityMat4f64, Fr as fromEuler, Ft as Uniform4f, Gn as evaluateZoomSnap, Gr as distance, Gt as PosArray, Hi as derefLayers, Hn as differenceOfAnglesDegrees, Hr as add, Ht as CollisionCircleLayoutArray, I as isStyleImageWebGLData, In as createMat4f64, Ir as fromValues, It as UniformColor, J as cameraDirectionFromPitchBearing, Jn as findLineIntersection, Jr as length, Jt as TriangleIndexArray, K as isFillExtrusionStyleLayer, Kn as extend, Kr as dot, Kt as QuadTriangleArray, L as renderStyleImage, Li as interpolateFactory, Ln as createVec3f64, Lr as multiply$2, Lt as UniformColorArray, M as getAnchorAlignment, Mi as Point, Mn as clamp, Mr as scale$3, Mt as Uniform1i, Ni as emptyStyle, Nn as clone$2, Nr as sqrLen, Nt as Uniform2f, O as clipLine, Oi as invert, On as angleToRotateBetweenVectors2D, Or as pixelsToTileUnits, Ot as isCircleStyleLayer, P as ImagePosition, Pn as createIdentityMat4f32, Pr as zero, Pt as Uniform3f, Q as maxMercatorHorizonAngle, Qr as rotateY, Qt as Properties, R as parseGlyphPbf, Ri as ProjectionDefinition, Rn as createVec4f64, Rr as slerp, Rt as UniformFloatArray, S as SymbolBucket, Si as scale, Sn as config, Sr as threePlaneIntersection, St as isHillshadeStyleLayer, T as getAnchorJustification, Ti as fromRotation, Tn as throwIfAborted, Tr as warnOnce, Tt as renderColorRamp, U as collisionCircleLayout, Ui as latest, Un as distanceOfAnglesRadians, Ur as clone, Ut as LineStripIndexArray, V as codePointUsesLocalIdeographFontFamily, Vi as diff, Vn as degreesToRadians, Vr as transformMat4, Vt as CollisionBoxArray, W as isLineStyleLayer, Wn as ensureError, Wr as cross$1, Wt as Pos3dArray, X as cameraMercatorCoordinateFromCenterAndRotation, Xn as getAngleDelta, Xr as normalize, Xt as isRasterStyleLayer, Y as cameraMercatorCoordinate, Yn as getAABB, Yr as negate, Yt as createLayout, Z as getMercatorHorizon, Zn as getEdgeTiles, Zr as rotateX$1, Zt as DataConstantProperty, _ as createStyleLayer, _i as ortho, _n as makeRequest, _r as rollPitchBearingEqual, _t as SubdivisionGranularityExpression, a as GeoJSONFeature, ai as transformMat4$1, an as validateAndEmit, ar as isWorker, at as lngFromMercatorX, b as isBackgroundStyleLayer, bi as rotateY$1, bn as getProtocol, br as sphericalToCartesian, ci as clone$1, cn as ErrorEvent, cr as mod, ct as mercatorZfromAltitude, d as OverscaledTileID, di as equals, dn as AJAXError, dr as pick, ei as scale$1, en as EvaluationParameters, er as isImageBitmap, et as tileCoordinatesToMercatorCoordinates, f as UnwrappedTileID, fi as exactEquals, fn as GLOBAL_DISPATCHER_ID, fr as pointPlaneSignedDistance, ft as EXTENT_BOUNDS, g as Actor, gi as multiply$1, gn as getVideo, gr as remapSaturate, gt as SOUTH_POLE_Y, h as isInBoundsForZoomLngLat, hi as invert$1, hn as getReferrer, hr as readImageUsingVideoFrame, ht as NORTH_POLE_Y, ii as transformMat3, in as emitValidationErrors, ir as isTouchableOrPointableType, it as latFromMercatorY, ji as offscreenCanvasSupported, jn as bezier, jr as length$1, jt as Uniform1f, k as evaluateSizeForFeature, ki as rotate, kn as arrayBufferToImage, kr as EXTENT, kt as polygonIntersectsPolygon, li as copy, ln as Event, lr as nextPowerOfTwo, lt as LngLat, m as compareTileId, mi as identity, mn as getJSON, mr as rayPlaneIntersection, mt as isFillStyleLayer, n as TileCache, ni as sub, nr as isSafari, nt as MercatorCoordinate, oi as transformQuat, on as validateStyle, or as lerp, ot as mercatorXfromLng, p as calculateTileKey, pi as fromScaling, pn as getArrayBuffer, pr as radiansToDegrees, pt as Bounds, q as calculateTileMatrix, qn as filterObject, qr as len, qt as RasterBoundsArray, ri as subtract, rn as SPEC_SOURCE_TYPES, rr as isTouchableEvent, rt as altitudeFromMercatorZ, s as GEOJSON_TILE_LAYER_NAME, si as zero$1, sn as validateStyleAndEmit, sr as mapObject, st as mercatorYfromLat, ti as scaleAndAdd, tn as ZoomHistory, tr as isPointableEvent, tt as unprojectFromWorldCoordinates, u as CanonicalTileID, ui as create$1, un as Evented, ur as parseCacheControl, ut as earthRadius, v as isCustomStyleLayer, vi as perspective, vn as sameOrigin, vr as rollPitchBearingToQuat, vt as SubdivisionGranularitySetting, w as getOverlapMode, wi as create$4, wn as isAbortError, wr as uniqueId, wt as isHeatmapStyleLayer, x as isSymbolStyleLayer, xi as rotateZ, xn as removeProtocol, xr as subscribe, xt as Texture, y as validateCustomStyleLayer, yi as rotateX, yn as addProtocol, yr as scaleZoom, yt as isColorReliefStyleLayer, zi as Color, zn as deepEqual, zr as mul, zt as UniformMatrix4f } from "./maplibre-gl-shared-dev.mjs";
 //#region package.json
-var version$2 = "6.11.2-transit.18-terrain.7";
+var version$2 = "6.11.2-transit.18-terrain.8";
 //#endregion
 //#region src/util/browser.ts
 let linkEl;
@@ -9796,7 +9796,7 @@ var CrossTileSymbolIndex = class {
 };
 //#endregion
 //#region src/shaders/glsl/_prelude.fragment.glsl.g.ts
-var _prelude_fragment_glsl_g_default = "#ifdef GL_ES\nprecision mediump float;\n#else\n#if !defined(lowp)\n#define lowp\n#endif\n#if !defined(mediump)\n#define mediump\n#endif\n#if !defined(highp)\n#define highp\n#endif\n#endif\nout highp vec4 fragColor;layout(std140) uniform ProjectionUBO {highp mat4 u_projection_matrix;highp mat4 u_projection_fallback_matrix;highp vec4 u_projection_tile_mercator_coords;highp vec4 u_projection_clipping_plane;highp float u_projection_transition;highp int u_projection_clip_antimeridian;};layout(std140) uniform FrameUBO {highp vec2 u_units_to_pixels;highp vec2 u_world_size;highp float u_camera_to_center_distance;highp float u_symbol_fade_change;highp float u_aspect_ratio;highp float u_device_pixel_ratio;highp vec2 u_viewport_size;highp vec2 u_pixel_extrude_scale;highp float u_pitch;};\n#ifdef LINE_ELEVATION\nvoid elevated_line_fragment(highp vec2 tile_pos,float lift) {if (tile_pos.x < 0.0 || tile_pos.y < 0.0 || tile_pos.x > 8192.0 || tile_pos.y > 8192.0) discard;\n#ifdef LINE_UNDERGROUND\nif (lift >=0.0) discard;\n#endif\n#ifdef LINE_OVERGROUND\nif (lift < 0.0) discard;\n#endif\n}\n#endif\n#ifdef HORIZON_FADE\nfloat horizon_fade(highp float depth) {return 1.0-smoothstep(2.5,5.0,depth/u_camera_to_center_distance);}\n#endif\n#ifdef SHADING\nuniform highp sampler2DShadow u_sun_shadow;uniform highp vec3 u_sun;uniform sampler2D u_occlusion;uniform highp vec2 u_occlusion_strength;uniform highp vec2 u_ground;uniform vec3 u_shadow_color;float sun_shade(highp vec4 p,highp float slope) {if (u_sun.x <=0.0) return 0.0;highp vec3 c=p.xyz/p.w*0.5+0.5;highp vec2 edge=abs(c.xy*2.0-1.0);highp float reach=max(edge.x,edge.y);if (reach >=1.0 || c.z > 1.0) return 0.0;highp float z=c.z-(0.4+1.2*min(slope,4.0))*u_sun.z;highp float d=0.75*u_sun.y;float lit=textureLod(u_sun_shadow,vec3(c.xy+vec2(-d,-d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(d,-d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(-d,d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(d,d),z),0.0);return u_sun.x*(1.0-lit*0.25)*(1.0-smoothstep(0.9,1.0,reach));}float ground_occlusion(highp vec2 uv) {if (u_occlusion_strength.x <=0.0) return 0.0;highp vec2 edge=abs(uv*2.0-1.0);highp float reach=max(edge.x,edge.y);if (reach >=1.0) return 0.0;float near=clamp(2.0*textureLod(u_occlusion,uv,0.0).r,0.0,1.0);return u_occlusion_strength.x*pow(near,u_occlusion_strength.y)*(1.0-smoothstep(0.8,1.0,reach));}vec4 ground_shade(highp vec4 sun,highp vec2 occlusion_uv) {float shadow=sun_shade(sun,u_ground.x)*u_ground.y;float occlusion=ground_occlusion(occlusion_uv);return vec4(u_shadow_color*shadow,1.0-(1.0-shadow)*(1.0-occlusion));}\n#endif";
+var _prelude_fragment_glsl_g_default = "#ifdef GL_ES\nprecision mediump float;\n#else\n#if !defined(lowp)\n#define lowp\n#endif\n#if !defined(mediump)\n#define mediump\n#endif\n#if !defined(highp)\n#define highp\n#endif\n#endif\nout highp vec4 fragColor;layout(std140) uniform ProjectionUBO {highp mat4 u_projection_matrix;highp mat4 u_projection_fallback_matrix;highp vec4 u_projection_tile_mercator_coords;highp vec4 u_projection_clipping_plane;highp float u_projection_transition;highp int u_projection_clip_antimeridian;};layout(std140) uniform FrameUBO {highp vec2 u_units_to_pixels;highp vec2 u_world_size;highp float u_camera_to_center_distance;highp float u_symbol_fade_change;highp float u_aspect_ratio;highp float u_device_pixel_ratio;highp vec2 u_viewport_size;highp vec2 u_pixel_extrude_scale;highp float u_pitch;};\n#ifdef LINE_ELEVATION\nvoid elevated_line_fragment(highp vec2 tile_pos,float lift) {if (tile_pos.x < 0.0 || tile_pos.y < 0.0 || tile_pos.x > 8192.0 || tile_pos.y > 8192.0) discard;\n#ifdef LINE_UNDERGROUND\nif (lift >=0.0) discard;\n#endif\n#ifdef LINE_OVERGROUND\nif (lift < 0.0) discard;\n#endif\n}\n#endif\n#ifdef HORIZON_FADE\nfloat horizon_fade(highp float depth) {return 1.0-smoothstep(2.5,5.0,depth/u_camera_to_center_distance);}\n#endif\n#ifdef SHADING\nuniform highp sampler2DShadow u_sun_shadow;uniform highp vec3 u_sun;uniform sampler2D u_occlusion;uniform highp vec2 u_occlusion_strength;uniform highp vec2 u_ground;uniform vec3 u_shadow_color;uniform sampler2D u_lights;uniform highp vec4 u_light;float sun_shade(highp vec4 p,highp float slope) {if (u_sun.x <=0.0) return 0.0;highp vec3 c=p.xyz/p.w*0.5+0.5;highp vec2 edge=abs(c.xy*2.0-1.0);highp float reach=max(edge.x,edge.y);if (reach >=1.0 || c.z > 1.0) return 0.0;highp float z=c.z-(0.4+1.2*min(slope,4.0))*u_sun.z;highp float d=0.75*u_sun.y;float lit=textureLod(u_sun_shadow,vec3(c.xy+vec2(-d,-d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(d,-d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(-d,d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(d,d),z),0.0);return u_sun.x*(1.0-lit*0.25)*(1.0-smoothstep(0.9,1.0,reach));}float ground_occlusion(highp vec2 uv) {if (u_occlusion_strength.x <=0.0) return 0.0;highp vec2 edge=abs(uv*2.0-1.0);highp float reach=max(edge.x,edge.y);if (reach >=1.0) return 0.0;float near=clamp(2.0*textureLod(u_occlusion,uv,0.0).r,0.0,1.0);return u_occlusion_strength.x*pow(near,u_occlusion_strength.y)*(1.0-smoothstep(0.8,1.0,reach));}vec4 lamp_light(highp vec2 uv) {if (u_light.a <=0.0) return vec4(0.0);highp vec2 edge=abs(uv*2.0-1.0);highp float reach=max(edge.x,edge.y);if (reach >=1.0) return vec4(0.0);vec4 light=textureLod(u_lights,uv,0.0)*(1.0-smoothstep(0.8,1.0,reach));return vec4(light.rgb*u_light.a,light.a);}vec4 ground_shade(highp vec4 sun,highp vec2 occlusion_uv) {float shadow=sun_shade(sun,u_ground.x)*u_ground.y;float occlusion=ground_occlusion(occlusion_uv);vec4 light=lamp_light(occlusion_uv);return vec4(u_shadow_color*shadow+light.rgb+u_light.rgb*light.a,1.0-(1.0-shadow)*(1.0-occlusion));}\n#endif";
 //#endregion
 //#region src/shaders/glsl/_prelude.vertex.glsl.g.ts
 var _prelude_vertex_glsl_g_default = "#ifdef GL_ES\nprecision highp float;\n#else\n#if !defined(lowp)\n#define lowp\n#endif\n#if !defined(mediump)\n#define mediump\n#endif\n#if !defined(highp)\n#define highp\n#endif\n#endif\nvec2 unpack_float(const float packedValue) {int packedIntValue=int(packedValue);int v0=packedIntValue/256;return vec2(v0,packedIntValue-v0*256);}vec2 unpack_opacity(const uint packedOpacity) {return vec2(float(packedOpacity >> 1u)/127.0,float(packedOpacity & 1u));}vec4 decode_color(const vec2 encodedColor) {return vec4(unpack_float(encodedColor[0])/255.0,unpack_float(encodedColor[1])/255.0\n);}float unpack_mix_vec2(const vec2 packedValue,const float t) {return mix(packedValue[0],packedValue[1],t);}vec4 unpack_mix_color(const vec4 packedColors,const float t) {vec4 minColor=decode_color(vec2(packedColors[0],packedColors[1]));vec4 maxColor=decode_color(vec2(packedColors[2],packedColors[3]));return mix(minColor,maxColor,t);}vec2 get_pattern_pos(const vec2 pixel_coord_upper,const vec2 pixel_coord_lower,const vec2 pattern_size,const float tile_units_to_pixels,const vec2 pos) {vec2 offset=mod(mod(mod(pixel_coord_upper,pattern_size)*256.0,pattern_size)*256.0+pixel_coord_lower,pattern_size);return (tile_units_to_pixels*pos+offset)/pattern_size;}mat3 rotationMatrixFromAxisAngle(vec3 u,float angle) {float c=cos(angle);float s=sin(angle);float c2=1.0-c;return mat3(u.x*u.x*c2+      c,u.x*u.y*c2-u.z*s,u.x*u.z*c2+u.y*s,u.y*u.x*c2+u.z*s,u.y*u.y*c2+    c,u.y*u.z*c2-u.x*s,u.z*u.x*c2-u.y*s,u.z*u.y*c2+u.x*s,u.z*u.z*c2+    c\n);}\n#ifdef TERRAIN3D\nuniform sampler2D u_terrain;uniform highp sampler2D u_depth;layout(std140) uniform TerrainUBO {highp mat4 u_terrain_matrix;highp vec4 u_terrain_unpack;highp float u_terrain_dim;highp float u_terrain_exaggeration;};\n#endif\nconst highp vec4 bitSh=vec4(256.*256.*256.,256.*256.,256.,1.);const highp vec4 bitShifts=vec4(1.)/bitSh;highp float unpack(highp vec4 color) {return dot(color,bitShifts);}highp float depthOpacity(vec3 frag) {\n#ifdef TERRAIN3D\nhighp float d=unpack(texture(u_depth,frag.xy*0.5+0.5))+0.0001-frag.z;return 1.0-max(0.0,min(1.0,-d*500.0));\n#else\nreturn 1.0;\n#endif\n}float calculate_visibility(vec4 pos) {\n#ifdef TERRAIN3D\nvec3 frag=pos.xyz/pos.w;highp float d=depthOpacity(frag);if (d > 0.95) return 1.0;return (d+depthOpacity(frag+vec3(0.0,0.01,0.0)))/2.0;\n#else\nreturn 1.0;\n#endif\n}float ele(ivec2 pos) {\n#ifdef TERRAIN3D\nvec4 rgb=(texelFetch(u_terrain,pos,0)*255.0)*u_terrain_unpack;return rgb.r+rgb.g+rgb.b-u_terrain_unpack.a;\n#else\nreturn 0.0;\n#endif\n}float get_elevation(vec2 pos) {\n#ifdef TERRAIN3D\n#ifdef GLOBE\nif ((pos.y <-32767.5) || (pos.y > 32766.5)) {return 0.0;}\n#endif\nvec2 coord=(u_terrain_matrix*vec4(pos,0.0,1.0)).xy*u_terrain_dim+1.5;vec2 f=fract(coord);ivec2 c=ivec2(floor(coord));ivec2 hi=textureSize(u_terrain,0)-1;float tl=ele(clamp(c,ivec2(0),hi));float tr=ele(clamp(c+ivec2(1,0),ivec2(0),hi));float bl=ele(clamp(c+ivec2(0,1),ivec2(0),hi));float br=ele(clamp(c+ivec2(1,1),ivec2(0),hi));float elevation=mix(mix(tl,tr,f.x),mix(bl,br,f.x),f.y);return elevation*u_terrain_exaggeration;\n#else\nreturn 0.0;\n#endif\n}const float PI=3.141592653589793;\n#define PROJECTION_UBO\nlayout(std140) uniform ProjectionUBO {highp mat4 u_projection_matrix;highp mat4 u_projection_fallback_matrix;highp vec4 u_projection_tile_mercator_coords;highp vec4 u_projection_clipping_plane;highp float u_projection_transition;highp int u_projection_clip_antimeridian;};layout(std140) uniform FrameUBO {highp vec2 u_units_to_pixels;highp vec2 u_world_size;highp float u_camera_to_center_distance;highp float u_symbol_fade_change;highp float u_aspect_ratio;highp float u_device_pixel_ratio;highp vec2 u_viewport_size;highp vec2 u_pixel_extrude_scale;highp float u_pitch;};\n#ifdef HORIZON_FADE\nfloat horizon_fade(highp float depth) {return 1.0-smoothstep(2.5,5.0,depth/u_camera_to_center_distance);}\n#endif";
@@ -9889,16 +9889,16 @@ var fill_pattern_fragment_glsl_g_default = "#ifdef GL_ES\nprecision highp float;
 var fill_pattern_vertex_glsl_g_default = "uniform vec2 u_pixel_coord_upper;uniform vec2 u_pixel_coord_lower;uniform vec3 u_scale;uniform vec2 u_fill_translate;layout(location=0) in vec2 a_pos;out vec2 v_pos_a;out vec2 v_pos_b;\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define highp vec4 color\n#pragma maplibre: define lowp vec4 pattern_from\n#pragma maplibre: define lowp vec4 pattern_to\n#pragma maplibre: define lowp float pixel_ratio_from\n#pragma maplibre: define lowp float pixel_ratio_to\nvoid main() {\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize highp vec4 color\n#pragma maplibre: initialize mediump vec4 pattern_from\n#pragma maplibre: initialize mediump vec4 pattern_to\n#pragma maplibre: initialize lowp float pixel_ratio_from\n#pragma maplibre: initialize lowp float pixel_ratio_to\nif (opacity < 0.01) {gl_Position=vec4(-2.0,-2.0,-2.0,1.0);return;}vec2 pattern_tl_a=pattern_from.xy;vec2 pattern_br_a=pattern_from.zw;vec2 pattern_tl_b=pattern_to.xy;vec2 pattern_br_b=pattern_to.zw;float tileZoomRatio=u_scale.x;float fromScale=u_scale.y;float toScale=u_scale.z;vec2 display_size_a=(pattern_br_a-pattern_tl_a)/pixel_ratio_from;vec2 display_size_b=(pattern_br_b-pattern_tl_b)/pixel_ratio_to;gl_Position=projectTile(a_pos+u_fill_translate,a_pos);v_pos_a=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,fromScale*display_size_a,tileZoomRatio,a_pos);v_pos_b=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,toScale*display_size_b,tileZoomRatio,a_pos);}";
 //#endregion
 //#region src/shaders/glsl/fill_extrusion.fragment.glsl.g.ts
-var fill_extrusion_fragment_glsl_g_default = "in vec4 v_color;\n#ifdef SHADING\nuniform float u_shade_edge;in vec3 v_ambient;in float v_facing;in highp vec4 v_sun;in float v_dark;in vec3 v_edge;in highp vec3 v_wall;in highp vec2 v_facade;\n#endif\nvoid main() {fragColor=v_color;\n#ifdef SHADING\nfloat edge=v_edge.x < 0.0 ? 0.0 : v_edge.z*(1.0-smoothstep(0.0,v_edge.y,1.0-v_edge.x));float facing=clamp(v_facing,0.0,1.0);float shade=facing > 0.0 ? sun_shade(v_sun,sqrt(1.0-facing*facing)/max(facing,0.2)) : 0.0;vec3 color=mix(v_color.rgb,v_ambient*0.9,shade)*(1.0-v_dark);\n#ifdef SHADING_WALL\nif (v_wall.z > 0.0) color=shade_wall(color,v_wall,v_facade.y,v_facade.x);\n#endif\nfragColor=vec4(color*(1.0-u_shade_edge*edge)*v_color.a,v_color.a);\n#endif\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}";
+var fill_extrusion_fragment_glsl_g_default = "in vec4 v_color;\n#ifdef SHADING\nuniform float u_shade_edge;in vec3 v_ambient;in float v_facing;in highp vec4 v_sun;in float v_dark;in vec3 v_edge;in highp vec3 v_wall;in highp vec2 v_facade;in highp vec2 v_light;uniform float u_light_height;\n#endif\nvoid main() {fragColor=v_color;\n#ifdef SHADING\nfloat edge=v_edge.x < 0.0 ? 0.0 : v_edge.z*(1.0-smoothstep(0.0,v_edge.y,1.0-v_edge.x));float facing=clamp(v_facing,0.0,1.0);float shade=facing > 0.0 ? sun_shade(v_sun,sqrt(1.0-facing*facing)/max(facing,0.2)) : 0.0;vec3 color=mix(v_color.rgb,v_ambient*0.9,shade)*(1.0-v_dark);\n#ifdef SHADING_WALL\nif (v_wall.z > 0.0) color=shade_wall(color,v_wall,v_facade.y,v_facade.x);\n#endif\ncolor*=1.0-u_shade_edge*edge;color+=(color+0.12)*lamp_light(v_light).rgb*exp(-max(v_wall.y,0.0)/u_light_height);fragColor=vec4(color*v_color.a,v_color.a);\n#endif\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}";
 //#endregion
 //#region src/shaders/glsl/fill_extrusion.vertex.glsl.g.ts
-var fill_extrusion_vertex_glsl_g_default = "uniform vec3 u_lightcolor;uniform lowp vec3 u_lightpos;uniform lowp vec3 u_lightpos_globe;uniform lowp float u_lightintensity;uniform float u_vertical_gradient;uniform lowp float u_opacity;uniform vec2 u_fill_translate;layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in float a_anchor_elevation;\n#endif\nout vec4 v_color;\n#ifdef SHADING\nuniform float u_shade_strength;uniform float u_shade_band;uniform float u_shade_edge_width;uniform vec3 u_sun_tint;uniform vec3 u_sky_tint;uniform float u_wall_rise;uniform float u_roof_lift;uniform mat4 u_sun_matrix;uniform float u_unit_metres;uniform vec2 u_wall_origin;out vec3 v_ambient;out float v_facing;out vec4 v_sun;out float v_dark;out vec3 v_edge;out vec3 v_wall;out vec2 v_facade;float shade_hash(vec2 p) {vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}\n#endif\n#pragma maplibre: define highp float base\n#pragma maplibre: define highp float height\n#pragma maplibre: define highp vec4 color\n#ifdef SHADING\n#pragma maplibre: define highp vec4 roof_color\n#pragma maplibre: define highp float facade_style\n#pragma maplibre: define highp float facade_seed\n#endif\nvoid main() {\n#pragma maplibre: initialize highp float base\n#pragma maplibre: initialize highp float height\n#pragma maplibre: initialize highp vec4 color\n#ifdef SHADING\n#pragma maplibre: initialize highp vec4 roof_color\n#pragma maplibre: initialize highp float facade_style\n#pragma maplibre: initialize highp float facade_seed\n#endif\nif (height < 0.0) {gl_Position=vec4(2.0,2.0,2.0,1.0);return;}vec3 normal=vec3(a_normal_ed.xyz);float gradient_base=max(0.0,base);float gradient_height=max(0.0,height);\n#ifdef TERRAIN3D\nfloat height_terrain3d_offset=a_anchor_elevation;float base_terrain3d_offset=height_terrain3d_offset-(base > 0.0 ? 0.0 : 10.0);\n#else\nfloat height_terrain3d_offset=0.0;float base_terrain3d_offset=0.0;\n#endif\nbase=max(0.0,base)+base_terrain3d_offset;height=max(0.0,height)+height_terrain3d_offset;float t=float(a_normal_ed.x & 1);float elevation=t > 0.0 ? height : base;vec2 posInTile=a_pos+u_fill_translate;\n#ifdef GLOBE\nvec3 spherePos=projectToSphere(posInTile,a_pos);gl_Position=interpolateProjectionFor3D(posInTile,spherePos,elevation);\n#else\ngl_Position=u_projection_matrix*vec4(posInTile,elevation,1.0);\n#endif\n#ifdef SHADING\nbool wall=a_normal_ed.z < 8192;float wall_ratio=wall ? t :-1.0;vec2 tangent=normalize(vec2(-normal.y,normal.x)+1e-6);v_wall=vec3(dot(a_pos+u_wall_origin,tangent)*u_unit_metres,t > 0.0 ? gradient_height : gradient_base,wall ? gradient_height : 0.0);v_facade=vec2(facade_style,shade_hash(vec2(mod(facade_seed,256.0),floor(facade_seed/256.0))+0.5));float dark=(wall_ratio < 0.0 || wall_ratio >=u_shade_band) ? 0.0 : (exp(-3.0*wall_ratio/u_shade_band)-0.0498)*1.0524;v_dark=u_shade_strength*dark;vec4 top=gl_Position+(height-elevation)*u_projection_matrix[2];vec4 foot=gl_Position+(base-elevation)*u_projection_matrix[2];float wall_px=(top.w > 0.001 && foot.w > 0.001) ? length((top.xy/top.w-foot.xy/foot.w)*0.5*u_viewport_size*u_device_pixel_ratio) : 0.0;v_edge=vec3(wall_ratio,min(u_shade_edge_width/max(wall_px,1.0),0.25),smoothstep(1.5,4.0,wall_px/max(u_shade_edge_width,0.001)));vec4 surface=(!wall && roof_color.a > 0.0) ? roof_color : color;float luminance=dot(surface.rgb,vec3(0.2126,0.7152,0.0722));surface.rgb+=vec3(0.03);vec3 n=normal/16384.0;float directional=clamp(dot(n,u_lightpos),0.0,1.0);directional=mix(1.0-u_lightintensity,max(1.0-luminance+u_lightintensity,1.0),directional);v_facing=dot(n,normalize(u_lightpos));float rise=wall ? mix(1.0-u_wall_rise,1.0,sqrt(wall_ratio)) : 1.0+u_roof_lift;v_color=vec4(clamp(surface.rgb*directional*mix(u_sky_tint,u_sun_tint,clamp(v_facing,0.0,1.0))*rise,0.0,1.0),u_opacity);v_ambient=clamp(surface.rgb*(1.0-u_lightintensity)*u_sky_tint*rise,0.0,1.0);v_sun=u_sun_matrix*vec4(posInTile,elevation,1.0);\n#else\nfloat colorvalue=color.r*0.2126+color.g*0.7152+color.b*0.0722;v_color=vec4(0.0,0.0,0.0,1.0);vec4 ambientlight=vec4(0.03,0.03,0.03,1.0);color+=ambientlight;vec3 normalForLighting=normal/16384.0;float directional=clamp(dot(normalForLighting,u_lightpos),0.0,1.0);\n#ifdef GLOBE\nmat3 rotMatrix=globeGetRotationMatrix(spherePos);normalForLighting=rotMatrix*normalForLighting;directional=mix(directional,clamp(dot(normalForLighting,u_lightpos_globe),0.0,1.0),u_projection_transition);\n#endif\ndirectional=mix((1.0-u_lightintensity),max((1.0-colorvalue+u_lightintensity),1.0),directional);if (normal.y !=0.0) {directional*=((1.0-u_vertical_gradient)+(u_vertical_gradient*clamp((t+gradient_base)*pow(gradient_height/150.0,0.5),mix(0.7,0.98,1.0-u_lightintensity),1.0)));}v_color.r+=clamp(color.r*directional*u_lightcolor.r,mix(0.0,0.3,1.0-u_lightcolor.r),1.0);v_color.g+=clamp(color.g*directional*u_lightcolor.g,mix(0.0,0.3,1.0-u_lightcolor.g),1.0);v_color.b+=clamp(color.b*directional*u_lightcolor.b,mix(0.0,0.3,1.0-u_lightcolor.b),1.0);v_color*=u_opacity;\n#endif\n}";
+var fill_extrusion_vertex_glsl_g_default = "uniform vec3 u_lightcolor;uniform lowp vec3 u_lightpos;uniform lowp vec3 u_lightpos_globe;uniform lowp float u_lightintensity;uniform float u_vertical_gradient;uniform lowp float u_opacity;uniform vec2 u_fill_translate;layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in float a_anchor_elevation;\n#endif\nout vec4 v_color;\n#ifdef SHADING\nuniform float u_shade_strength;uniform float u_shade_band;uniform float u_shade_edge_width;uniform vec3 u_sun_tint;uniform vec3 u_sky_tint;uniform float u_wall_rise;uniform float u_roof_lift;uniform mat4 u_sun_matrix;uniform mat4 u_occlusion_matrix;uniform float u_unit_metres;uniform vec2 u_wall_origin;out vec3 v_ambient;out float v_facing;out vec4 v_sun;out float v_dark;out vec3 v_edge;out vec3 v_wall;out vec2 v_facade;out vec2 v_light;float shade_hash(vec2 p) {vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}\n#endif\n#pragma maplibre: define highp float base\n#pragma maplibre: define highp float height\n#pragma maplibre: define highp vec4 color\n#ifdef SHADING\n#pragma maplibre: define highp vec4 roof_color\n#pragma maplibre: define highp float facade_style\n#pragma maplibre: define highp float facade_seed\n#endif\nvoid main() {\n#pragma maplibre: initialize highp float base\n#pragma maplibre: initialize highp float height\n#pragma maplibre: initialize highp vec4 color\n#ifdef SHADING\n#pragma maplibre: initialize highp vec4 roof_color\n#pragma maplibre: initialize highp float facade_style\n#pragma maplibre: initialize highp float facade_seed\n#endif\nif (height < 0.0) {gl_Position=vec4(2.0,2.0,2.0,1.0);return;}vec3 normal=vec3(a_normal_ed.xyz);float gradient_base=max(0.0,base);float gradient_height=max(0.0,height);\n#ifdef TERRAIN3D\nfloat height_terrain3d_offset=a_anchor_elevation;float base_terrain3d_offset=height_terrain3d_offset-(base > 0.0 ? 0.0 : 10.0);\n#else\nfloat height_terrain3d_offset=0.0;float base_terrain3d_offset=0.0;\n#endif\nbase=max(0.0,base)+base_terrain3d_offset;height=max(0.0,height)+height_terrain3d_offset;float t=float(a_normal_ed.x & 1);float elevation=t > 0.0 ? height : base;vec2 posInTile=a_pos+u_fill_translate;\n#ifdef GLOBE\nvec3 spherePos=projectToSphere(posInTile,a_pos);gl_Position=interpolateProjectionFor3D(posInTile,spherePos,elevation);\n#else\ngl_Position=u_projection_matrix*vec4(posInTile,elevation,1.0);\n#endif\n#ifdef SHADING\nbool wall=a_normal_ed.z < 8192;float wall_ratio=wall ? t :-1.0;vec2 tangent=normalize(vec2(-normal.y,normal.x)+1e-6);v_wall=vec3(dot(a_pos+u_wall_origin,tangent)*u_unit_metres,t > 0.0 ? gradient_height : gradient_base,wall ? gradient_height : 0.0);v_facade=vec2(facade_style,shade_hash(vec2(mod(facade_seed,256.0),floor(facade_seed/256.0))+0.5));float dark=(wall_ratio < 0.0 || wall_ratio >=u_shade_band) ? 0.0 : (exp(-3.0*wall_ratio/u_shade_band)-0.0498)*1.0524;v_dark=u_shade_strength*dark;vec4 top=gl_Position+(height-elevation)*u_projection_matrix[2];vec4 foot=gl_Position+(base-elevation)*u_projection_matrix[2];float wall_px=(top.w > 0.001 && foot.w > 0.001) ? length((top.xy/top.w-foot.xy/foot.w)*0.5*u_viewport_size*u_device_pixel_ratio) : 0.0;v_edge=vec3(wall_ratio,min(u_shade_edge_width/max(wall_px,1.0),0.25),smoothstep(1.5,4.0,wall_px/max(u_shade_edge_width,0.001)));vec4 surface=(!wall && roof_color.a > 0.0) ? roof_color : color;float luminance=dot(surface.rgb,vec3(0.2126,0.7152,0.0722));surface.rgb+=vec3(0.03);vec3 n=normal/16384.0;float directional=clamp(dot(n,u_lightpos),0.0,1.0);directional=mix(1.0-u_lightintensity,max(1.0-luminance+u_lightintensity,1.0),directional);v_facing=dot(n,normalize(u_lightpos));float rise=wall ? mix(1.0-u_wall_rise,1.0,sqrt(wall_ratio)) : 1.0+u_roof_lift;v_color=vec4(clamp(surface.rgb*directional*mix(u_sky_tint,u_sun_tint,clamp(v_facing,0.0,1.0))*rise,0.0,1.0),u_opacity);v_ambient=clamp(surface.rgb*(1.0-u_lightintensity)*u_sky_tint*rise,0.0,1.0);v_sun=u_sun_matrix*vec4(posInTile,elevation,1.0);v_light=(u_occlusion_matrix*vec4(posInTile,0.0,1.0)).xy;\n#else\nfloat colorvalue=color.r*0.2126+color.g*0.7152+color.b*0.0722;v_color=vec4(0.0,0.0,0.0,1.0);vec4 ambientlight=vec4(0.03,0.03,0.03,1.0);color+=ambientlight;vec3 normalForLighting=normal/16384.0;float directional=clamp(dot(normalForLighting,u_lightpos),0.0,1.0);\n#ifdef GLOBE\nmat3 rotMatrix=globeGetRotationMatrix(spherePos);normalForLighting=rotMatrix*normalForLighting;directional=mix(directional,clamp(dot(normalForLighting,u_lightpos_globe),0.0,1.0),u_projection_transition);\n#endif\ndirectional=mix((1.0-u_lightintensity),max((1.0-colorvalue+u_lightintensity),1.0),directional);if (normal.y !=0.0) {directional*=((1.0-u_vertical_gradient)+(u_vertical_gradient*clamp((t+gradient_base)*pow(gradient_height/150.0,0.5),mix(0.7,0.98,1.0-u_lightintensity),1.0)));}v_color.r+=clamp(color.r*directional*u_lightcolor.r,mix(0.0,0.3,1.0-u_lightcolor.r),1.0);v_color.g+=clamp(color.g*directional*u_lightcolor.g,mix(0.0,0.3,1.0-u_lightcolor.g),1.0);v_color.b+=clamp(color.b*directional*u_lightcolor.b,mix(0.0,0.3,1.0-u_lightcolor.b),1.0);v_color*=u_opacity;\n#endif\n}";
 //#endregion
 //#region src/shaders/glsl/fill_extrusion_depth.fragment.glsl.g.ts
-var fill_extrusion_depth_fragment_glsl_g_default = "void main() {fragColor=vec4(1.0);}";
+var fill_extrusion_depth_fragment_glsl_g_default = "#ifdef LIGHT\nin highp vec3 v_lit;\n#endif\nvoid main() {fragColor=vec4(1.0);\n#ifdef LIGHT\nfragColor=vec4(0.0,0.0,0.0,clamp(wall_light(v_lit.y,v_lit.x,v_lit.z),0.0,1.0));\n#endif\n}";
 //#endregion
 //#region src/shaders/glsl/fill_extrusion_depth.vertex.glsl.g.ts
-var fill_extrusion_depth_vertex_glsl_g_default = "layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in float a_anchor_elevation;\n#endif\n#pragma maplibre: define highp float base\n#pragma maplibre: define highp float height\nvoid main() {\n#pragma maplibre: initialize highp float base\n#pragma maplibre: initialize highp float height\nif (height < 0.0) {gl_Position=vec4(2.0,2.0,2.0,1.0);return;}\n#ifdef TERRAIN3D\nfloat ground=a_anchor_elevation;\n#else\nfloat ground=0.0;\n#endif\nfloat elevation=((a_normal_ed.x & 1) > 0 ? max(0.0,height) : max(0.0,base))+ground;gl_Position=u_projection_matrix*vec4(a_pos,elevation,1.0);}";
+var fill_extrusion_depth_vertex_glsl_g_default = "layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in float a_anchor_elevation;\n#endif\n#pragma maplibre: define highp float base\n#pragma maplibre: define highp float height\n#ifdef LIGHT\n#pragma maplibre: define highp float facade_style\n#pragma maplibre: define highp float facade_seed\nout highp vec3 v_lit;float shade_hash(vec2 p) {vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}\n#endif\nvoid main() {\n#pragma maplibre: initialize highp float base\n#pragma maplibre: initialize highp float height\n#ifdef LIGHT\n#pragma maplibre: initialize highp float facade_style\n#pragma maplibre: initialize highp float facade_seed\nv_lit=vec3(facade_style,shade_hash(vec2(mod(facade_seed,256.0),floor(facade_seed/256.0))+0.5),max(0.0,height));\n#endif\nif (height < 0.0) {gl_Position=vec4(2.0,2.0,2.0,1.0);return;}\n#ifdef TERRAIN3D\nfloat ground=a_anchor_elevation;\n#else\nfloat ground=0.0;\n#endif\nfloat elevation=((a_normal_ed.x & 1) > 0 ? max(0.0,height) : max(0.0,base))+ground;gl_Position=u_projection_matrix*vec4(a_pos,elevation,1.0);}";
 //#endregion
 //#region src/shaders/glsl/shading_ground.fragment.glsl.g.ts
 var shading_ground_fragment_glsl_g_default = "in highp vec4 v_sun;in highp vec2 v_occlusion;void main() {fragColor=ground_shade(v_sun,v_occlusion);}";
@@ -9907,7 +9907,7 @@ var shading_ground_fragment_glsl_g_default = "in highp vec4 v_sun;in highp vec2 
 var shading_ground_vertex_glsl_g_default = "layout(location=0) in vec2 a_pos;uniform mat4 u_matrix;uniform mat4 u_sun_matrix;uniform mat4 u_occlusion_matrix;out highp vec4 v_sun;out highp vec2 v_occlusion;void main() {vec4 p=vec4(a_pos,0.0,1.0);gl_Position=u_matrix*p;v_sun=u_sun_matrix*p;v_occlusion=(u_occlusion_matrix*p).xy;}";
 //#endregion
 //#region src/shaders/glsl/shading_blur.fragment.glsl.g.ts
-var shading_blur_fragment_glsl_g_default = "uniform sampler2D u_image;uniform highp vec2 u_step;uniform highp vec2 u_blur;in highp vec2 v_uv;void main() {highp float sum=0.0;highp float weight=0.0;for (int i=-8; i <=8; i++) {highp float w=exp(-0.5*float(i*i)/(u_blur.x*u_blur.x));sum+=w*textureLod(u_image,v_uv+float(i)*u_step,u_blur.y).r;weight+=w;}fragColor=vec4(sum/weight);}";
+var shading_blur_fragment_glsl_g_default = "uniform sampler2D u_image;uniform highp vec2 u_step;uniform highp vec2 u_blur;in highp vec2 v_uv;void main() {highp vec4 sum=vec4(0.0);highp float weight=0.0;for (int i=-8; i <=8; i++) {highp float w=exp(-0.5*float(i*i)/(u_blur.x*u_blur.x));sum+=w*textureLod(u_image,v_uv+float(i)*u_step,u_blur.y);weight+=w;}fragColor=sum/weight;}";
 //#endregion
 //#region src/shaders/glsl/shading_blur.vertex.glsl.g.ts
 var shading_blur_vertex_glsl_g_default = "layout(location=0) in vec2 a_pos;out vec2 v_uv;void main() {v_uv=a_pos;gl_Position=vec4(a_pos*2.0-1.0,0.0,1.0);}";
@@ -16677,7 +16677,9 @@ const shadingReceiverUniforms = (context, locations) => ({
 	"u_occlusion": new Uniform1i(context, locations.u_occlusion),
 	"u_occlusion_strength": new Uniform2f(context, locations.u_occlusion_strength),
 	"u_ground": new Uniform2f(context, locations.u_ground),
-	"u_shadow_color": new Uniform3f(context, locations.u_shadow_color)
+	"u_shadow_color": new Uniform3f(context, locations.u_shadow_color),
+	"u_lights": new Uniform1i(context, locations.u_lights),
+	"u_light": new Uniform4f(context, locations.u_light)
 });
 const shadingMatrixUniforms = (context, locations) => ({
 	"u_sun_matrix": new UniformMatrix4f(context, locations.u_sun_matrix),
@@ -16696,6 +16698,8 @@ const shadingBlurUniforms = (context, locations) => ({
 const shadedExtrusionUniforms = (context, locations) => ({
 	...shadingReceiverUniforms(context, locations),
 	"u_sun_matrix": new UniformMatrix4f(context, locations.u_sun_matrix),
+	"u_occlusion_matrix": new UniformMatrix4f(context, locations.u_occlusion_matrix),
+	"u_light_height": new Uniform1f(context, locations.u_light_height),
 	"u_shade_strength": new Uniform1f(context, locations.u_shade_strength),
 	"u_shade_band": new Uniform1f(context, locations.u_shade_band),
 	"u_shade_edge": new Uniform1f(context, locations.u_shade_edge),
@@ -25204,12 +25208,21 @@ var Shading = class {
 		this.aoRadiusMax = 120;
 		this.aoIntensity = .8;
 		this.shadowMapSize = 2048;
+		this.lightIntensity = 0;
+		this.spillColor = [
+			1,
+			.8,
+			.55
+		];
+		this.lightBlur = 3;
+		this.lightHeight = 6;
 		this.frame = null;
 		this.active = false;
 		this.groundLayer = null;
 		this.drawn = {
 			sun: 0,
-			occlusion: 0
+			occlusion: 0,
+			lights: 0
 		};
 		this.fade = 0;
 		this.sunRegion = null;
@@ -25222,6 +25235,10 @@ var Shading = class {
 		this.occlusionKey = null;
 		this.coverage = null;
 		this.blurred = [];
+		this.lights = null;
+		this.lightsKey = null;
+		this.lamps = null;
+		this.lit = [];
 		this.empty = null;
 		this.wallUniforms = /* @__PURE__ */ new WeakMap();
 		this.painter = painter;
@@ -25265,6 +25282,7 @@ var Shading = class {
 		const tr = painter.transform;
 		this.frame = null;
 		this.occlusion = null;
+		this.lights = null;
 		this.groundLayer = null;
 		this.active = this.enabled && tr.zoom >= this.minZoom;
 		if (!this.active) return;
@@ -25288,7 +25306,11 @@ var Shading = class {
 			}
 		}
 		if (!tiles.length && !this.casters.size) return;
-		if ([this.groundOcclusion && this.aoIntensity > 0 && this.updateOcclusion(tiles), this.sunShadows && this.shadowAlpha > .001 && this.updateSun(tiles)].some(Boolean)) {
+		if ([
+			this.groundOcclusion && this.aoIntensity > 0 && this.updateOcclusion(tiles),
+			this.sunShadows && this.shadowAlpha > .001 && this.updateSun(tiles),
+			this.lightIntensity > 0 && this.updateLights(tiles)
+		].some(Boolean)) {
 			const context = painter.context;
 			context.setDirty();
 			context.bindFramebuffer.set(null);
@@ -25310,6 +25332,18 @@ var Shading = class {
 			};
 			for (const caster of this.casters) caster.receiveOcclusion?.(occlusion);
 		}
+		if (this.lights) {
+			const lights = {
+				uv: this.lights.uv,
+				texture: this.lit[0].texture,
+				strength: this.lightStrength(),
+				spillColor: this.spillColor
+			};
+			for (const caster of this.casters) caster.receiveLights?.(lights);
+		}
+	}
+	lightStrength() {
+		return this.lights ? this.lightIntensity * this.groundOpacity() * this.opacity : 0;
 	}
 	/** How dark the ground occlusion is this frame, and the power that narrows what was baked to this zoom's radius. */
 	occlusionStrength() {
@@ -25489,18 +25523,13 @@ var Shading = class {
 	}
 	/** Ready the ground occlusion: the cast footprints from overhead, blurred to its radius. Whether it was drawn again. */
 	updateOcclusion(tiles) {
-		const painter = this.painter;
-		const context = painter.context;
+		const context = this.painter.context;
 		const gl = context.gl;
-		const tr = painter.transform;
-		const zoom = Math.floor(tr.zoom * 2) / 2;
-		const centre = MercatorCoordinate.fromLngLat(tr.center);
-		const region = steadyRegion(centre.x, centre.y, OCCLUSION_REACH * 2 ** (16 - zoom) * perMetreAt(centre.y));
+		const { region, overhead, uv, zoom } = this.overhead();
 		const radius = this.occlusionRadius(zoom, region.y);
-		const overhead = overheadMatrix(region);
 		this.occlusion = {
 			region,
-			uv: multiply(CLIP_TO_UV, overhead),
+			uv,
 			radius
 		};
 		const sigma = radius / RADIUS_IN_SIGMAS * perMetreAt(region.y) / (region.half * 2) * OCCLUSION_SIZE;
@@ -25528,19 +25557,41 @@ var Shading = class {
 		context.setDirty();
 		gl.bindTexture(gl.TEXTURE_2D, this.coverage.texture);
 		gl.generateMipmap(gl.TEXTURE_2D);
+		this.blur(this.coverage.texture, this.blurred, sigma);
+		return true;
+	}
+	/** The square of ground about the view that the occlusion and the lamplight are both drawn over, from overhead. */
+	overhead() {
+		const tr = this.painter.transform;
+		const zoom = Math.floor(tr.zoom * 2) / 2;
+		const centre = MercatorCoordinate.fromLngLat(tr.center);
+		const region = steadyRegion(centre.x, centre.y, OCCLUSION_REACH * 2 ** (16 - zoom) * perMetreAt(centre.y));
+		const overhead = overheadMatrix(region);
+		return {
+			region,
+			overhead,
+			uv: multiply(CLIP_TO_UV, overhead),
+			zoom
+		};
+	}
+	/** Blur a mipmapped map by `sigma` of its texels into `targets[0]`: a mip level of it, then one pass each way. */
+	blur(source, targets, sigma) {
+		const painter = this.painter;
+		const context = painter.context;
+		const gl = context.gl;
 		const level = Math.min(Math.max(Math.floor(Math.log2(sigma / 2)), 0), 4);
 		const size = OCCLUSION_SIZE >> level;
 		for (let i = 0; i < 2; i++) {
-			if (this.blurred[i]?.size === size) continue;
-			if (this.blurred[i]) {
-				gl.deleteTexture(this.blurred[i].texture);
-				gl.deleteFramebuffer(this.blurred[i].framebuffer);
+			if (targets[i]?.size === size) continue;
+			if (targets[i]) {
+				gl.deleteTexture(targets[i].texture);
+				gl.deleteFramebuffer(targets[i].framebuffer);
 			}
-			this.blurred[i] = this.colorTarget(size, false);
+			targets[i] = this.colorTarget(size, false);
 		}
 		const program = painter.useProgram("shadingBlur", null, true);
 		const pass = (from, lod, to, step) => {
-			context.bindFramebuffer.set(this.blurred[to].framebuffer);
+			context.bindFramebuffer.set(targets[to].framebuffer);
 			context.viewport.set([
 				0,
 				0,
@@ -25552,12 +25603,68 @@ var Shading = class {
 			program.draw(context, gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, ColorMode.unblended, CullFaceMode.disabled, {
 				"u_image": 0,
 				"u_step": step,
-				"u_blur": [sigma / 2 ** level / 1.5, lod]
+				"u_blur": [Math.max(sigma / 2 ** level / 1.5, .1), lod]
 			}, null, null, "shadingBlur", painter.viewportBuffer, painter.quadTriangleIndexBuffer, painter.viewportSegments);
 		};
-		pass(this.coverage.texture, level, 1, [1.5 / size, 0]);
-		pass(this.blurred[1].texture, 0, 0, [0, 1.5 / size]);
+		pass(source, level, 1, [1.5 / size, 0]);
+		pass(targets[1].texture, 0, 0, [0, 1.5 / size]);
+	}
+	/** Ready the lamplight: what lit buildings spill and the casters' lamps throw, from overhead, softened. Whether it was drawn again. */
+	updateLights(tiles) {
+		const context = this.painter.context;
+		const gl = context.gl;
+		const { region, overhead, uv } = this.overhead();
+		this.lights = {
+			region,
+			uv
+		};
+		const sigma = this.lightBlur * perMetreAt(region.y) / (region.half * 2) * OCCLUSION_SIZE;
+		const spills = !!this.wallShader?.light;
+		const key = [
+			region.x,
+			region.y,
+			region.half,
+			sigma,
+			spills ? idOf(this.wallShader) : 0
+		];
+		this.castKey(tiles, key);
+		if (sameKey(key, this.lightsKey)) return false;
+		this.lightsKey = key;
+		this.drawn.lights++;
+		this.lamps ??= this.colorTarget(OCCLUSION_SIZE, true);
+		context.bindFramebuffer.set(this.lamps.framebuffer);
+		context.viewport.set([
+			0,
+			0,
+			OCCLUSION_SIZE,
+			OCCLUSION_SIZE
+		]);
+		context.clear({ color: Color.transparent });
+		if (spills) this.drawLit(tiles, ({ canonical: { z, x, y }, wrap }) => multiply(overhead, tileToMercator(z, x, y, wrap, 0)));
+		context.setDepthMode(DepthMode.disabled);
+		context.setStencilMode(StencilMode.disabled);
+		context.setColorMode(ADDED);
+		context.setCullFace(CullFaceMode.disabled);
+		for (const caster of this.casters) caster.drawLights?.(gl, { matrix: overhead });
+		context.setDirty();
+		gl.bindTexture(gl.TEXTURE_2D, this.lamps.texture);
+		gl.generateMipmap(gl.TEXTURE_2D);
+		this.blur(this.lamps.texture, this.lit, sigma);
 		return true;
+	}
+	/** The footprints of the extrusions whose wall shader says they are lit, into the lamplight's alpha. */
+	drawLit(tiles, tileMatrix) {
+		const painter = this.painter;
+		const context = painter.context;
+		const terrain = painter.style.map.terrain;
+		for (const { layer, coord, bucket } of tiles) {
+			const configuration = bucket.programConfigurations.get(layer.id);
+			const program = painter.useProgram("fillExtrusionDepth", configuration, true, ["#define LIGHT"], this.wallSource());
+			if (program.failedToCreate) continue;
+			context.program.set(program.program);
+			this.setWallUniforms(program.program);
+			program.draw(context, context.gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, ColorMode.unblended, CullFaceMode.disabled, null, null, projectionOf(tileMatrix(coord)), `${layer.id}/lit`, bucket.layoutVertexBuffer, bucket.indexBuffer, bucket.segments, layer.paint, painter.transform.zoom, configuration, terrain?.getAnchorElevations(bucket, coord));
+		}
 	}
 	/** A matrix from a tile's units into the sun's clip space; identity with no sun. */
 	sunMatrix(coord) {
@@ -25568,13 +25675,14 @@ var Shading = class {
 	}
 	/** A matrix from a tile's units into the ground occlusion's texture. */
 	occlusionMatrix(coord) {
-		if (!this.occlusion) return IDENTITY;
+		const map = this.occlusion ?? this.lights;
+		if (!map) return IDENTITY;
 		const { z, x, y } = coord.canonical;
-		return Float32Array.from(multiply(this.occlusion.uv, tileToMercator(z, x, y, coord.wrap, 0)));
+		return Float32Array.from(multiply(map.uv, tileToMercator(z, x, y, coord.wrap, 0)));
 	}
 	/** Whether anything is laid on the ground this frame. */
 	shadesGround() {
-		return this.active && (!!this.frame || !!this.occlusion);
+		return this.active && (!!this.frame || !!this.occlusion || !!this.lights);
 	}
 	/** Bind the maps for a receiver, and give the uniforms that read them. */
 	receive() {
@@ -25586,8 +25694,11 @@ var Shading = class {
 		gl.bindTexture(gl.TEXTURE_2D, frame ? frame.texture : this.emptySun ??= this.depthTexture(1));
 		context.activeTexture.set(gl.TEXTURE0 + 6);
 		gl.bindTexture(gl.TEXTURE_2D, occlusion ? this.blurred[0].texture : this.empty ??= this.clearTexture());
+		context.activeTexture.set(gl.TEXTURE0 + 7);
+		gl.bindTexture(gl.TEXTURE_2D, this.lights ? this.lit[0].texture : this.empty ??= this.clearTexture());
 		context.activeTexture.set(gl.TEXTURE0);
 		const ground = this.groundOpacity() * this.opacity;
+		const light = this.lightStrength();
 		return {
 			"u_sun_shadow": 5,
 			"u_sun": [
@@ -25598,7 +25709,14 @@ var Shading = class {
 			"u_occlusion": 6,
 			"u_occlusion_strength": this.occlusionStrength(),
 			"u_ground": [this.heightScale * Math.hypot(this.shadowOffset[0], this.shadowOffset[1]), this.shadowAlpha * ground],
-			"u_shadow_color": this.shadowColor
+			"u_shadow_color": this.shadowColor,
+			"u_lights": 7,
+			"u_light": [
+				this.spillColor[0] * light,
+				this.spillColor[1] * light,
+				this.spillColor[2] * light,
+				light
+			]
 		};
 	}
 	/** Lay the shadows and occlusion on flat ground: one quad over all they reach. Terrain is shaded as it is drawn. */
@@ -25607,13 +25725,13 @@ var Shading = class {
 		const painter = this.painter;
 		const context = painter.context;
 		const gl = context.gl;
-		const quad = regionQuad(this.frame ? this.sunRegion : this.occlusion.region);
+		const quad = regionQuad(this.frame ? this.sunRegion : (this.occlusion ?? this.lights).region);
 		const camera = painter.transform.getProjectionDataForCustomLayer(false).mainMatrix;
 		painter.useProgram("shadingGround", null, true, ["#define SHADING"]).draw(context, gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, ColorMode.alphaBlended, CullFaceMode.disabled, {
 			...this.receive(),
 			"u_matrix": Float32Array.from(multiply(camera, quad)),
 			"u_sun_matrix": this.frame ? Float32Array.from(multiply(this.frame.light, quad)) : IDENTITY,
-			"u_occlusion_matrix": this.occlusion ? Float32Array.from(multiply(this.occlusion.uv, quad)) : IDENTITY
+			"u_occlusion_matrix": this.occlusion ?? this.lights ? Float32Array.from(multiply((this.occlusion ?? this.lights).uv, quad)) : IDENTITY
 		}, null, null, "shadingGround", painter.viewportBuffer, painter.quadTriangleIndexBuffer, painter.viewportSegments);
 	}
 	/** A shaded extrusion's light and where its tile lies: the sun's view, and the fixed grid its walls are measured on. */
@@ -25624,6 +25742,8 @@ var Shading = class {
 		return {
 			...this.receive(),
 			"u_sun_matrix": this.sunMatrix(coord),
+			"u_occlusion_matrix": this.occlusionMatrix(coord),
+			"u_light_height": Math.max(this.lightHeight, .01),
 			"u_shade_strength": this.strength,
 			"u_shade_band": Math.max(.01, this.band),
 			"u_shade_edge": this.edge,
@@ -25665,19 +25785,29 @@ var Shading = class {
 			this.emptySun,
 			this.empty,
 			this.coverage?.texture,
-			...this.blurred.map((b) => b.texture)
+			this.lamps?.texture,
+			...[...this.blurred, ...this.lit].map((b) => b.texture)
 		]) if (texture) gl.deleteTexture(texture);
 		for (const framebuffer of [
 			this.sunFramebuffer,
 			this.coverage?.framebuffer,
-			...this.blurred.map((b) => b.framebuffer)
+			this.lamps?.framebuffer,
+			...[...this.blurred, ...this.lit].map((b) => b.framebuffer)
 		]) if (framebuffer) gl.deleteFramebuffer(framebuffer);
-		this.sunTexture = this.sunFramebuffer = this.emptySun = this.empty = this.coverage = null;
+		this.sunTexture = this.sunFramebuffer = this.emptySun = this.empty = this.coverage = this.lamps = null;
 		this.blurred = [];
-		this.frame = this.occlusion = this.sunKey = this.occlusionKey = null;
+		this.lit = [];
+		this.frame = this.occlusion = this.lights = this.sunKey = this.occlusionKey = this.lightsKey = null;
 		this.active = false;
 	}
 };
+/** Each draw added to what is there, in every channel. */
+const ADDED = new ColorMode([1, 1], Color.transparent, [
+	true,
+	true,
+	true,
+	true
+]);
 const IDENTITY = new Float32Array([
 	1,
 	0,

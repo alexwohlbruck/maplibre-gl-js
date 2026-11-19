@@ -1,10 +1,10 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.6/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.7/LICENSE.txt
 */
 import { $ as projectToWorldCoordinates, $n as getRollPitchBearing, $r as rotateZ$1, $t as Transitionable, A as evaluateSizeForZoom, Ai as isOffscreenCanvasDistorted, An as arrayBufferToImageBitmap, Ar as create$3, At as toEvaluationFeature, B as isCluster, Bi as ValidationError, Bn as defaultEasing, Br as scale$2, Bt as SegmentVector, C as addDynamicAttributes, Ci as translate, Cn as AbortError, Cr as translatePosition, Ct as HEATMAP_FULL_RENDER_FBO_KEY, Di as determinant, Dn as MAX_VALID_LATITUDE, Dr as zoomScale, Dt as RGBAImage, E as TextAnchorEnum, Ei as create$2, Er as wrap, Et as AlphaImage, F as potpack, Fi as featureFilter, Fn as createIdentityMat4f64, Fr as fromEuler, Ft as Uniform4f, Gn as evaluateZoomSnap, Gr as distance, Gt as PosArray, Hi as derefLayers, Hn as differenceOfAnglesDegrees, Hr as add, Ht as CollisionCircleLayoutArray, I as isStyleImageWebGLData, In as createMat4f64, Ir as fromValues, It as UniformColor, J as cameraDirectionFromPitchBearing, Jn as findLineIntersection, Jr as length, Jt as TriangleIndexArray, K as isFillExtrusionStyleLayer, Kn as extend, Kr as dot, Kt as QuadTriangleArray, L as renderStyleImage, Li as interpolateFactory, Ln as createVec3f64, Lr as multiply$2, Lt as UniformColorArray, M as getAnchorAlignment, Mi as Point, Mn as clamp, Mr as scale$3, Mt as Uniform1i, Ni as emptyStyle, Nn as clone$2, Nr as sqrLen, Nt as Uniform2f, O as clipLine, Oi as invert, On as angleToRotateBetweenVectors2D, Or as pixelsToTileUnits, Ot as isCircleStyleLayer, P as ImagePosition, Pn as createIdentityMat4f32, Pr as zero, Pt as Uniform3f, Q as maxMercatorHorizonAngle, Qr as rotateY, Qt as Properties, R as parseGlyphPbf, Ri as ProjectionDefinition, Rn as createVec4f64, Rr as slerp, Rt as UniformFloatArray, S as SymbolBucket, Si as scale, Sn as config, Sr as threePlaneIntersection, St as isHillshadeStyleLayer, T as getAnchorJustification, Ti as fromRotation, Tn as throwIfAborted, Tr as warnOnce, Tt as renderColorRamp, U as collisionCircleLayout, Ui as latest, Un as distanceOfAnglesRadians, Ur as clone, Ut as LineStripIndexArray, V as codePointUsesLocalIdeographFontFamily, Vi as diff, Vn as degreesToRadians, Vr as transformMat4, Vt as CollisionBoxArray, W as isLineStyleLayer, Wn as ensureError, Wr as cross$1, Wt as Pos3dArray, X as cameraMercatorCoordinateFromCenterAndRotation, Xn as getAngleDelta, Xr as normalize, Xt as isRasterStyleLayer, Y as cameraMercatorCoordinate, Yn as getAABB, Yr as negate, Yt as createLayout, Z as getMercatorHorizon, Zn as getEdgeTiles, Zr as rotateX$1, Zt as DataConstantProperty, _ as createStyleLayer, _i as ortho, _n as makeRequest, _r as rollPitchBearingEqual, _t as SubdivisionGranularityExpression, a as GeoJSONFeature, ai as transformMat4$1, an as validateAndEmit, ar as isWorker, at as lngFromMercatorX, b as isBackgroundStyleLayer, bi as rotateY$1, bn as getProtocol, br as sphericalToCartesian, ci as clone$1, cn as ErrorEvent, cr as mod, ct as mercatorZfromAltitude, d as OverscaledTileID, di as equals, dn as AJAXError, dr as pick, ei as scale$1, en as EvaluationParameters, er as isImageBitmap, et as tileCoordinatesToMercatorCoordinates, f as UnwrappedTileID, fi as exactEquals, fn as GLOBAL_DISPATCHER_ID, fr as pointPlaneSignedDistance, ft as EXTENT_BOUNDS, g as Actor, gi as multiply$1, gn as getVideo, gr as remapSaturate, gt as SOUTH_POLE_Y, h as isInBoundsForZoomLngLat, hi as invert$1, hn as getReferrer, hr as readImageUsingVideoFrame, ht as NORTH_POLE_Y, ii as transformMat3, in as emitValidationErrors, ir as isTouchableOrPointableType, it as latFromMercatorY, ji as offscreenCanvasSupported, jn as bezier, jr as length$1, jt as Uniform1f, k as evaluateSizeForFeature, ki as rotate, kn as arrayBufferToImage, kr as EXTENT, kt as polygonIntersectsPolygon, li as copy, ln as Event, lr as nextPowerOfTwo, lt as LngLat, m as compareTileId, mi as identity, mn as getJSON, mr as rayPlaneIntersection, mt as isFillStyleLayer, n as TileCache, ni as sub, nr as isSafari, nt as MercatorCoordinate, oi as transformQuat, on as validateStyle, or as lerp, ot as mercatorXfromLng, p as calculateTileKey, pi as fromScaling, pn as getArrayBuffer, pr as radiansToDegrees, pt as Bounds, q as calculateTileMatrix, qn as filterObject, qr as len, qt as RasterBoundsArray, ri as subtract, rn as SPEC_SOURCE_TYPES, rr as isTouchableEvent, rt as altitudeFromMercatorZ, s as GEOJSON_TILE_LAYER_NAME, si as zero$1, sn as validateStyleAndEmit, sr as mapObject, st as mercatorYfromLat, ti as scaleAndAdd, tn as ZoomHistory, tr as isPointableEvent, tt as unprojectFromWorldCoordinates, u as CanonicalTileID, ui as create$1, un as Evented, ur as parseCacheControl, ut as earthRadius, v as isCustomStyleLayer, vi as perspective, vn as sameOrigin, vr as rollPitchBearingToQuat, vt as SubdivisionGranularitySetting, w as getOverlapMode, wi as create$4, wn as isAbortError, wr as uniqueId, wt as isHeatmapStyleLayer, x as isSymbolStyleLayer, xi as rotateZ, xn as removeProtocol, xr as subscribe, xt as Texture, y as validateCustomStyleLayer, yi as rotateX, yn as addProtocol, yr as scaleZoom, yt as isColorReliefStyleLayer, zi as Color, zn as deepEqual, zr as mul, zt as UniformMatrix4f } from "./maplibre-gl-shared-dev.mjs";
 //#region package.json
-var version$2 = "6.11.2-transit.18-terrain.6";
+var version$2 = "6.11.2-transit.18-terrain.7";
 //#endregion
 //#region src/util/browser.ts
 let linkEl;
@@ -25300,6 +25300,23 @@ var Shading = class {
 			]);
 		}
 		if (this.frame) for (const caster of this.casters) caster.receiveSun?.(this.frame);
+		if (this.occlusion) {
+			const [strength, power] = this.occlusionStrength();
+			const occlusion = {
+				uv: this.occlusion.uv,
+				texture: this.blurred[0].texture,
+				strength,
+				power
+			};
+			for (const caster of this.casters) caster.receiveOcclusion?.(occlusion);
+		}
+	}
+	/** How dark the ground occlusion is this frame, and the power that narrows what was baked to this zoom's radius. */
+	occlusionStrength() {
+		const occlusion = this.occlusion;
+		if (!occlusion) return [0, 1];
+		const narrow = (occlusion.radius / this.occlusionRadius(this.painter.transform.zoom, occlusion.region.y)) ** 2;
+		return [this.aoIntensity * this.groundOpacity() * this.opacity * this.fade * this.occlusionPitchFade(), Math.max(narrow, 1)];
 	}
 	/** What of a tile's extrusions the passes read, for telling whether they have changed. */
 	castKey(tiles, key) {
@@ -25428,6 +25445,7 @@ var Shading = class {
 	/** A depth texture a shadow sampler compares against. */
 	depthTexture(size) {
 		const gl = this.painter.context.gl;
+		this.painter.context.activeTexture.set(gl.TEXTURE0 + 5);
 		const texture = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT24, size, size);
@@ -25570,7 +25588,6 @@ var Shading = class {
 		gl.bindTexture(gl.TEXTURE_2D, occlusion ? this.blurred[0].texture : this.empty ??= this.clearTexture());
 		context.activeTexture.set(gl.TEXTURE0);
 		const ground = this.groundOpacity() * this.opacity;
-		const narrow = occlusion ? (occlusion.radius / this.occlusionRadius(this.painter.transform.zoom, occlusion.region.y)) ** 2 : 1;
 		return {
 			"u_sun_shadow": 5,
 			"u_sun": [
@@ -25579,7 +25596,7 @@ var Shading = class {
 				frame ? frame.depthPerMetre : 0
 			],
 			"u_occlusion": 6,
-			"u_occlusion_strength": [occlusion ? this.aoIntensity * ground * this.fade * this.occlusionPitchFade() : 0, Math.max(narrow, 1)],
+			"u_occlusion_strength": this.occlusionStrength(),
 			"u_ground": [this.heightScale * Math.hypot(this.shadowOffset[0], this.shadowOffset[1]), this.shadowAlpha * ground],
 			"u_shadow_color": this.shadowColor
 		};

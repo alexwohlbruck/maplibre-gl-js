@@ -51,7 +51,7 @@ import {GPUInitializationError} from './util/gpu_initialization_error.ts';
 import {EXTENT} from './data/extent.ts';
 
 import type {ControlPosition, IControl} from './ui/control/control.ts';
-import type {Shading, ShadingOptions, ShadingCaster, SunFrame, OcclusionFrame, WallShader} from './render/shading/shading.ts';
+import type {Shading, ShadingOptions, ShadingCaster, SunFrame, OcclusionFrame, GroundOcclusion, WallShader} from './render/shading/shading.ts';
 import type {CustomRenderMethod, CustomLayerInterface, CustomRenderMethodInput, CustomLayerProjectionDataParams, UnwrappedTileIDLiteral} from './style/style_layer/custom_style_layer.ts';
 import type {AnchoredCameraOptions, AnimationOptions, CameraForBoundsOptions, CameraOptions, CameraUpdateTransformFunction, CenterZoomBearing, EaseToOptions, FitBoundsOptions, FlyToOptions, JumpToOptions, PointLike} from './ui/camera.ts';
 import type {DistributiveKeys, DistributiveOmit, GeoJSONFeature, MapGeoJSONFeature} from './util/vectortile_to_geojson.ts';
@@ -393,6 +393,7 @@ export {
     type ShadingCaster,
     type SunFrame,
     type OcclusionFrame,
+    type GroundOcclusion,
     type WallShader,
     type CustomLayerProjectionDataParams,
     type UnwrappedTileIDLiteral,

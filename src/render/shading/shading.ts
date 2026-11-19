@@ -51,6 +51,18 @@ export type SunFrame = {
 export type OcclusionFrame = {matrix: Mat4};
 
 /**
+ * The ground occlusion for one frame, for a surface lying on the ground to darken by as the ground does:
+ * `strength * pow(clamp(2 * texel.r, 0, 1), power)` at a point's texture coordinates.
+ */
+export type GroundOcclusion = {
+    /** Texture coordinates ← mercator. */
+    uv: Mat4;
+    texture: WebGLTexture;
+    strength: number;
+    power: number;
+};
+
+/**
  * Anything besides the extrusions that takes part in the shading, drawing with its own programs: a custom layer's
  * models. Each draw is called mid-pass with the target, depth and colour state already set.
  */
@@ -63,6 +75,8 @@ export type ShadingCaster = {
     drawOcclusion?(gl: WebGL2RenderingContext, frame: OcclusionFrame): void;
     /** This frame's sun shadow map, to be shaded by. */
     receiveSun?(frame: SunFrame): void;
+    /** This frame's ground occlusion, for what of it lies on the ground. */
+    receiveOcclusion?(occlusion: GroundOcclusion): void;
 };
 
 /**
@@ -259,6 +273,20 @@ export class Shading {
             context.viewport.set([0, 0, painter.width, painter.height]);
         }
         if (this.frame) for (const caster of this.casters) caster.receiveSun?.(this.frame);
+        if (this.occlusion) {
+            const [strength, power] = this.occlusionStrength();
+            const occlusion = {uv: this.occlusion.uv, texture: this.blurred[0].texture, strength, power};
+            for (const caster of this.casters) caster.receiveOcclusion?.(occlusion);
+        }
+    }
+
+    /** How dark the ground occlusion is this frame, and the power that narrows what was baked to this zoom's radius. */
+    private occlusionStrength(): [number, number] {
+        const occlusion = this.occlusion;
+        if (!occlusion) return [0, 1];
+        // Baked at the widest radius of its half zoom; the power narrows it to this zoom's.
+        const narrow = (occlusion.radius / this.occlusionRadius(this.painter.transform.zoom, occlusion.region.y)) ** 2;
+        return [this.aoIntensity * this.groundOpacity() * this.opacity * this.fade * this.occlusionPitchFade(), Math.max(narrow, 1)];
     }
 
     /** What of a tile's extrusions the passes read, for telling whether they have changed. */
@@ -362,6 +390,8 @@ export class Shading {
     /** A depth texture a shadow sampler compares against. */
     private depthTexture(size: number): WebGLTexture {
         const gl = this.painter.context.gl;
+        // Made on its own unit: left bound on one a colour sampler reads, it would fault that draw.
+        this.painter.context.activeTexture.set(gl.TEXTURE0 + SUN_SHADOW_UNIT);
         const texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT24, size, size);
@@ -487,13 +517,11 @@ export class Shading {
         gl.bindTexture(gl.TEXTURE_2D, occlusion ? this.blurred[0].texture : (this.empty ??= this.clearTexture()));
         context.activeTexture.set(gl.TEXTURE0);
         const ground = this.groundOpacity() * this.opacity;
-        // Baked at the widest radius of its half zoom; the power narrows it to this zoom's.
-        const narrow = occlusion ? (occlusion.radius / this.occlusionRadius(this.painter.transform.zoom, occlusion.region.y)) ** 2 : 1;
         return {
             'u_sun_shadow': SUN_SHADOW_UNIT,
             'u_sun': [frame ? frame.strength : 0, frame ? 1 / frame.size : 0, frame ? frame.depthPerMetre : 0],
             'u_occlusion': OCCLUSION_UNIT,
-            'u_occlusion_strength': [occlusion ? this.aoIntensity * ground * this.fade * this.occlusionPitchFade() : 0, Math.max(narrow, 1)],
+            'u_occlusion_strength': this.occlusionStrength(),
             'u_ground': [this.heightScale * Math.hypot(this.shadowOffset[0], this.shadowOffset[1]), this.shadowAlpha * ground],
             'u_shadow_color': this.shadowColor,
         };

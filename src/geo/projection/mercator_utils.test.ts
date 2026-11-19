@@ -1,106 +1,124 @@
 import {describe, expect, test} from 'vitest';
 import Point from '@mapbox/point-geometry';
 import {LngLat} from '../lng_lat.ts';
-import {cameraMercatorCoordinate, getMercatorHorizon, projectToWorldCoordinates, tileCoordinatesToLocation, tileCoordinatesToMercatorCoordinates} from './mercator_utils.ts';
-import {MercatorTransform} from './mercator_transform.ts';
-import {GlobeTransform} from './globe_transform.ts';
+import {cameraMercatorCoordinate, degreesPerWorldUnit, getMercatorHorizon, getMercatorTileCoordinates, lngLatBoxToWorldBox, projectToWorldCoordinates, tileCoordinatesToLocation, tileCoordinatesToMercatorCoordinates, unprojectFromWorldCoordinates, worldBoxToLngLatBox} from './mercator_utils.ts';
+import {mercatorWorldCoordinateHelper} from '../mercator_coordinate.ts';
+import {CRSWorldCoordinateHelper, identityCrs} from './crs.ts';
+import {createCameraContext} from '../../camera/camera_context.ts';
+import {createCameraViewState} from '../../camera/camera_view_state.ts';
+import {resize, setBearing, setCenter, setElevation, setPitch, setZoom} from '../../camera/camera_updates.ts';
 import {altitudeFromMercatorZ} from '../mercator_coordinate.ts';
-import {CanonicalTileID} from '../../tile/tile_id.ts';
+import {CanonicalTileID, OverscaledTileID} from '../../tile/tile_id.ts';
 import {EXTENT} from '../../data/extent.ts';
 import {createIdentityMat4f32, MAX_VALID_LATITUDE} from '../../util/util.ts';
+import {createRotatedCrs, createTestCamera, expectToBeCloseToArray} from '../../util/test/util.ts';
+import {getCameraMath} from '../../camera/camera_math_factory.ts';
+import {projectCamera} from '../../camera/project_camera.ts';
+import {getCameraPoint} from '../../camera/projected_camera.ts';
 
 describe('mercator utils', () => {
     test('projectToWorldCoordinates basic', () => {
-        const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 60, renderWorldCopies: true});
-        transform.setZoom(10);
-        expect(projectToWorldCoordinates(transform.worldSize, transform.center)).toEqual(new Point(262144, 262144));
+        const {projectedCamera} = createTestCamera({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 60, renderWorldCopies: true, zoom: 10});
+        expect(projectToWorldCoordinates(projectedCamera.worldSize, projectedCamera.center, mercatorWorldCoordinateHelper)).toEqual(new Point(262144, 262144));
     });
 
     test('projectToWorldCoordinates clamps latitude', () => {
-        const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 60, renderWorldCopies: true});
+        const {projectedCamera} = createTestCamera({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 60, renderWorldCopies: true});
 
-        expect(projectToWorldCoordinates(transform.worldSize, new LngLat(0, -90))).toEqual(projectToWorldCoordinates(transform.worldSize, new LngLat(0, -MAX_VALID_LATITUDE)));
-        expect(projectToWorldCoordinates(transform.worldSize, new LngLat(0, 90))).toEqual(projectToWorldCoordinates(transform.worldSize, new LngLat(0, MAX_VALID_LATITUDE)));
+        expect(projectToWorldCoordinates(projectedCamera.worldSize, new LngLat(0, -90), mercatorWorldCoordinateHelper)).toEqual(projectToWorldCoordinates(projectedCamera.worldSize, new LngLat(0, -MAX_VALID_LATITUDE), mercatorWorldCoordinateHelper));
+        expect(projectToWorldCoordinates(projectedCamera.worldSize, new LngLat(0, 90), mercatorWorldCoordinateHelper)).toEqual(projectToWorldCoordinates(projectedCamera.worldSize, new LngLat(0, MAX_VALID_LATITUDE), mercatorWorldCoordinateHelper));
+    });
+
+    test('projectToWorldCoordinates does not clamp latitude for a non-wrapping helper', () => {
+        const worldCoordinateHelper = new CRSWorldCoordinateHelper(identityCrs);
+        const worldSize = 1024;
+        const pixelsPerDegree = worldSize / 180;
+        const projected = projectToWorldCoordinates(worldSize, new LngLat(0, 89), worldCoordinateHelper);
+        expect(projected.y).toBeCloseTo(pixelsPerDegree, 10);
+        expect(unprojectFromWorldCoordinates(worldSize, projected, worldCoordinateHelper).lat).toBeCloseTo(89, 10);
+    });
+
+    test('degreesPerWorldUnit measures a world that does not wrap', () => {
+        const worldCoordinateHelper = new CRSWorldCoordinateHelper(identityCrs);
+
+        expect(degreesPerWorldUnit(worldCoordinateHelper, new LngLat(10, 20))).toBeCloseTo(180, 6);
     });
 
     test('getMercatorHorizon', () => {
-        const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 85, renderWorldCopies: true});
-        transform.resize(500, 500);
-        transform.setPitch(75);
-        const horizon = getMercatorHorizon(transform);
+        const {projectedCamera} = createTestCamera({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 85, renderWorldCopies: true, width: 500, height: 500, pitch: 75});
+        const horizon = getMercatorHorizon(projectedCamera);
 
         expect(horizon).toBeCloseTo(170.8176101748407, 10);
     });
 
     test('getMercatorHorizon90', () => {
-        const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 180, renderWorldCopies: true});
-        transform.resize(500, 500);
-        transform.setPitch(90);
-        const horizon = getMercatorHorizon(transform);
+        const {projectedCamera} = createTestCamera({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 180, renderWorldCopies: true, width: 500, height: 500, pitch: 90});
+        const horizon = getMercatorHorizon(projectedCamera);
 
         expect(horizon).toBeCloseTo(-9.818037813626313, 10);
     });
 
     test('getMercatorHorizon95', () => {
-        const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 180, renderWorldCopies: true});
-        transform.resize(500, 500);
-        transform.setPitch(95);
-        const horizon = getMercatorHorizon(transform);
+        const {projectedCamera} = createTestCamera({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 180, renderWorldCopies: true, width: 500, height: 500, pitch: 95});
+        const horizon = getMercatorHorizon(projectedCamera);
 
         expect(horizon).toBeCloseTo(-75.52102888757743, 10);
     });
     describe('cameraMercatorCoordinate', () => {
         test('places the camera above the ground', () => {
-            const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 180, renderWorldCopies: true});
-            transform.setElevation(200);
-            transform.setCenter(new LngLat(15.0, 55.0));
-            transform.setZoom(14);
-            transform.setPitch(55);
-            transform.setBearing(75);
-            transform.resize(512, 512);
+            const context = createCameraContext();
+            let view = createCameraViewState({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 180, renderWorldCopies: true});
+            view = setElevation(view, context, 200);
+            view = setCenter(view, context, new LngLat(15.0, 55.0));
+            view = setZoom(view, context, 14);
+            view = setPitch(view, 55);
+            view = setBearing(view, 75);
+            view = resize(view, context, 512, 512);
+            const projectedCamera = projectCamera(view, context);
 
-            const cameraCoord = cameraMercatorCoordinate(transform);
+            const cameraCoord = cameraMercatorCoordinate(projectedCamera, context.worldCoordinateHelper);
 
             expect(cameraCoord.toLngLat().lng).toBeCloseTo(14.973921529405033, 10);
             expect(cameraCoord.toLngLat().lat).toBeCloseTo(54.99599181678275, 10);
-            expect(altitudeFromMercatorZ(cameraCoord.z, cameraCoord.y)).toBeCloseTo(transform.getCameraAltitude(), 0);
+            expect(altitudeFromMercatorZ(cameraCoord.z, cameraCoord.y)).toBeCloseTo(getCameraMath(projectedCamera).getCameraAltitude(projectedCamera), 0);
         });
 
         test('does not depend on the projection', () => {
             const precisionDigits = 10;
-            const globeTransform = new GlobeTransform();
-            globeTransform.resize(512, 512);
-            globeTransform.setZoom(5);
-            globeTransform.setCenter(new LngLat(15, 55));
-            globeTransform.setMaxPitch(60);
-            globeTransform.setPitch(55);
-            globeTransform.setBearing(75);
+            const globe = createTestCamera({maxPitch: 60, width: 512, height: 512, zoom: 5, center: [15, 55], pitch: 55, bearing: 75}, {projection: 'globe'});
+            const mercator = createTestCamera({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 60, renderWorldCopies: true, width: 512, height: 512, zoom: 5, center: [15, 55], pitch: 55, bearing: 75});
 
-            const mercatorTransform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 60, renderWorldCopies: true});
-            mercatorTransform.resize(512, 512);
-            mercatorTransform.setZoom(5);
-            mercatorTransform.setCenter(new LngLat(15, 55));
-            mercatorTransform.setPitch(55);
-            mercatorTransform.setBearing(75);
-
-            const cameraCoord = cameraMercatorCoordinate(globeTransform);
-            const mercatorCameraCoord = cameraMercatorCoordinate(mercatorTransform);
+            const cameraCoord = cameraMercatorCoordinate(globe.projectedCamera, globe.context.worldCoordinateHelper);
+            const mercatorCameraCoord = cameraMercatorCoordinate(mercator.projectedCamera, mercator.context.worldCoordinateHelper);
 
             expect(cameraCoord.x).toBeCloseTo(mercatorCameraCoord.x, precisionDigits);
             expect(cameraCoord.y).toBeCloseTo(mercatorCameraCoord.y, precisionDigits);
             expect(cameraCoord.z).toBeCloseTo(mercatorCameraCoord.z, precisionDigits);
 
             // The pixel under a pitched globe camera misses the sphere, so the screen round trip lands elsewhere.
-            const screenRoundTrip = globeTransform.screenPointToMercatorCoordinate(globeTransform.getCameraPoint());
+            const screenRoundTrip = getCameraMath(globe.projectedCamera).screenPointToMercatorCoordinate(globe.projectedCamera, globe.context.worldCoordinateHelper, getCameraPoint(globe.projectedCamera));
             expect(cameraCoord.toLngLat().distanceTo(screenRoundTrip.toLngLat())).toBeGreaterThan(50000);
         });
     });
 
     describe('getProjectionData', () => {
         test('return identity matrix when not passing overscaledTileID', () => {
-            const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 180, renderWorldCopies: true});
-            const projectionData = transform.getProjectionData({overscaledTileID: null});
+            const {projectedCamera} = createTestCamera({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 180, renderWorldCopies: true});
+            const projectionData = getCameraMath(projectedCamera).getProjectionData(projectedCamera, {overscaledTileID: null});
             expect(projectionData.fallbackMatrix).toEqual(createIdentityMat4f32());
+        });
+    });
+
+    describe('getMercatorTilesCoordinates', () => {
+        test('mercator tile extents are set', () => {
+            let tileMercatorCoords = getMercatorTileCoordinates(new OverscaledTileID(0, 0, 0, 0, 0));
+            expectToBeCloseToArray(tileMercatorCoords, [0, 0, 1 / EXTENT, 1 / EXTENT]);
+
+            tileMercatorCoords = getMercatorTileCoordinates(new OverscaledTileID(1, 0, 1, 0, 0));
+            expectToBeCloseToArray(tileMercatorCoords, [0, 0, 0.5 / EXTENT, 0.5 / EXTENT]);
+
+            tileMercatorCoords = getMercatorTileCoordinates(new OverscaledTileID(1, 0, 1, 1, 0));
+            expectToBeCloseToArray(tileMercatorCoords, [0.5, 0, 0.5 / EXTENT, 0.5 / EXTENT]);
         });
     });
 
@@ -158,5 +176,32 @@ describe('mercator utils', () => {
             expect(result.lng).toBeCloseTo(0, precisionDigits);
             expect(result.lat).toBeCloseTo(0, precisionDigits);
         });
+    });
+});
+
+describe('lngLatBoxToWorldBox and worldBoxToLngLatBox', () => {
+    test('round trip a lng/lat box through the mercator helper', () => {
+        const world = lngLatBoxToWorldBox(mercatorWorldCoordinateHelper, -120, -40, 30, 60);
+        const back = worldBoxToLngLatBox(mercatorWorldCoordinateHelper, world.minX, world.minY, world.maxX, world.maxY);
+        expect(back.west).toBeCloseTo(-120, 10);
+        expect(back.south).toBeCloseTo(-40, 10);
+        expect(back.east).toBeCloseTo(30, 10);
+        expect(back.north).toBeCloseTo(60, 10);
+    });
+
+    test('map the whole world square of the identity CRS to lng/lat -90..90', () => {
+        const worldCoordinateHelper = new CRSWorldCoordinateHelper(identityCrs);
+        expect(worldBoxToLngLatBox(worldCoordinateHelper, 0, 0, 1, 1)).toEqual({west: -90, south: -90, east: 90, north: 90});
+        expect(lngLatBoxToWorldBox(worldCoordinateHelper, -90, -90, 90, 90)).toEqual({minX: 0, minY: 0, maxX: 1, maxY: 1});
+    });
+
+    test('round trip through a rotated CRS contains the original box, since each direction takes the axis-aligned hull', () => {
+        const worldCoordinateHelper = new CRSWorldCoordinateHelper(createRotatedCrs());
+        const world = lngLatBoxToWorldBox(worldCoordinateHelper, -20, -10, 30, 40);
+        const back = worldBoxToLngLatBox(worldCoordinateHelper, world.minX, world.minY, world.maxX, world.maxY);
+        expect(back.west).toBeLessThan(-20);
+        expect(back.south).toBeLessThan(-10);
+        expect(back.east).toBeGreaterThan(30);
+        expect(back.north).toBeGreaterThan(40);
     });
 });

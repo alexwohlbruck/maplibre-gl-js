@@ -76,10 +76,10 @@ Benchmarks that belong together go through `bench.compare()` instead, which runs
 test('coveringTiles', async ({bench}) => {
     await bench.compare(
         bench('mercator', () => {
-            coverWithPitch(new MercatorTransform(), 0);
+            coverWithPitch('mercator', 0);
         }),
         bench('globe', () => {
-            coverWithPitch(new GlobeTransform(), 0);
+            coverWithPitch('globe', 0);
         }),
     );
 });

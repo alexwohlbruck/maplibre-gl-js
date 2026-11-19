@@ -10,10 +10,11 @@ import {getOverlapMode, type OverlapMode} from '../style/style_layer/overlap_mod
 import {TextAnchorEnum, type TextAnchor} from '../style/style_layer/variable_text_anchor.ts';
 import {translatePosition, warnOnce} from '../util/util.ts';
 import {symbolClipTester, type SymbolClip} from './symbol_clip.ts';
+import {symbolInstance as symbolInstanceLayout} from '../data/bucket/symbol_attributes.ts';
+import {getCameraMath} from '../camera/camera_math_factory.ts';
 
 import type {mat4} from 'gl-matrix';
 import type {FeatureKey, PlacedBox, PlacedCircles} from './collision_index.ts';
-import type {IReadonlyTransform, ITransform, GetElevation} from '../geo/transform_interface.ts';
 import type {StyleLayer} from '../style/style_layer.ts';
 import type {PossiblyEvaluated} from '../style/properties.ts';
 import type {SymbolLayoutProps, SymbolLayoutPropsPossiblyEvaluated} from '../style/style_layer/symbol_style_layer_properties.g.ts';
@@ -23,6 +24,8 @@ import type {CollisionBoxArray, CollisionVertexArray, SymbolInstance, TextAnchor
 import type {FeatureIndex} from '../data/feature_index.ts';
 import type {OverscaledTileID, UnwrappedTileID} from '../tile/tile_id.ts';
 import type {Terrain} from '../render/terrain.ts';
+import type {ProjectedCamera} from '../camera/projected_camera.ts';
+import type {GetElevation} from '../geo/world_types.ts';
 
 class OpacityState {
     opacity: number;
@@ -186,8 +189,19 @@ export type BucketPart = {
 
 export type CrossTileID = string | number;
 
+/** Where `crossTileID` sits within one `SymbolInstanceArray` element, counted in uint32s. */
+const CROSS_TILE_ID_UINT32_OFFSET: number =
+    symbolInstanceLayout.members.find(member => member.name === 'crossTileID').offset / 4;
+
+/** What the last rewrite of a bucket's opacity buffers read, one entry per symbol. */
+type OpacityInputs = {
+    crossTileIDs: number[];
+    /** True for every symbol whose label another bucket is drawing. */
+    duplicates: boolean[];
+};
+
 export class Placement {
-    transform: IReadonlyTransform;
+    projectedCamera: ProjectedCamera;
     terrain: Terrain;
     collisionIndex: CollisionIndex;
     placements: {
@@ -220,13 +234,14 @@ export class Placement {
         text: number[];
         icon: number[];
     }>>;
+    lastOpacityInputs: WeakMap<SymbolBucket, OpacityInputs>;
     /** Where symbols are left unplaced; see {@link SymbolClip}. */
     symbolClip: SymbolClip | null = null;
 
-    constructor(transform: ITransform, terrain: Terrain, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement, isolatedCollisionLayers?: ReadonlySet<string>) {
-        this.transform = transform.clone();
+    constructor(projectedCamera: ProjectedCamera, terrain: Terrain, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement, isolatedCollisionLayers?: ReadonlySet<string>) {
+        this.projectedCamera = projectedCamera;
         this.terrain = terrain;
-        this.collisionIndex = new CollisionIndex(this.transform);
+        this.collisionIndex = new CollisionIndex(this.projectedCamera);
         this.placements = {};
         this.opacities = {};
         this.variableOffsets = {};
@@ -240,6 +255,7 @@ export class Placement {
             text: number[];
             icon: number[];
         }>>();
+        this.lastOpacityInputs = new WeakMap();
 
         this.prevPlacement = prevPlacement;
         if (prevPlacement) {
@@ -280,22 +296,22 @@ export class Placement {
         const layout = symbolBucket.layers[0].layout;
         const paint = symbolBucket.layers[0].paint;
 
-        const scale = Math.pow(2, this.transform.zoom - tile.tileID.overscaledZ);
+        const scale = Math.pow(2, this.projectedCamera.zoom - tile.tileID.overscaledZ);
         const textPixelRatio = tile.tileSize / EXTENT;
 
         const unwrappedTileID = tile.tileID.toUnwrapped();
 
         const rotateWithMap = layout.get('text-rotation-alignment') === 'map';
-        const pixelsToTiles = pixelsToTileUnits(tile, 1, this.transform.zoom);
+        const pixelsToTiles = pixelsToTileUnits(tile, 1, this.projectedCamera.zoom);
 
         const translationText = translatePosition(
-            this.collisionIndex.transform,
+            this.collisionIndex.projectedCamera,
             tile,
             paint.get('text-translate'),
             paint.get('text-translate-anchor'),);
 
         const translationIcon = translatePosition(
-            this.collisionIndex.transform,
+            this.collisionIndex.projectedCamera,
             tile,
             paint.get('icon-translate'),
             paint.get('icon-translate-anchor'),);
@@ -304,11 +320,11 @@ export class Placement {
         // per-tile; the per-instance vector combines it in placeSymbol
         const anchorOffsetAnchor = layout.get('symbol-anchor-offset-alignment');
         const anchorOffsetBasis: [[number, number], [number, number]] = [
-            translatePosition(this.collisionIndex.transform, tile, [1, 0], anchorOffsetAnchor),
-            translatePosition(this.collisionIndex.transform, tile, [0, 1], anchorOffsetAnchor),
+            translatePosition(this.collisionIndex.projectedCamera, tile, [1, 0], anchorOffsetAnchor),
+            translatePosition(this.collisionIndex.projectedCamera, tile, [0, 1], anchorOffsetAnchor),
         ];
 
-        const pitchedLabelPlaneMatrix = projection.getPitchedLabelPlaneMatrix(rotateWithMap, this.transform, pixelsToTiles);
+        const pitchedLabelPlaneMatrix = projection.getPitchedLabelPlaneMatrix(rotateWithMap, this.projectedCamera, pixelsToTiles);
 
         // As long as this placement lives, we have to hold onto this bucket's
         // matching FeatureIndex/data for querying purposes
@@ -332,7 +348,7 @@ export class Placement {
             textPixelRatio,
             holdingForFade: tile.holdingForSymbolFade(),
             collisionBoxArray,
-            partiallyEvaluatedTextSize: symbolSize.evaluateSizeForZoom(symbolBucket.textSizeData, this.transform.zoom),
+            partiallyEvaluatedTextSize: symbolSize.evaluateSizeForZoom(symbolBucket.textSizeData, this.projectedCamera.zoom),
             collisionGroup: this.collisionGroups.get(symbolBucket.sourceID, styleLayer.id)
         };
 
@@ -500,7 +516,7 @@ export class Placement {
 
         const tileID = this.retainedQueryData[bucket.bucketInstanceId].tileID;
         const getElevation = this._getTerrainElevationFunc(tileID);
-        const simpleProjectionMatrix = this.transform.getFastPathSimpleProjectionMatrix(tileID);
+        const simpleProjectionMatrix = getCameraMath(this.projectedCamera).getFastPathSimpleProjectionMatrix(this.projectedCamera, tileID);
         const clipped = this.symbolClip ? symbolClipTester(this.symbolClip, bucket.layerIds, tileID.canonical) : null;
 
         const placeSymbol = (symbolInstance: SymbolInstance, collisionArrays: CollisionArrays, symbolIndex: number) => {
@@ -685,9 +701,10 @@ export class Placement {
                             }
                         }
 
-                        if (showCollisionBoxes && !placedBox) {
+                        if (!placedBox && (showCollisionBoxes || alwaysShowText)) {
                             // No box was successfully placed
-                            // Generate bounds for a fake centered box, so that we can at least display something for collision debug.
+                            // Generate bounds for a fake centered box, so that we can at least display something for collision debug,
+                            // and so that text which is always shown is still hidden when the globe occludes it.
                             const placedFakeGlyphBox = this.collisionIndex.placeCollisionBox(
                                 textBox,
                                 'always', // Skips expensive collision check with already placed boxes
@@ -708,7 +725,7 @@ export class Placement {
                                 box: placedFakeGlyphBox.box,
                                 offscreen: false,
                                 placeable: false,
-                                occluded: false,
+                                occluded: placedFakeGlyphBox.occluded,
                             };
                         }
 
@@ -897,7 +914,7 @@ export class Placement {
 
         if (zOrderByViewportY) {
             if (bucketPart.symbolInstanceStart !== 0) throw new Error('bucket.bucketInstanceId should be 0');
-            const symbolIndexes = bucket.getSortedSymbolIndexes(-this.transform.bearingInRadians);
+            const symbolIndexes = bucket.getSortedSymbolIndexes(-this.projectedCamera.bearingInRadians);
             for (let i = symbolIndexes.length - 1; i >= 0; --i) {
                 const symbolIndex = symbolIndexes[i];
                 placeSymbol(bucket.symbolInstances.get(symbolIndex), bucket.collisionArrays[symbolIndex], symbolIndex);
@@ -1023,12 +1040,12 @@ export class Placement {
 
     commit(now: number): void {
         this.commitTime = now;
-        this.zoomAtLastRecencyCheck = this.transform.zoom;
+        this.zoomAtLastRecencyCheck = this.projectedCamera.zoom;
 
         const prevPlacement = this.prevPlacement;
         let placementChanged = false;
 
-        this.prevZoomAdjustment = prevPlacement ? prevPlacement.zoomAdjustment(this.transform.zoom) : 0;
+        this.prevZoomAdjustment = prevPlacement ? prevPlacement.zoomAdjustment(this.projectedCamera.zoom) : 0;
         const increment = prevPlacement ? prevPlacement.symbolFadeChange(now) : 1;
 
         const prevOpacities = prevPlacement ? prevPlacement.opacities : {};
@@ -1086,19 +1103,59 @@ export class Placement {
         }
     }
 
+    /** Writes the opacity buffers of `styleLayer`, skipping buckets a rewrite would leave as they are. */
     updateLayerOpacities(styleLayer: StyleLayer, tiles: Tile[]): void {
         const seenCrossTileIDs = {};
         for (const tile of tiles) {
             const symbolBucket = tile.getBucket(styleLayer) as SymbolBucket;
-            if (symbolBucket && tile.latestFeatureIndex && styleLayer.id === symbolBucket.layerIds[0]) {
-                this.updateBucketOpacities(symbolBucket, tile.tileID, seenCrossTileIDs, tile.collisionBoxArray);
+            if (!symbolBucket || !tile.latestFeatureIndex || styleLayer.id !== symbolBucket.layerIds[0]) continue;
+
+            const {duplicates, changed} = this._markDuplicates(symbolBucket, seenCrossTileIDs);
+            // Debug geometry and pending collision circles reach the bucket only through a rewrite.
+            const hasDebugOutput = Boolean(symbolBucket.hasDebugData()) || symbolBucket.bucketInstanceId in this.collisionCircleArrays;
+            if (changed || hasDebugOutput) {
+                this.updateBucketOpacities(symbolBucket, tile.tileID, duplicates, tile.collisionBoxArray);
+            }
+
+            symbolBucket.sortFeatures(-this.projectedCamera.bearingInRadians);
+            if (this.retainedQueryData[symbolBucket.bucketInstanceId]) {
+                this.retainedQueryData[symbolBucket.bucketInstanceId].featureSortOrder = symbolBucket.featureSortOrder;
             }
         }
     }
 
-    updateBucketOpacities(bucket: SymbolBucket, tileID: OverscaledTileID, seenCrossTileIDs: {
-        [k in string | number]: boolean;
-    }, collisionBoxArray?: CollisionBoxArray | null): void {
+    /**
+     * Marks the bucket's symbols whose label an earlier bucket already draws, and claims the rest in `seenCrossTileIDs`.
+     * `changed` is false when the marks match the last call, which means the buffers are already up to date.
+     */
+    _markDuplicates(bucket: SymbolBucket, seenCrossTileIDs: {[k in string | number]: boolean}): {duplicates: boolean[]; changed: boolean} {
+        const length = bucket.symbolInstances.length;
+        let inputs = this.lastOpacityInputs.get(bucket);
+        let changed = false;
+        if (!inputs) {
+            inputs = {crossTileIDs: new Array<number>(length).fill(0), duplicates: new Array<boolean>(length).fill(false)};
+            this.lastOpacityInputs.set(bucket, inputs);
+            changed = true;
+        }
+
+        const {crossTileIDs, duplicates} = inputs;
+        // Straight out of the buffer: `get` builds a struct per symbol.
+        const uint32 = bucket.symbolInstances.uint32;
+        const stride = bucket.symbolInstances.bytesPerElement / 4;
+        for (let s = 0; s < length; s++) {
+            const crossTileID = uint32[s * stride + CROSS_TILE_ID_UINT32_OFFSET];
+            const duplicate = Boolean(seenCrossTileIDs[crossTileID]);
+            seenCrossTileIDs[crossTileID] = true;
+            if (crossTileIDs[s] !== crossTileID || duplicates[s] !== duplicate) {
+                crossTileIDs[s] = crossTileID;
+                duplicates[s] = duplicate;
+                changed = true;
+            }
+        }
+        return {duplicates, changed};
+    }
+
+    updateBucketOpacities(bucket: SymbolBucket, tileID: OverscaledTileID, duplicates: boolean[], collisionBoxArray?: CollisionBoxArray | null): void {
         if (bucket.hasTextData()) {
             bucket.text.opacityVertexArray.clear();
             bucket.text.hasVisibleVertices = false;
@@ -1149,7 +1206,7 @@ export class Placement {
                 crossTileID
             } = symbolInstance;
 
-            const isDuplicate = seenCrossTileIDs[crossTileID];
+            const isDuplicate = duplicates[s];
 
             let opacityState = this.opacities[crossTileID];
             if (isDuplicate) {
@@ -1159,8 +1216,6 @@ export class Placement {
                 // store the state so that future placements use it as a starting point
                 this.opacities[crossTileID] = opacityState;
             }
-
-            seenCrossTileIDs[crossTileID] = true;
 
             const hasText = numHorizontalGlyphVertices > 0 || numVerticalGlyphVertices > 0;
             const hasIcon = symbolInstance.numIconVertices > 0;
@@ -1254,7 +1309,7 @@ export class Placement {
                                     variableOffset.textOffset,
                                     variableOffset.textBoxScale);
                                 if (rotateWithMap) {
-                                    shift._rotate(pitchWithMap ? -this.transform.bearingInRadians : this.transform.bearingInRadians);
+                                    shift._rotate(pitchWithMap ? -this.projectedCamera.bearingInRadians : this.projectedCamera.bearingInRadians);
                                 }
                             } else {
                                 // No offset -> this symbol hasn't been placed since coming on-screen
@@ -1293,11 +1348,6 @@ export class Placement {
             }
         }
 
-        bucket.sortFeatures(-this.transform.bearingInRadians);
-        if (this.retainedQueryData[bucket.bucketInstanceId]) {
-            this.retainedQueryData[bucket.bucketInstanceId].featureSortOrder = bucket.featureSortOrder;
-        }
-
         if (bucket.hasTextData() && bucket.text.opacityVertexBuffer) {
             bucket.text.opacityVertexBuffer.updateData(bucket.text.opacityVertexArray);
         }
@@ -1332,7 +1382,7 @@ export class Placement {
         // adjustment is used to reduce the interval between placement calculations
         // and to reduce the fade duration when zooming out quickly. Discovering the
         // collisions more quickly and fading them more quickly reduces the unwanted effect.
-        return Math.max(0, (this.transform.zoom - zoom) / 1.5);
+        return Math.max(0, (this.projectedCamera.zoom - zoom) / 1.5);
     }
 
     hasTransitions(now: number): boolean {
@@ -1386,9 +1436,9 @@ const shift8 = Math.pow(2, 8);
 const shift1 = Math.pow(2, 1);
 function packOpacity(opacityState: OpacityState): number {
     if (opacityState.opacity === 0 && !opacityState.placed) {
-        return 0;
+        return PACKED_HIDDEN_OPACITY;
     } else if (opacityState.opacity === 1 && opacityState.placed) {
-        return 4294967295;
+        return PACKED_VISIBLE_OPACITY;
     }
     const targetBit = opacityState.placed ? 1 : 0;
     const opacityBits = Math.floor(opacityState.opacity * 127);
@@ -1398,4 +1448,5 @@ function packOpacity(opacityState: OpacityState): number {
         opacityBits * shift1 + targetBit;
 }
 
-const PACKED_HIDDEN_OPACITY = 0;
+export const PACKED_HIDDEN_OPACITY = 0;
+export const PACKED_VISIBLE_OPACITY = 4294967295;

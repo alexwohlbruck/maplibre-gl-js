@@ -3,10 +3,11 @@ import {readFileSync} from 'fs';
 import {describe, expect, test} from 'vitest';
 import {FeatureIndex, GEOJSON_TILE_LAYER_NAME} from './feature_index.ts';
 import {type Feature, fromVectorTileJs, GeoJSONWrapper, type VectorTileFeatureLike} from '@maplibre/vt-pbf';
-import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
 import {OverscaledTileID} from '../tile/tile_id.ts';
 import {CircleStyleLayer} from '../style/style_layer/circle_style_layer.ts';
 import Point from '@mapbox/point-geometry';
+import {CRSWorldCoordinateHelper, identityCrs} from '../geo/projection/crs.ts';
+import {createIdentityCrsCamera, createTestCamera} from '../util/test/util.ts';
 
 import type {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {EvaluationParameters} from '../style/evaluation_parameters.ts';
@@ -36,8 +37,7 @@ describe('FeatureIndex', () => {
 
     describe('query', () => {
         const tileID = new OverscaledTileID(3, 0, 2, 1, 2);
-        const transform = new MercatorTransform();
-        transform.resize(500, 500);
+        const {projectedCamera, context} = createTestCamera({width: 500, height: 500});
 
         test('filter with global-state', () => {
             const features = [
@@ -68,7 +68,8 @@ describe('FeatureIndex', () => {
                     filter: ['==', ['get', 'cluster'], ['global-state', 'isCluster']],
                     globalState
                 },
-                transform
+                projectedCamera,
+                worldCoordinateHelper: context.worldCoordinateHelper
             } as any, {
                 layer,
             }, [], undefined);
@@ -90,12 +91,52 @@ describe('FeatureIndex', () => {
                 queryGeometry: [new Point(0, 0), new Point(0, 2000), new Point(2000, 2000), new Point(2000, 0), new Point(0 ,0)],
                 cameraQueryGeometry: [new Point(0, 0), new Point(10, 10)],
                 params: {},
-                transform
+                projectedCamera,
+                worldCoordinateHelper: context.worldCoordinateHelper
             } as any, {
                 layer,
             }, [], undefined);
             expect(result.layer[0].feature.properties.admin_level).toBeDefined();
             expect(result.layer[0].feature.geometry.type).toBe('LineString');
         });
+    });
+});
+
+describe('FeatureIndex in a planar projection', () => {
+    function createIndexWithFeature() {
+        const features = [{type: 1, geometry: [0, 0], tags: {}} as any as Feature];
+        const geojsonWrapper = new GeoJSONWrapper(features);
+        geojsonWrapper.name = GEOJSON_TILE_LAYER_NAME;
+        const layer = new CircleStyleLayer({source: 'source', paint: {}} as LayerSpecification, {});
+        layer.recalculate({} as EvaluationParameters, []);
+        const featureIndex = new FeatureIndex(new OverscaledTileID(3, 0, 2, 1, 2));
+        featureIndex.rawTileData = fromVectorTileJs({layers: {[GEOJSON_TILE_LAYER_NAME]: geojsonWrapper}}) as any as ArrayBuffer;
+        featureIndex.bucketLayerIDs = [['layer']];
+        featureIndex.insert(geojsonWrapper.feature(0), [[new Point(1, 1)]], 0, 0, 0);
+        return {featureIndex, layer};
+    }
+
+    test('query returns geometry through the transform projection', () => {
+        const {featureIndex, layer} = createIndexWithFeature();
+        const {projectedCamera, context} = createIdentityCrsCamera(500, 500);
+
+        const result = featureIndex.query({
+            queryPadding: 0,
+            tileSize: 512,
+            scale: 1,
+            queryGeometry: [new Point(0, 0), new Point(10, 10)],
+            cameraQueryGeometry: [new Point(0, 0), new Point(10, 10)],
+            params: {},
+            projectedCamera,
+            worldCoordinateHelper: context.worldCoordinateHelper
+        } as any, {layer}, [], undefined);
+        expect((result.layer[0].feature.geometry as GeoJSON.MultiPoint).coordinates[0]).toEqual([-45, 0]);
+    });
+
+    test('lookupSymbolFeatures returns geometry through the helper in its filter params', () => {
+        const {featureIndex, layer} = createIndexWithFeature();
+        const worldCoordinateHelper = new CRSWorldCoordinateHelper(identityCrs);
+        const result = featureIndex.lookupSymbolFeatures([0], {}, 0, 0, {filterSpec: undefined, globalState: {}, worldCoordinateHelper}, null, [], {layer});
+        expect((result.layer[0].feature.geometry as GeoJSON.MultiPoint).coordinates[0]).toEqual([-45, 0]);
     });
 });

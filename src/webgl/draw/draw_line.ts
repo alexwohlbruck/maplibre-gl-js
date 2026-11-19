@@ -12,10 +12,11 @@ import {
 import {clamp, nextPowerOfTwo} from '../../util/util.ts';
 import {renderColorRamp} from '../../util/color_ramp.ts';
 import {EXTENT} from '../../data/extent.ts';
-import {drawLayerOpacity, prepareDrawLayerOpacity} from './draw_layer_opacity.ts';
-import {getProjectionDataForTile, getTerrainDataForTile, type RenderContext} from '../../render/render_context.ts';
+import {drawLayerComposite, prepareDrawLayerComposite} from './draw_layer_composite.ts';
+import {getCameraMath} from '../../camera/camera_math_factory.ts';
 import {horizonFadeDefines} from './horizon_fade.ts';
 
+import type {FrameRenderContext} from '../../render/frame_render_context.ts';
 import type {Painter} from '../../render/painter.ts';
 import type {TileManager} from '../../tile/tile_manager.ts';
 import type {LineStyleLayer} from '../../style/style_layer/line_style_layer.ts';
@@ -33,20 +34,20 @@ type GradientTexture = {
 };
 
 function updateGradientTexture(
-    painter: Painter,
     tileManager: TileManager,
     context: Context,
     gl: WebGLRenderingContext,
     layer: LineStyleLayer,
     bucket: LineBucket,
     coord: OverscaledTileID,
-    layerGradient: GradientTexture
+    layerGradient: GradientTexture,
+    frameRenderContext: FrameRenderContext
 ): Texture {
     let textureResolution = 256;
     if (layer.stepInterpolant) {
         const sourceMaxZoom = tileManager.getSource().maxzoom;
         const potentialOverzoom = coord.canonical.z === sourceMaxZoom ?
-            Math.ceil(1 << (painter.transform.maxZoom - coord.canonical.z)) : 1;
+            Math.ceil(1 << (frameRenderContext.projectedCamera.maxZoom - coord.canonical.z)) : 1;
         const lineLength = bucket.maxLineLength / EXTENT;
         // Logical pixel tile size is 512px, and 1024px right before current zoom + 1
         const maxTilePixelSize = 1024;
@@ -98,18 +99,18 @@ function bindDasharrayTextures(
 }
 
 function bindGradientTextures(
-    painter: Painter,
     tileManager: TileManager,
     context: Context,
     gl: WebGLRenderingContext,
     layer: LineStyleLayer,
     bucket: LineBucket,
-    coord: OverscaledTileID
+    coord: OverscaledTileID,
+    frameRenderContext: FrameRenderContext
 ) {
     const layerGradient = bucket.gradients[layer.id];
     let gradientTexture = layerGradient.texture;
     if (layer.gradientVersion !== layerGradient.version) {
-        gradientTexture = updateGradientTexture(painter, tileManager, context, gl, layer, bucket, coord, layerGradient);
+        gradientTexture = updateGradientTexture(tileManager, context, gl, layer, bucket, coord, layerGradient, frameRenderContext);
     }
     context.activeTexture.set(gl.TEXTURE0);
     gradientTexture.bind(layer.stepInterpolant ? gl.NEAREST : gl.LINEAR, gl.CLAMP_TO_EDGE);
@@ -124,13 +125,14 @@ function bindGradientAndDashTextures(
     bucket: LineBucket,
     coord: OverscaledTileID,
     programConfiguration: ProgramConfiguration,
-    crossfade: ReturnType<LineStyleLayer['getCrossfadeParameters']>
+    crossfade: ReturnType<LineStyleLayer['getCrossfadeParameters']>,
+    frameRenderContext: FrameRenderContext
 ) {
     // Bind gradient texture to TEXTURE0
     const layerGradient = bucket.gradients[layer.id];
     let gradientTexture = layerGradient.texture;
     if (layer.gradientVersion !== layerGradient.version) {
-        gradientTexture = updateGradientTexture(painter, tileManager, context, gl, layer, bucket, coord, layerGradient);
+        gradientTexture = updateGradientTexture(tileManager, context, gl, layer, bucket, coord, layerGradient, frameRenderContext);
     }
     context.activeTexture.set(gl.TEXTURE0);
     gradientTexture.bind(layer.stepInterpolant ? gl.NEAREST : gl.LINEAR, gl.CLAMP_TO_EDGE);
@@ -142,25 +144,26 @@ function bindGradientAndDashTextures(
     programConfiguration.updatePaintBuffers(crossfade);
 }
 
-export function drawLine(painter: Painter, tileManager: TileManager, layer: LineStyleLayer, coords: OverscaledTileID[], renderContext: RenderContext): void {
-    if (renderContext.currentPass !== 'translucent') return;
+export function drawLine(painter: Painter, tileManager: TileManager, layer: LineStyleLayer, coords: OverscaledTileID[], frameRenderContext: FrameRenderContext): void {
+    if (frameRenderContext.currentPass !== 'translucent') return;
 
     const opacity = layer.paint.get('line-opacity');
     const width = layer.paint.get('line-width');
     const layerOpacity = layer.paint.get('line-layer-opacity');
     if (opacity.constantOr(1) === 0 || width.constantOr(1) === 0 || layerOpacity === 0) return;
 
-    const passes = linePasses(painter, layer, renderContext);
+    const passes = linePasses(layer, frameRenderContext);
     if (!passes.length) return;
 
-    if (layerOpacity < 1) {
-        const results = prepareDrawLayerOpacity(painter, layer, coords);
-        for (const pass of passes) drawLineTiles(painter, tileManager, layer, coords, renderContext, pass);
-        drawLayerOpacity(painter, layerOpacity, results, layer);
+    const layerBlend = layer.paint.get('line-layer-blend');
+    if (layerOpacity < 1 || layerBlend !== 'normal') {
+        const results = prepareDrawLayerComposite(painter, tileManager, layer, coords, frameRenderContext);
+        for (const pass of passes) drawLineTiles(painter, tileManager, layer, coords, frameRenderContext, pass);
+        drawLayerComposite(painter, layerOpacity, layerBlend, results, layer, frameRenderContext);
         return;
     }
 
-    for (const pass of passes) drawLineTiles(painter, tileManager, layer, coords, renderContext, pass);
+    for (const pass of passes) drawLineTiles(painter, tileManager, layer, coords, frameRenderContext, pass);
 }
 
 type LinePass = 'flat' | 'underground' | 'overground' | 'unoccluded';
@@ -170,10 +173,10 @@ type LinePass = 'flat' | 'underground' | 'overground' | 'unoccluded';
  * it but what stands on the ground still may, and over the ground tested against the depth of everything 3D. One
  * that is never occluded is drawn whole, untested, last.
  */
-function linePasses(painter: Painter, layer: LineStyleLayer, renderContext: RenderContext): LinePass[] {
-    if (!layer.isElevated() || !painter.style.map.terrain) return ['flat'];
-    if (layer.paint.get('line-depth-occlusion-factor') === 0) return renderContext.elevatedPass === 'underground' ? [] : ['unoccluded'];
-    return renderContext.elevatedPass ? [renderContext.elevatedPass] : ['underground', 'overground'];
+function linePasses(layer: LineStyleLayer, frameRenderContext: FrameRenderContext): LinePass[] {
+    if (!layer.isElevated() || !frameRenderContext.terrain) return ['flat'];
+    if (layer.paint.get('line-depth-occlusion-factor') === 0) return frameRenderContext.elevatedPass === 'underground' ? [] : ['unoccluded'];
+    return frameRenderContext.elevatedPass ? [frameRenderContext.elevatedPass] : ['underground', 'overground'];
 }
 
 function drawLineTiles(
@@ -181,20 +184,20 @@ function drawLineTiles(
     tileManager: TileManager,
     layer: LineStyleLayer,
     coords: OverscaledTileID[],
-    renderContext: RenderContext,
+    frameRenderContext: FrameRenderContext,
     pass: LinePass
 ) {
     // Raised off the terrain, a line is drawn in 3D among the extrusions and custom layers rather than draped.
     const elevated = pass !== 'flat';
-    const depthMode = pass === 'flat' ? painter.getDepthModeForSublayer(0, DepthMode.ReadOnly) :
-        pass === 'overground' ? new DepthMode(painter.context.gl.LEQUAL, DepthMode.ReadOnly, painter.renderContext.depthRangeFor3D) :
+    const depthMode = pass === 'flat' ? frameRenderContext.getDepthModeForSublayer(0, DepthMode.ReadOnly) :
+        pass === 'overground' ? new DepthMode(frameRenderContext.context.gl.LEQUAL, DepthMode.ReadOnly, frameRenderContext.depthRangeFor3D) :
             DepthMode.disabled;
     const defines = [...horizonFadeDefines(layer), ...(!elevated ? [] : [
         '#define LINE_ELEVATION',
         ...(layer.paint.get('line-pitch-alignment') === 'viewport' ? ['#define LINE_VIEWPORT'] : []),
         ...(pass === 'underground' ? ['#define LINE_UNDERGROUND'] : pass === 'overground' ? ['#define LINE_OVERGROUND'] : []),
     ])];
-    const colorMode = painter.colorModeForRenderPass();
+    const colorMode = frameRenderContext.colorModeForRenderPass();
 
     const dasharrayProperty = layer.paint.get('line-dasharray');
     const dasharray = dasharrayProperty.constantOr(1 as any);
@@ -217,9 +220,9 @@ function drawLineTiles(
     else if (variableOffset) programId = 'lineVariableOffset';
     else programId = 'line';
 
-    const context = painter.context;
+    const context = frameRenderContext.context;
     const gl = context.gl;
-    const transform = painter.transform;
+    const projectedCamera = frameRenderContext.projectedCamera;
 
     let firstTile = true;
 
@@ -234,10 +237,10 @@ function drawLineTiles(
         if (elevated && !bucket.layoutVertexBuffer2) continue;
 
         const programConfiguration = bucket.programConfigurations.get(layer.id);
-        const prevProgram = painter.context.program.get();
-        const program = painter.useProgram(programId, programConfiguration, false, defines);
+        const prevProgram = context.program.get();
+        const program = frameRenderContext.useProgram(programId, programConfiguration, false, defines);
         const programChanged = firstTile || program.program !== prevProgram;
-        const terrainData = getTerrainDataForTile(renderContext, coord);
+        const terrainData = frameRenderContext.getTerrainDataForTile(coord);
 
         const constantPattern = patternProperty.constantOr(null);
         const constantDasharray = dasharrayProperty?.constantOr(null);
@@ -254,34 +257,34 @@ function drawLineTiles(
             programConfiguration.setConstantDashPositions(dashTo, dashFrom);
         }
 
-        const projectionData = getProjectionDataForTile(renderContext, coord);
+        const projectionData = frameRenderContext.getProjectionDataForTile(coord);
 
-        const pixelRatio = transform.getPixelScale();
+        const pixelRatio = getCameraMath(projectedCamera).getPixelScale(projectedCamera);
 
         let uniformValues;
         if (image) {
-            uniformValues = linePatternUniformValues(painter, tile, layer, pixelRatio, crossfade);
+            uniformValues = linePatternUniformValues(projectedCamera, tile, layer, pixelRatio, crossfade);
             bindImagePatternTextures(context, gl, tile, programConfiguration, crossfade);
         } else if (dasharray && gradient) {
-            uniformValues = lineGradientSDFUniformValues(painter, tile, layer, pixelRatio, crossfade, bucket.lineClipsArray.length);
-            bindGradientAndDashTextures(painter, tileManager, context, gl, layer, bucket, coord, programConfiguration, crossfade);
+            uniformValues = lineGradientSDFUniformValues(projectedCamera, painter.lineAtlas, tile, layer, pixelRatio, crossfade, bucket.lineClipsArray.length);
+            bindGradientAndDashTextures(painter, tileManager, context, gl, layer, bucket, coord, programConfiguration, crossfade, frameRenderContext);
         } else if (dasharray) {
-            uniformValues = lineSDFUniformValues(painter, tile, layer, pixelRatio, crossfade);
+            uniformValues = lineSDFUniformValues(projectedCamera, painter.lineAtlas, tile, layer, pixelRatio, crossfade);
             bindDasharrayTextures(painter, context, gl, programConfiguration, programChanged, crossfade);
         } else if (gradient) {
-            uniformValues = lineGradientUniformValues(painter, tile, layer, pixelRatio, bucket.lineClipsArray.length);
-            bindGradientTextures(painter, tileManager, context, gl, layer, bucket, coord);
+            uniformValues = lineGradientUniformValues(projectedCamera, tile, layer, pixelRatio, bucket.lineClipsArray.length);
+            bindGradientTextures(tileManager, context, gl, layer, bucket, coord, frameRenderContext);
         } else {
-            uniformValues = lineUniformValues(painter, tile, layer, pixelRatio);
+            uniformValues = lineUniformValues(projectedCamera, tile, layer, pixelRatio);
         }
 
         // The tile's clipping mask lies flat at sea level; an elevated line clips itself to its tile instead.
-        const stencil = elevated ? StencilMode.disabled : painter.stencilModeForClipping(coord);
+        const stencil = elevated ? StencilMode.disabled : frameRenderContext.stencilModeForClipping(coord);
 
         program.draw(context, gl.TRIANGLES, depthMode,
             stencil, colorMode, CullFaceMode.disabled, uniformValues, terrainData, projectionData,
             layer.id, bucket.layoutVertexBuffer, bucket.indexBuffer, bucket.segments,
-            layer.paint, painter.transform.zoom, programConfiguration, bucket.layoutVertexBuffer2);
+            layer.paint, frameRenderContext.projectedCamera.zoom, programConfiguration, bucket.layoutVertexBuffer2);
 
         firstTile = false;
         // once refactored so that bound texture state is managed, we'll also be able to remove this firstTile/programChanged logic

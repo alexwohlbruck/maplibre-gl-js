@@ -6,20 +6,22 @@ import {fakeServer, type FakeServer} from 'nise';
 import {RasterDEMTileSource} from '../source/raster_dem_tile_source.ts';
 import {OverscaledTileID} from './tile_id.ts';
 import {Tile} from './tile.ts';
-import {MercatorTransform} from '../geo/projection/mercator_transform.ts';
+import {createCameraContext} from '../camera/camera_context.ts';
+import {createCameraViewState} from '../camera/camera_view_state.ts';
+import {projectCamera} from '../camera/project_camera.ts';
+import {resize, setCenter, setZoom} from '../camera/camera_updates.ts';
 import {LngLat} from '../geo/lng_lat.ts';
-import {StubMap} from '../util/test/util.ts';
+import {StubMap, beforeMapTest, createMap} from '../util/test/util.ts';
+import {TileManager} from './tile_manager.ts';
 
 import type {DEMData} from '../data/dem_data.ts';
 import type {Dispatcher} from '../util/dispatcher.ts';
 import type {Painter, RTTObject} from '../render/painter.ts';
-
-const transform = new MercatorTransform();
+import type {Map} from '../ui/map.ts';
 
 function createSource(options, transformCallback?) {
-    const source = new RasterDEMTileSource('id', options, {send() {}} as any as Dispatcher, null);
+    const source = new RasterDEMTileSource('id', options, {send() {}, getTerrainActor: () => new Promise(() => {})} as any as Dispatcher, null);
     source.onAdd({
-        transform,
         _requestManager: new RequestManager(transformCallback),
         getPixelRatio() { return 1; }
     } as any);
@@ -82,6 +84,29 @@ describe('TerrainTileManager', () => {
         expect(tsc.getSourceTile(tileID.children(12)[0].children(12)[0], true)).toBeTruthy();
     });
 
+    test('getSourceTile finds the DEM tile of a tile first looked up before the source loaded its zoom range', async () => {
+        const tileManager = new TileManager('dem', {type: 'raster-dem', tiles: ['http://example.com/{z}/{x}/{y}.png'], maxzoom: 11}, {getActor() {}, getTerrainActor: () => new Promise(() => {})} as any as Dispatcher);
+        const terrainTileManager = new TerrainTileManager(tileManager);
+        const terrainTileID = new OverscaledTileID(15, 0, 15, 19575, 13242);
+        terrainTileManager.getSourceTile(terrainTileID);
+        const zoomRangeLoaded = tileManager.once('data');
+        tileManager.onAdd({_requestManager: new RequestManager(), getPixelRatio() { return 1; }} as any as Map);
+        await zoomRangeLoaded;
+        const demTile = new Tile(terrainTileID.scaledTo(11), 512);
+        demTile.dem = {} as DEMData;
+        tileManager._inViewTiles.setTile(demTile.tileID.key, demTile);
+
+        expect(terrainTileManager.getSourceTile(terrainTileID)).toBe(demTile);
+    });
+
+    test('getSourceTile gives a terrain tile at the source minzoom the source tile at that zoom', () => {
+        const tileID = new OverscaledTileID(0, 0, 0, 0, 0);
+        const tile = new Tile(tileID, 256);
+        tsc.tileManager._inViewTiles.setTile(tileID.key, tile);
+
+        expect(tsc.getSourceTile(tileID)).toBe(tile);
+    });
+
     test('getSourceTile should get tile from out of view cache when tile in not in view', () => {
         const tileID = new OverscaledTileID(6, 0, 6, 0, 0);
         const underzoomTileID = tileID.scaledTo(tileID.canonical.z - tsc.deltaZoom);
@@ -93,24 +118,55 @@ describe('TerrainTileManager', () => {
         expect(tsc.getSourceTile(tileID, true).tileID.key).toBe(underzoomTileID.key);
     });
 
+    test('isStillWaitingForDEM is false where the source tile under the terrain tile failed to load', () => {
+        const terrainTileInsideTheBounds = new OverscaledTileID(6, 0, 6, 23, 33);
+        const sourceTile = new Tile(terrainTileInsideTheBounds.scaledTo(5), 256);
+        sourceTile.state = 'errored';
+        tsc.tileManager._inViewTiles.setTile(sourceTile.tileID.key, sourceTile);
+
+        expect(tsc.isStillWaitingForDEM(terrainTileInsideTheBounds)).toBe(false);
+    });
+
+    test('isStillWaitingForDEM is true for a terrain tile at the source minzoom while its source tile loads', () => {
+        const tileID = new OverscaledTileID(0, 0, 0, 0, 0);
+        const sourceTile = new Tile(tileID, 256);
+        sourceTile.state = 'loading';
+        tsc.tileManager._inViewTiles.setTile(tileID.key, sourceTile);
+
+        expect(tsc.isStillWaitingForDEM(tileID)).toBe(true);
+    });
+
+    test('isStillWaitingForDEM is false for a terrain tile below the source minzoom', async () => {
+        beforeMapTest();
+        const map = createMap();
+        await map.once('style.load');
+        map.addSource('dem', {type: 'raster-dem', tiles: ['http://example.com/{z}/{x}/{y}.png'], minzoom: 5});
+        await map.style.tileManagers.dem.once('data');
+        const terrainTileManager = new TerrainTileManager(map.style.tileManagers.dem);
+
+        expect(terrainTileManager.isStillWaitingForDEM(new OverscaledTileID(4, 0, 4, 5, 8))).toBe(false);
+        map.remove();
+    });
+
     describe('update', () => {
         test('reports whether the renderable tiles changed', () => {
             const manager = new TerrainTileManager(style.tileManagers.terrain);
-            const transform = new MercatorTransform();
-            transform.resize(512, 512);
-            transform.setCenter(new LngLat(-46, -6));
-            transform.setZoom(8);
+            const context = createCameraContext();
+            let view = createCameraViewState();
+            view = resize(view, context, 512, 512);
+            view = setCenter(view, context, new LngLat(-46, -6));
+            view = setZoom(view, context, 8);
             const renderableKeys = () => manager.getRenderableTiles().map(tile => tile.tileID.key);
 
-            expect(manager.update(transform, null)).toBe(true);
+            expect(manager.update(projectCamera(view, context), context.worldCoordinateHelper, null)).toBe(true);
             const keys = renderableKeys();
             expect(keys.length).toBeGreaterThan(0);
 
-            expect(manager.update(transform, null)).toBe(false);
+            expect(manager.update(projectCamera(view, context), context.worldCoordinateHelper, null)).toBe(false);
             expect(renderableKeys()).toEqual(keys);
 
-            transform.setZoom(9);
-            expect(manager.update(transform, null)).toBe(true);
+            view = setZoom(view, context, 9);
+            expect(manager.update(projectCamera(view, context), context.worldCoordinateHelper, null)).toBe(true);
             expect(renderableKeys()).not.toEqual(keys);
         });
     });

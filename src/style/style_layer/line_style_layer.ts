@@ -116,13 +116,13 @@ export class LineStyleLayer extends StyleLayer {
         feature,
         featureState,
         geometry,
-        transform,
+        projectedCamera,
         pixelsToTileUnits}: QueryIntersectsFeatureParams
     ): boolean {
         const translatedPolygon = translate(queryGeometry,
             this.paint.get('line-translate'),
             this.paint.get('line-translate-anchor'),
-            -transform.bearingInRadians, pixelsToTileUnits);
+            -projectedCamera.bearingInRadians, pixelsToTileUnits);
         const halfWidth = pixelsToTileUnits / 2 * getLineWidth(
             this.paint.get('line-width').evaluate(feature, featureState),
             this.paint.get('line-gap-width').evaluate(feature, featureState));
@@ -147,7 +147,7 @@ export class LineStyleLayer extends StyleLayer {
 function expressionReferencesLineProgress(styleExpression: any): boolean {
     if (!styleExpression) return false;
     // Unwrap ZoomConstantExpression / ZoomDependentExpression -> StyleExpression -> AST root.
-    const root = styleExpression._styleExpression && styleExpression._styleExpression.expression;
+    const root = styleExpression._styleExpression?.expression;
     if (!root) return false;
 
     let found = false;

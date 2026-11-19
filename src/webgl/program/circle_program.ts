@@ -6,7 +6,7 @@ import type {Context} from '../../webgl/context.ts';
 import type {UniformValues, UniformLocations} from '../uniform_binding.ts';
 import type {Tile} from '../../tile/tile.ts';
 import type {CircleStyleLayer} from '../../style/style_layer/circle_style_layer.ts';
-import type {Painter} from '../../render/painter.ts';
+import type {ProjectedCamera} from '../../camera/projected_camera.ts';
 
 export type CircleUniformsType = {
     'u_scale_with_map': Uniform1i;
@@ -25,18 +25,16 @@ const circleUniforms = (context: Context, locations: UniformLocations): CircleUn
 });
 
 const circleUniformValues = (
-    painter: Painter,
+    projectedCamera: ProjectedCamera,
     tile: Tile,
     layer: CircleStyleLayer,
     translate: [number, number],
     radiusCorrectionFactor: number
 ): UniformValues<CircleUniformsType> => {
-    const transform = painter.transform;
-
     let pitchWithMap: boolean, extrudeScale: [number, number];
     let globeExtrudeScale: number = 0;
     if (layer.paint.get('circle-pitch-alignment') === 'map') {
-        const pixelRatio = pixelsToTileUnits(tile, 1, transform.zoom);
+        const pixelRatio = pixelsToTileUnits(tile, 1, projectedCamera.zoom);
         pitchWithMap = true;
         extrudeScale = [pixelRatio, pixelRatio];
 
@@ -45,7 +43,7 @@ const circleUniformValues = (
         globeExtrudeScale = pixelRatio / (EXTENT * Math.pow(2, tile.tileID.overscaledZ)) * 2.0 * Math.PI * radiusCorrectionFactor;
     } else {
         pitchWithMap = false;
-        extrudeScale = transform.pixelsToGLUnits;
+        extrudeScale = projectedCamera.pixelsToGLUnits;
     }
 
     return {

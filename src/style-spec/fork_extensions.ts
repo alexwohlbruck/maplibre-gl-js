@@ -17,23 +17,21 @@ const layoutSymbol = (v8 as any).layout_symbol;
 const layoutLine = (v8 as any).layout_line;
 const paintLine = (v8 as any).paint_line;
 
-if (!layoutLine['line-rounded-corner-distance']) {
-    // The line counterpart of `fill-extrusion-rounded-corner-distance`: polygon
-    // outlines are rounded with the same code and in the same units, so an
-    // outline drawn over a rounded extrusion follows its corners exactly.
-    layoutLine['line-rounded-corner-distance'] = {
-        'type': 'number',
-        'default': 0,
-        'minimum': 0,
-        'units': 'meters',
-        'doc': 'Rounds the corners of polygon outlines by this distance, matching `fill-extrusion-rounded-corner-distance`. Has no effect on line geometry.',
-        'expression': {
-            'interpolated': false,
-            'parameters': []
-        },
-        'property-type': 'data-constant'
-    };
-}
+// The line counterpart of `fill-extrusion-rounded-corner-distance`: polygon
+// outlines are rounded with the same code and in the same units, so an
+// outline drawn over a rounded extrusion follows its corners exactly.
+layoutLine['line-rounded-corner-distance'] ||= {
+    'type': 'number',
+    'default': 0,
+    'minimum': 0,
+    'units': 'meters',
+    'doc': 'Rounds the corners of polygon outlines by this distance, matching `fill-extrusion-rounded-corner-distance`. Has no effect on line geometry.',
+    'expression': {
+        'interpolated': false,
+        'parameters': []
+    },
+    'property-type': 'data-constant'
+};
 
 if (!layoutLine['line-elevation-profile']) {
     // Heights along a line for drawing it off the ground over terrain: bridges

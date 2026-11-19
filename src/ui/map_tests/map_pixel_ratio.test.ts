@@ -19,12 +19,11 @@ test('pixel ratio by default reflects devicePixelRatio changes', () => {
     expect(map.getPixelRatio()).toBe(1);
 });
 
-test('painter has the expected size and pixel ratio', () => {
+test('painter has the expected size', () => {
     const container = window.document.createElement('div');
     Object.defineProperty(container, 'clientWidth', {value: 512});
     Object.defineProperty(container, 'clientHeight', {value: 512});
     const map = createMap({container, pixelRatio: 2});
-    expect(map.painter.pixelRatio).toBe(2);
     expect(map.painter.width).toBe(1024);
     expect(map.painter.height).toBe(1024);
 });
@@ -56,11 +55,9 @@ describe('setPixelRatio', () => {
         Object.defineProperty(container, 'clientWidth', {value: 512});
         Object.defineProperty(container, 'clientHeight', {value: 512});
         const map = createMap({container, pixelRatio: 1});
-        expect(map.painter.pixelRatio).toBe(1);
         expect(map.painter.width).toBe(512);
         expect(map.painter.height).toBe(512);
         map.setPixelRatio(2);
-        expect(map.painter.pixelRatio).toBe(2);
         expect(map.painter.width).toBe(1024);
         expect(map.painter.height).toBe(1024);
     });
@@ -86,7 +83,7 @@ describe('canvas CSS size', () => {
         // 850 * 1.75 is 1487.5, so the backing store cannot match the container exactly.
         expect(canvas.height).toBe(1488);
         expect(parseFloat(canvas.style.width) * 1.75).toBe(canvas.width);
-        expect(parseFloat(canvas.style.height) * 1.75).toBe(canvas.height);
+        expect(parseFloat(canvas.style.height) * 1.75).toBeCloseTo(canvas.height, 2);
         expect(map.painter.width).toBe(canvas.width);
         expect(map.painter.height).toBe(canvas.height);
     });

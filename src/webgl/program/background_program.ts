@@ -7,13 +7,14 @@ import {
 } from '../uniform_binding.ts';
 import {extend} from '../../util/util.ts';
 
-import type {Painter} from '../../render/painter.ts';
+import type {PatternAtlas} from '../../render/pattern_atlas.ts';
 import type {UniformValues, UniformLocations} from '../uniform_binding.ts';
 import type {Context} from '../../webgl/context.ts';
 import type {Color, ResolvedImage} from '@maplibre/maplibre-gl-style-spec';
 import type {CrossFaded} from '../../style/properties.ts';
 import type {CrossfadeParameters} from '../../style/evaluation_parameters.ts';
 import type {OverscaledTileID} from '../../tile/tile_id.ts';
+import type {ProjectedCamera} from '../../camera/projected_camera.ts';
 
 export type BackgroundUniformsType = {
     'u_opacity': Uniform1f;
@@ -69,7 +70,8 @@ const backgroundUniformValues = (opacity: number, color: Color): UniformValues<B
 
 const backgroundPatternUniformValues = (
     opacity: number,
-    painter: Painter,
+    patternAtlas: PatternAtlas,
+    projectedCamera: ProjectedCamera,
     image: CrossFaded<ResolvedImage>,
     tile: {
         tileID: OverscaledTileID;
@@ -77,7 +79,7 @@ const backgroundPatternUniformValues = (
     },
     crossfade: CrossfadeParameters
 ): UniformValues<BackgroundPatternUniformsType> => extend(
-    bgPatternUniformValues(image, crossfade, painter, tile),
+    bgPatternUniformValues(image, crossfade, patternAtlas, projectedCamera, tile),
     {
         'u_opacity': opacity
     }

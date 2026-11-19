@@ -19,7 +19,7 @@ describe('Dispatcher', () => {
         } as any as WorkerPool;
 
         const dispatcher = new Dispatcher(workerPool, mapId);
-        await dispatcher.actorsPromise;
+        await dispatcher.waitForInitComplete();
         expect(dispatcher.actors.map((actor) => actor.target)).toEqual(workers);
         dispatcher.remove();
         expect(dispatcher.actors).toHaveLength(0);
@@ -42,7 +42,7 @@ describe('Dispatcher', () => {
         } as any as WorkerPool;
 
         let dispatcher = new Dispatcher(workerPool, mapId);
-        await dispatcher.actorsPromise;
+        await dispatcher.waitForInitComplete();
         expect(dispatcher.actors.map((actor) => actor.target)).toEqual(workers);
 
         dispatcher.remove(false);
@@ -50,7 +50,7 @@ describe('Dispatcher', () => {
         expect(releaseCalled).toHaveLength(0);
 
         dispatcher = new Dispatcher(workerPool, mapId);
-        await dispatcher.actorsPromise;
+        await dispatcher.waitForInitComplete();
         expect(dispatcher.actors.map((actor) => actor.target)).toEqual(workers);
         dispatcher.remove(true);
         expect(dispatcher.actors).toHaveLength(0);
@@ -67,7 +67,7 @@ describe('Dispatcher', () => {
 
         const workerPool = new WorkerPool();
         const dispatcher = new Dispatcher(workerPool, mapId);
-        await dispatcher.actorsPromise;
+        await dispatcher.waitForInitComplete();
         dispatcher.remove();
         expect(actorsRemoved).toHaveLength(4);
     });
@@ -84,11 +84,11 @@ describe('Dispatcher', () => {
         } as any as WorkerPool;
 
         const dispatcher = new Dispatcher(workerPool, 1);
-        await dispatcher.actorsPromise;
+        await dispatcher.waitForInitComplete();
         const terrain = await dispatcher.getTerrainActor();
         expect(terrain.target).toBe(terrainWorker);
         expect(dispatcher.actors.map(actor => actor.target)).not.toContain(terrainWorker);
-        expect(await dispatcher.getTerrainActor()).toBe(terrain);
+        await expect(dispatcher.getTerrainActor()).resolves.toBe(terrain);
 
         dispatcher.remove();
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -99,7 +99,7 @@ describe('Dispatcher', () => {
         const acquireTerrain = vi.fn();
         const dispatcher = new Dispatcher({acquire: () => Promise.resolve([]), acquireTerrain, release: () => {}} as any as WorkerPool, 1);
         dispatcher.remove();
-        await expect(dispatcher.getTerrainActor()).rejects.toThrow();
+        await expect(dispatcher.getTerrainActor()).rejects.toThrow('Dispatcher removed');
         expect(acquireTerrain).not.toHaveBeenCalled();
     });
 
@@ -115,7 +115,7 @@ describe('Dispatcher', () => {
         const dispatcher = new Dispatcher(workerPool, 1);
         const listener = vi.fn();
         dispatcher.on('error', listener);
-        await dispatcher.actorsPromise;
+        await dispatcher.waitForInitComplete();
 
         worker.dispatchEvent(new ErrorEvent('error'));
 

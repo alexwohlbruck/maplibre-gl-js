@@ -62,7 +62,7 @@ function clipLines(lines: Point[][]): Point[][] {
             if (!seg) continue;
             const [a, b] = seg;
             const last = part[part.length - 1];
-            if (!last || !last.equals(a)) {
+            if (!last?.equals(a)) {
                 if (part.length > 1) out.push(part);
                 part = [a];
             }

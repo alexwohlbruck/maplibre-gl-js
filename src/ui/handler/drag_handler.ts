@@ -29,7 +29,7 @@ export interface DragRollResult extends DragMovementResult {
     rollDelta: number;
 }
 
-type DragMoveFunction<T extends DragMovementResult> = (lastPoint: Point, currnetPoint: Point) => T;
+type DragMoveFunction<T extends DragMovementResult> = (lastPoint: Point, currentPoint: Point, startPoint: Point) => T;
 
 export interface DragMoveHandler<T extends DragMovementResult, E extends Event> extends Handler {
     dragStart: (e: E, point: Point) => void;
@@ -56,9 +56,11 @@ export type DragMoveHandlerOptions<T, E extends Event> = {
      */
     assignEvents: (handler: DragMoveHandler<T, E>) => void;
     /**
-     * Should the move start on the "start" event, or should it start on the first valid move.
+     * Whether the handler becomes active on the start event it accepts, rather than on its first valid move.
+     * An active handler blocks the handlers that do not allow it, so activating on start claims the gesture
+     * before it has moved the map.
      */
-    activateOnStart?: boolean;
+    activateOnStart?: (e: E) => boolean;
     /**
      * If true, handler will be enabled during construction
      */
@@ -80,11 +82,12 @@ export class DragHandler<T extends DragMovementResult, E extends Event> implemen
 
     _clickTolerance: number;
     _moveFunction: DragMoveFunction<T>;
-    _activateOnStart: boolean;
+    _activateOnStart: (e: E) => boolean;
     _active: boolean;
     _enabled: boolean;
     _moved: boolean;
     _lastPoint: Point | null;
+    _startPoint: Point | null;
     _moveStateManager: DragMoveStateManager<E>;
 
     constructor(options: DragMoveHandlerOptions<T, E>) {
@@ -92,7 +95,7 @@ export class DragHandler<T extends DragMovementResult, E extends Event> implemen
         this._moveStateManager = options.moveStateManager;
         this._clickTolerance = options.clickTolerance || 1;
         this._moveFunction = options.move;
-        this._activateOnStart = !!options.activateOnStart;
+        this._activateOnStart = options.activateOnStart ?? (() => false);
 
         options.assignEvents(this);
 
@@ -103,6 +106,7 @@ export class DragHandler<T extends DragMovementResult, E extends Event> implemen
         this._active = false;
         this._moved = false;
         delete this._lastPoint;
+        delete this._startPoint;
         this._moveStateManager.endMove(e);
     }
 
@@ -122,9 +126,10 @@ export class DragHandler<T extends DragMovementResult, E extends Event> implemen
         if (!this._moveStateManager.isValidStartEvent(e)) return;
         this._moveStateManager.startMove(e);
 
-        this._lastPoint = Array.isArray(point) ? point[0] : point;
+        this._startPoint = Array.isArray(point) ? point[0] : point;
+        this._lastPoint = this._startPoint;
 
-        if (this._activateOnStart && this._lastPoint) this._active = true;
+        if (this._activateOnStart(e) && this._lastPoint) this._active = true;
     }
 
     dragMove(e: E, point: Point): T | void;
@@ -146,7 +151,7 @@ export class DragHandler<T extends DragMovementResult, E extends Event> implemen
         this._moved = true;
         this._lastPoint = movePoint;
 
-        return this._move(lastPoint, movePoint);
+        return this._move(lastPoint, movePoint, this._startPoint);
     }
 
     dragEnd(e: E): void {

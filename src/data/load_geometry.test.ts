@@ -21,7 +21,7 @@ describe('loadGeometry', () => {
         expect(scaledGeometry[0][0].y).toBe(originalGeometry[0][0].y * 2);
     });
 
-    const fake = (type: 1 | 2 | 3, ...lines: [number, number][][]) => ({
+    const fake = (type: 1 | 2 | 3, ...lines: Array<Array<[number, number]>>) => ({
         extent: EXTENT,
         type,
         loadGeometry: () => lines.map(l => l.map(([x, y]) => new Point(x, y))),
@@ -51,7 +51,7 @@ describe('loadGeometry', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const g = loadGeometry(fake(3, [[0, 0], [40000, 0], [0, 100], [0, 0]]));
         expect(coords(g)[0][1]).toEqual([16383, 0]);
-        expect(warn).toHaveBeenCalledOnce();
+        expect(warn).toHaveBeenCalledTimes(1);
         warn.mockRestore();
     });
 });

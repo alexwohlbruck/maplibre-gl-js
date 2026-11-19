@@ -46,7 +46,6 @@ import type {StyleLayer} from './style_layer.ts';
 import type {MapGeoJSONFeature, GeoJSONFeature} from '../util/vectortile_to_geojson.ts';
 import type Point from '@mapbox/point-geometry';
 import type {Map} from '../ui/map.ts';
-import type {IReadonlyTransform, ITransform} from '../geo/transform_interface.ts';
 import type {StyleImage} from './style_image.ts';
 import type {GlyphMap} from './style_glyph.ts';
 import type {EvaluationParameters} from './evaluation_parameters.ts';
@@ -72,6 +71,8 @@ import type {CustomLayerInterface} from './style_layer/custom_style_layer.ts';
 import type {Validator} from './validate_style.ts';
 import type {Projection} from '../geo/projection/projection.ts';
 import type {OverscaledTileID} from '../tile/tile_id.ts';
+import type {ProjectedCamera} from '../camera/projected_camera.ts';
+import type {WorldCoordinateHelper} from '../geo/world_types.ts';
 
 const empty = emptyStyle();
 /** How many times longer a placement is kept while the camera pans or turns than at rest. */
@@ -112,6 +113,10 @@ export type StyleOptions = {
      * Forces a full update.
      */
     localIdeographFontFamily?: string | false;
+    /**
+     * Defines an initial global state for the map style. It overrides the defaults defined in the map style, as if {@link Map.setGlobalStateProperty} was called after loading the style.
+     */
+    globalState?: Record<string, any>;
 };
 
 /**
@@ -122,10 +127,14 @@ export type StyleSetterOptions = {
      * Whether to check if the filter conforms to the MapLibre Style Specification. Disabling validation is a performance optimization that should only be used if you have previously validated the values you will be passing to this function.
      */
     validate?: boolean;
+    /**
+     * Defines an initial global state for the map style. It overrides the defaults defined in the map style, as if {@link Map.setGlobalStateProperty} was called after loading the style.
+     */
+    globalState?: Record<string, any>;
 };
 
 /**
- * Part of {@link Map.setStyle} options, transformStyle is a convenience function that allows to modify a style after it is fetched but before it is committed to the map state.
+ * Part of {@link MapOptions.transformStyle} and {@link Map.setStyle} options, transformStyle is a convenience function that allows to modify a style after it is fetched but before it is committed to the map state.
  *
  * This function exposes previous and next styles, it can be commonly used to support a range of functionalities like:
  *
@@ -239,6 +248,7 @@ export class Style extends Evented<MapEventType> {
     _symbolClip: SymbolClip | null = null;
     _symbolPlacementTriggered: boolean;
     _placedProjectionTransition: number;
+    _initialGlobalState: Record<string, any>;
     _globalState: Record<string, any>;
     crossTileSymbolIndex: CrossTileSymbolIndex;
     pauseablePlacement: PauseablePlacement;
@@ -269,6 +279,7 @@ export class Style extends Evented<MapEventType> {
         this.crossTileSymbolIndex = new CrossTileSymbolIndex();
 
         this._setInitialValues();
+        this._initialGlobalState = options.globalState ?? {};
 
         this._resetUpdates();
 
@@ -305,6 +316,7 @@ export class Style extends Evented<MapEventType> {
         this.tileManagers = {};
         this.zoomHistory = new ZoomHistory();
         this._imagesListDirty = false;
+        this._initialGlobalState = {};
         this._globalState = {};
         this._serializedLayers = {};
         this.stylesheet = null;
@@ -361,8 +373,10 @@ export class Style extends Evented<MapEventType> {
         this._checkLoaded();
 
         const values: Record<string, any> = {};
-        for (const propertyName in newStylesheetState) {
-            values[propertyName] = newStylesheetState[propertyName].default;
+        const propertyNames = new Set([...Object.keys(newStylesheetState ?? {}), ...Object.keys(this._initialGlobalState)]);
+        for (const propertyName of propertyNames) {
+            // Initial global state has priority over global state defaults defined in the map style
+            values[propertyName] = this._initialGlobalState[propertyName] ?? newStylesheetState[propertyName]?.default ?? null;
         }
 
         this._setGlobalStateValues(values);
@@ -488,6 +502,11 @@ export class Style extends Evented<MapEventType> {
         this._load(empty, {validate: false});
     }
 
+    /**
+     * Loads a style. The global state is set first, since the projection and the layers read it. The projection is
+     * created before the sources, which read it as they are added, and the map migrates to it once the layers and the
+     * light exist, so `projectiontransition` handlers can read them.
+     */
     _load(json: StyleSpecification, options: StyleSwapOptions & StyleSetterOptions, previousStyle?: StyleSpecification): void {
         let nextState = options.transformStyle ? options.transformStyle(previousStyle, json) : json;
         if (options.validate && validateStyleAndEmit(this, nextState)) {
@@ -498,6 +517,10 @@ export class Style extends Evented<MapEventType> {
 
         this._loaded = true;
         this.stylesheet = nextState;
+
+        this.setGlobalState(this.stylesheet.state ?? null);
+        const projectionObjects = createProjectionFromName(this.stylesheet.projection?.type || 'mercator', this._globalState);
+        this.projection = projectionObjects.projection;
 
         for (const id in nextState.sources) {
             this.addSource(id, nextState.sources[id], {validate: false});
@@ -514,7 +537,7 @@ export class Style extends Evented<MapEventType> {
         this._createLayers();
 
         this.light = new Light(this.stylesheet.light ?? {}, this._globalState);
-        this._setProjectionInternal(this.stylesheet.projection?.type || 'mercator');
+        this._applyProjection(projectionObjects);
 
         this.sky = new Sky(this.stylesheet.sky, this._globalState);
         this.sky.setEventedParent(this);
@@ -528,8 +551,6 @@ export class Style extends Evented<MapEventType> {
 
     private _createLayers() {
         const dereferencedLayers = derefLayers(this.stylesheet.layers);
-
-        this.setGlobalState(this.stylesheet.state ?? null);
 
         // Broadcast layers to workers first, so that expensive style processing (createStyleLayer)
         // can happen in parallel on both main and worker threads.
@@ -837,6 +858,13 @@ export class Style extends Evented<MapEventType> {
         });
     }
 
+    /** Tells the layers that the canvas was resized. */
+    resize(): void {
+        for (const layerId of this._order) {
+            this._layers[layerId].resize();
+        }
+    }
+
     _resetUpdates(): void {
         this._changed = false;
 
@@ -881,6 +909,7 @@ export class Style extends Evented<MapEventType> {
             return false;
         }
 
+        this._initialGlobalState = options.globalState ?? {};
         for (const styleChangeOperation of operations.operations) {
             styleChangeOperation();
         }
@@ -1140,6 +1169,10 @@ export class Style extends Evented<MapEventType> {
     /**
      * Add a layer to the map style. The layer will be inserted before the layer with
      * ID `before`, or appended if `before` is omitted.
+     *
+     * A source given inline is added under the layer's ID and handed to `addSource` as it is, without
+     * being copied, because it can hold a DOM element such as the `canvas` of a canvas source. The layer is
+     * copied shallowly to point it at that ID, so the object the caller passed in is left as it was.
      * @param layerObject - The style layer to add.
      * @param before - ID of an existing layer to insert before
      * @param options - Style setter options.
@@ -1164,8 +1197,7 @@ export class Style extends Evented<MapEventType> {
         } else {
             if ('source' in layerObject && typeof layerObject.source === 'object') {
                 this.addSource(id, layerObject.source);
-                layerObject = clone(layerObject);
-                layerObject = extend(layerObject, {source: id});
+                layerObject = {...layerObject, source: id} as LayerSpecification;
             }
 
             // this layer is not in the style.layers array, so we pass an impossible array index
@@ -1660,7 +1692,7 @@ export class Style extends Evented<MapEventType> {
         return features;
     }
 
-    queryRenderedFeatures(queryGeometry: Point[], params: QueryRenderedFeaturesOptions, transform: IReadonlyTransform): MapGeoJSONFeature[] {
+    queryRenderedFeatures(queryGeometry: Point[], params: QueryRenderedFeaturesOptions, projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper): MapGeoJSONFeature[] {
         if (params?.filter) {
             this._validate(validateStyle.filter, 'queryRenderedFeatures.filter', params.filter, null, params);
         }
@@ -1706,7 +1738,8 @@ export class Style extends Evented<MapEventType> {
                     serializedLayers,
                     queryGeometry,
                     paramsStrict,
-                    transform,
+                    projectedCamera,
+                    worldCoordinateHelper,
                     this.map.terrain ?
                         (id: OverscaledTileID, x: number, y: number) =>
                             this.map.terrain.getElevation(id, x, y) :
@@ -1725,7 +1758,8 @@ export class Style extends Evented<MapEventType> {
                     queryGeometry,
                     paramsStrict,
                     this.placement.collisionIndex,
-                    this.placement.retainedQueryData)
+                    this.placement.retainedQueryData,
+                    worldCoordinateHelper)
             );
         }
 
@@ -1740,7 +1774,9 @@ export class Style extends Evented<MapEventType> {
             this._validate(validateStyle.filter, 'querySourceFeatures.filter', params.filter, null, params);
         }
         const tileManager = this.tileManagers[sourceID];
-        return tileManager ? querySourceFeatures(tileManager, params ? {...params, globalState: this._globalState} : {globalState: this._globalState}) : [];
+        if (!tileManager) return [];
+        const paramsStrict = {...params, globalState: this._globalState, worldCoordinateHelper: this.projection.worldCoordinateHelper};
+        return querySourceFeatures(tileManager, paramsStrict);
     }
 
     getLight(): LightSpecification {
@@ -1830,9 +1866,16 @@ export class Style extends Evented<MapEventType> {
     }
 
     _setProjectionInternal(name: ProjectionSpecification['type']): void {
-        const projectionObjects = createProjectionFromName(name, this.map._camera?.transform.constrainOverride, this._globalState);
+        this._applyProjection(createProjectionFromName(name, this._globalState));
+    }
+
+    /**
+     * Puts a projection in place and moves the map's camera onto it, which fires `projectiontransition`, then reloads
+     * the tiles in it.
+     */
+    private _applyProjection(projectionObjects: ReturnType<typeof createProjectionFromName>): void {
         this.projection = projectionObjects.projection;
-        this.map.migrateProjection(projectionObjects.transform, projectionObjects.cameraHelper);
+        this.map.migrateProjection(projectionObjects.cameraProjection, projectionObjects.projection.worldCoordinateHelper);
         for (const key in this.tileManagers) {
             this.tileManagers[key].reload();
         }
@@ -1889,9 +1932,9 @@ export class Style extends Evented<MapEventType> {
         this.tileManagers[id].relayout();
     }
 
-    _updateSources(transform: ITransform): void {
+    _updateSources(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper): void {
         for (const id in this.tileManagers) {
-            this.tileManagers[id].update(transform, this.map.terrain);
+            this.tileManagers[id].update(projectedCamera, worldCoordinateHelper, this.map.terrain);
         }
     }
 
@@ -1918,18 +1961,18 @@ export class Style extends Evented<MapEventType> {
      *
      * @internal
      */
-    _placementInputsChanged(transform: ITransform, showCollisionBoxes: boolean, crossSourceCollisions: boolean): boolean {
+    _placementInputsChanged(projectedCamera: ProjectedCamera, showCollisionBoxes: boolean, crossSourceCollisions: boolean): boolean {
         const lastPlacement = this.pauseablePlacement;
         return !lastPlacement ||
             this._symbolPlacementTriggered ||
             this._placedProjectionTransition !== this.projection?.transitionState ||
             lastPlacement._showCollisionBoxes !== showCollisionBoxes ||
             lastPlacement.placement.collisionGroups.crossSourceCollisions !== crossSourceCollisions ||
-            lastPlacement.placement.transform.renderWorldCopies !== transform.renderWorldCopies ||
-            !mat4.exactEquals(lastPlacement.placement.transform.modelViewProjectionMatrix, transform.modelViewProjectionMatrix);
+            lastPlacement.placement.projectedCamera.renderWorldCopies !== projectedCamera.renderWorldCopies ||
+            !mat4.exactEquals(lastPlacement.placement.projectedCamera.modelViewProjectionMatrix, projectedCamera.modelViewProjectionMatrix);
     }
 
-    _updatePlacement(transform: ITransform, showCollisionBoxes: boolean, fadeDuration: number, crossSourceCollisions: boolean, forceFullPlacement: boolean = false, isolatedCollisionLayers?: ReadonlySet<string>): boolean {
+    _updatePlacement(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, showCollisionBoxes: boolean, fadeDuration: number, crossSourceCollisions: boolean, forceFullPlacement: boolean = false, isolatedCollisionLayers?: ReadonlySet<string>): boolean {
         let symbolBucketsChanged = false;
         let placementCommitted = false;
 
@@ -1946,7 +1989,7 @@ export class Style extends Evented<MapEventType> {
                     .sort((a, b) => (b.tileID.overscaledZ - a.tileID.overscaledZ) || (a.tileID.isLessThan(b.tileID) ? -1 : 1));
             }
 
-            const layerBucketsChanged = this.crossTileSymbolIndex.addLayer(styleLayer, layerTiles[styleLayer.source], transform.center.lng);
+            const layerBucketsChanged = this.crossTileSymbolIndex.addLayer(styleLayer, layerTiles[styleLayer.source], worldCoordinateHelper.wraps ? projectedCamera.center.lng : 0);
             symbolBucketsChanged ||= layerBucketsChanged;
         }
         this.crossTileSymbolIndex.pruneUnusedLayers(this._order);
@@ -1959,16 +2002,16 @@ export class Style extends Evented<MapEventType> {
         // tiles will fully display symbols in their first frame
         forceFullPlacement ||= this._layerOrderChanged || fadeDuration === 0;
 
-        const placementInputsChanged = symbolBucketsChanged || this._placementInputsChanged(transform, showCollisionBoxes, crossSourceCollisions);
+        const placementInputsChanged = symbolBucketsChanged || this._placementInputsChanged(projectedCamera, showCollisionBoxes, crossSourceCollisions);
 
         // Panning or turning, labels ride the map they were placed on: placing them half as often is not seen, and halves its cost.
         const stretch = this.map.isMoving() && !this.map.isZooming() ? MOVING_PLACEMENT_STRETCH : 1;
-        const placementSettled = this.pauseablePlacement?.isDone() && !this.placement.stillRecent(now(), transform.zoom, stretch);
+        const placementSettled = this.pauseablePlacement?.isDone() && !this.placement.stillRecent(now(), projectedCamera.zoom, stretch);
 
         if (forceFullPlacement || !this.pauseablePlacement || (placementSettled && (placementInputsChanged || this.placement.stale))) {
             this._symbolPlacementTriggered = false;
             this._placedProjectionTransition = this.projection?.transitionState;
-            this.pauseablePlacement = new PauseablePlacement(transform, this.map.terrain, this._order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, this.placement, isolatedCollisionLayers);
+            this.pauseablePlacement = new PauseablePlacement(projectedCamera, this.map.terrain, this._order, forceFullPlacement, showCollisionBoxes, fadeDuration, crossSourceCollisions, this.placement, isolatedCollisionLayers);
             this.pauseablePlacement.placement.symbolClip = this._symbolClip;
             this._layerOrderChanged = false;
         }

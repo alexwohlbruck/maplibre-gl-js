@@ -274,6 +274,30 @@ describe('drag rotate', () => {
         map.remove();
     });
 
+    test('DragRotateHandler turns the same way above the center as below it if given around: \'center\' and movement: \'linear\'', () => {
+        const map = createMap({dragRotate: {around: 'center', movement: 'linear'}});
+
+        simulate.mousedown(map.getCanvas(), {buttons: 2, button: 2, clientX: 0, clientY: 50});
+        simulate.mousemove(map.getCanvas(), {buttons: 2, clientX: 10, clientY: 50});
+        map._renderTaskQueue.run();
+
+        expect(map.getBearing()).toBeCloseTo(8);
+
+        map.remove();
+    });
+
+    test('DragRotateHandler turns the other way above the center if given around: \'center\' and movement: \'circular\' with aroundCenter: false', () => {
+        const map = createMap({aroundCenter: false, dragRotate: {around: 'center', movement: 'circular'}});
+
+        simulate.mousedown(map.getCanvas(), {buttons: 2, button: 2, clientX: 0, clientY: 50});
+        simulate.mousemove(map.getCanvas(), {buttons: 2, clientX: 10, clientY: 50});
+        map._renderTaskQueue.run();
+
+        expect(map.getBearing()).toBeCloseTo(-8);
+
+        map.remove();
+    });
+
     test('DragRotateHandler does not rotate or pitch when disabled', () => {
         const map = createMap();
 
@@ -494,6 +518,22 @@ describe('drag rotate', () => {
         map.remove();
     });
 
+    test('DragRotateHandler keeps rotating after the bearing is set programmatically during the drag', () => {
+        const map = createMap({dragRotate: {around: 'center', movement: 'linear'}});
+
+        simulate.mousedown(map.getCanvas(), {buttons: 2, button: 2, clientX: 0, clientY: 50});
+        simulate.mousemove(map.getCanvas(), {buttons: 2, clientX: 10, clientY: 50});
+        map._renderTaskQueue.run();
+
+        map.setBearing(40);
+        simulate.mousemove(map.getCanvas(), {buttons: 2, clientX: 20, clientY: 50});
+        map._renderTaskQueue.run();
+
+        expect(map.getBearing()).toBeCloseTo(48);
+
+        map.remove();
+    });
+
     test('DragRotateHandler ends rotation if the window blurs (#3389)', () => {
         const map = createMap();
 
@@ -522,7 +562,7 @@ describe('drag rotate', () => {
 
     test('DragRotateHandler requests a new render frame after each mousemove event', () => {
         const map = createMap();
-        const requestRenderFrame = vi.spyOn(map._handlers, '_requestFrame');
+        const requestRenderFrame = vi.spyOn(map, '_requestRenderFrame');
 
         // Prevent inertial rotation.
         vi.spyOn(timeControl, 'now').mockReturnValue(0);

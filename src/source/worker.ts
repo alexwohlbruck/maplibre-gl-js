@@ -3,6 +3,7 @@ import {Actor, type ActorTarget, type IActor} from '../util/actor.ts';
 import {StyleLayerIndex} from '../style/style_layer_index.ts';
 import {VectorTileWorkerSource} from './vector_tile_worker_source.ts';
 import {RasterDEMTileWorkerSource} from './raster_dem_tile_worker_source.ts';
+import {setProjectionHandler} from './projection_handler_worker.ts';
 import {rtlWorkerPlugin, type RTLTextPlugin} from './rtl_text_plugin_worker.ts';
 import {GeoJSONWorkerSource, type LoadGeoJSONParameters} from './geojson_worker_source.ts';
 import {isWorker} from '../util/util.ts';
@@ -103,6 +104,8 @@ export default class Worker {
     };
     referrer: string;
     globalStates: Map<string, Record<string, any>>;
+    /** Scripts imported into this worker, by url, so a url sent twice runs once. */
+    importedScripts: Map<string, Promise<void>>;
 
     constructor(self: WorkerGlobalScopeInterface & ActorTarget) {
         this.self = self;
@@ -116,6 +119,7 @@ export default class Worker {
         this.externalWorkerSourceTypes = {};
 
         this.globalStates = new Map<string, Record<string, any>>();
+        this.importedScripts = new Map<string, Promise<void>>();
 
         this.self.registerWorkerSource = (name: string, WorkerSource: WorkerSourceConstructor) => {
             if (this.externalWorkerSourceTypes[name]) {
@@ -139,6 +143,11 @@ export default class Worker {
         };
 
         this.self.makeRequest = makeRequest;
+
+        /**
+         * Invoked by a script loaded with `importScriptInWorkers`, see the custom CRS guide.
+         */
+        this.self.setProjectionHandler = setProjectionHandler;
 
         this.actor.registerMessageHandler(MessageType.loadDEMTile, (mapId: string, params: WorkerDEMTileParameters) => {
             return this._getDEMWorkerSource(mapId, params.source).loadTile(params);
@@ -205,12 +214,14 @@ export default class Worker {
             this.referrer = params;
         });
 
+        this.actor.registerMessageHandler(MessageType.ping, async () => {});
+
         this.actor.registerMessageHandler(MessageType.syncRTLPluginState, (mapId: string, params: PluginState) => {
             return this._syncRTLPluginState(mapId, params);
         });
 
-        this.actor.registerMessageHandler(MessageType.importScript, async (_mapId: string, params: string) => {
-            await loadScript(params);
+        this.actor.registerMessageHandler(MessageType.importScript, (_mapId: string, params: string) => {
+            return this._importScript(params);
         });
 
         this.actor.registerMessageHandler(MessageType.setImages, (mapId: string, params: string[]) => {
@@ -233,6 +244,24 @@ export default class Worker {
         });
     }
 
+    /**
+     * Loads a script once per url, so concurrent and repeated imports share one load. A failed load
+     * is forgotten, so the next import of the url tries again.
+     */
+    private async _importScript(url: string): Promise<void> {
+        const existing = this.importedScripts.get(url);
+        if (existing) return existing;
+
+        const importPromise = loadScript(url);
+        this.importedScripts.set(url, importPromise);
+        try {
+            await importPromise;
+        } catch (error) {
+            this.importedScripts.delete(url);
+            throw error;
+        }
+    }
+
     private _getGlobalState(mapId: string): Record<string, any> {
         let state = this.globalStates.get(mapId);
         if (!state) {
@@ -253,7 +282,7 @@ export default class Worker {
     }
 
     private async _syncRTLPluginState(mapId: string, incomingState: PluginState): Promise<PluginState> {
-        return await rtlWorkerPlugin.syncState(incomingState, loadScript);
+        return await rtlWorkerPlugin.syncState(incomingState, (url) => this._importScript(url));
     }
 
     private _getAvailableImages(mapId: string) {

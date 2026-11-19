@@ -104,7 +104,7 @@ describe('LineBucket elevation', () => {
         // Every vertex runs east, as the line does.
         expect(bucket.layoutVertexArray2.float32[5]).toBeCloseTo(1);
         expect(bucket.layoutVertexArray2.float32[6]).toBeCloseTo(0);
-        expect(bucket.layoutVertexArray2.length).toBe(bucket.layoutVertexArray.length);
+        expect(bucket.layoutVertexArray2).toHaveLength(bucket.layoutVertexArray.length);
         expect([...heights].sort()).toEqual([0, 3]);
     });
 
@@ -113,6 +113,6 @@ describe('LineBucket elevation', () => {
         expect(bucket.elevated).toBe(false);
         expect(bucket.layers[0].isElevated()).toBe(false);
         bucket.addFeature({type: 2, properties: {}} as unknown as BucketFeature, [[new Point(0, 0), new Point(10, 10)]], 0, world, {}, {}, SubdivisionGranularitySetting.noSubdivision);
-        expect(bucket.layoutVertexArray2.length).toBe(0);
+        expect(bucket.layoutVertexArray2).toHaveLength(0);
     });
 });

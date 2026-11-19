@@ -3,12 +3,12 @@ import {OverscaledTileID} from '../../tile/tile_id.ts';
 import {TileManager} from '../../tile/tile_manager.ts';
 import {Tile} from '../../tile/tile.ts';
 import {Painter} from '../../render/painter.ts';
-import {createRenderContext} from '../../render/render_context.ts';
+import {FrameRenderContext} from '../../render/frame_render_context.ts';
 import {drawCustom} from './draw_custom.ts';
 import {CustomStyleLayer} from '../../style/style_layer/custom_style_layer.ts';
-import {MercatorTransform} from '../../geo/projection/mercator_transform.ts';
-import {MercatorProjection} from '../../geo/projection/mercator_projection.ts';
-import {expectToBeCloseToArray} from '../../util/test/util.ts';
+import {projectCamera} from '../../camera/project_camera.ts';
+import {setMaxPitch, setMinPitch} from '../../camera/camera_updates.ts';
+import {expectToBeCloseToArray, createFrameRenderData, createTestCamera} from '../../util/test/util.ts';
 
 import type {CustomRenderMethodInput} from '../../style/style_layer/custom_style_layer.ts';
 import type {Map} from '../../ui/map.ts';
@@ -26,21 +26,13 @@ vi.mock(import('../../symbol/projection'));
 
 describe('drawCustom', () => {
     test('should return custom render method inputs', () => {
-        // same transform setup as in transform.test.ts 'creates a transform', so matrices of transform should be the same
-        const transform = new MercatorTransform({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 60, renderWorldCopies: true});
-        transform.resize(500, 500);
-        transform.setMinPitch(10);
-        transform.setMaxPitch(10);
-        const mockPainter = new Painter(null, null);
-        mockPainter.style = {
-            projection: new MercatorProjection(),
-        } as any;
-        mockPainter.transform = transform;
-        const renderContext = createRenderContext(transform, mockPainter.style.projection, null);
-        renderContext.currentPass = 'translucent';
-        mockPainter.renderContext = renderContext;
+        // same camera setup as in mercator_camera_math.test.ts, so its matrices should be the same
+        const {state: view, context} = createTestCamera({minZoom: 0, maxZoom: 22, minPitch: 0, maxPitch: 60, renderWorldCopies: true, width: 500, height: 500});
+        const projectedCamera = projectCamera(setMaxPitch(setMinPitch(view, 10), 10), context);
+        const mockPainter = new Painter(null);
         mockPainter.context = {
             gl: {},
+            setCustomLayerDefaults: () => {},
             setColorMode: () => {},
             setStencilMode: () => {},
             setDepthMode: () => {},
@@ -49,6 +41,7 @@ describe('drawCustom', () => {
                 set: () => {}
             }
         } as any;
+        const frameRenderContext = new FrameRenderContext({projectedCamera, worldCoordinateHelper: context.worldCoordinateHelper, terrain: null, data: createFrameRenderData(), context: mockPainter.context, programCache: null, currentPass: 'translucent', projection: null});
 
         const tileId = new OverscaledTileID(1, 0, 1, 0, 0);
         const tile = new Tile(tileId, 256);
@@ -74,14 +67,14 @@ describe('drawCustom', () => {
                 };
             },
         }, {});
-        drawCustom(mockPainter, tileManagerMock, mockLayer, renderContext);
+        drawCustom(mockPainter, tileManagerMock, mockLayer, [tileId], frameRenderContext);
         expect(result.gl).toBeDefined();
         expect(result.args.farZ).toBeCloseTo(804.8028169246645, 6);
-        expect(result.args.farZ).toBe(mockPainter.transform.farZ);
-        expect(result.args.nearZ).toBe(mockPainter.transform.nearZ);
-        expect(result.args.fov).toBe(mockPainter.transform.fov * Math.PI / 180);
-        expect(result.args.modelViewProjectionMatrix).toEqual(mockPainter.transform.modelViewProjectionMatrix);
-        expect(result.args.projectionMatrix).toEqual(mockPainter.transform.projectionMatrix);
+        expect(result.args.farZ).toBe(projectedCamera.farZ);
+        expect(result.args.nearZ).toBe(projectedCamera.nearZ);
+        expect(result.args.fov).toBe(projectedCamera.fov * Math.PI / 180);
+        expect(result.args.modelViewProjectionMatrix).toEqual(projectedCamera.modelViewProjectionMatrix);
+        expect(result.args.projectionMatrix).toEqual(projectedCamera.projectionMatrix);
         expectToBeCloseToArray(result.args.defaultProjectionData.tileMercatorCoords, [0, 0, 1, 1]);
         expect(result.args.defaultProjectionData.mainMatrix).toBeInstanceOf(Float64Array);
         expect(result.args.defaultProjectionData.fallbackMatrix).toBeInstanceOf(Float64Array);

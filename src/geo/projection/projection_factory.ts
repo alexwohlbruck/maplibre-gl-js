@@ -1,31 +1,40 @@
 import {warnOnce} from '../../util/util.ts';
 import {MercatorProjection} from './mercator_projection.ts';
-import {MercatorTransform} from './mercator_transform.ts';
-import {MercatorCameraHelper} from './mercator_camera_helper.ts';
 import {GlobeProjection} from './globe_projection.ts';
-import {GlobeTransform} from './globe_transform.ts';
-import {GlobeCameraHelper} from './globe_camera_helper.ts';
-import {VerticalPerspectiveCameraHelper} from './vertical_perspective_camera_helper.ts';
-import {VerticalPerspectiveTransform} from './vertical_perspective_transform.ts';
 import {VerticalPerspectiveProjection} from './vertical_perspective_projection.ts';
+import {CRSWorldCoordinateHelper} from './crs.ts';
+import {getRegisteredProjection} from './projection_crud.ts';
 
 import type {ProjectionSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {Projection} from './projection.ts';
-import type {ITransform, TransformConstrainFunction} from '../transform_interface.ts';
-import type {ICameraHelper} from './camera_helper.ts';
+import type {CameraProjectionKind} from '../../camera/camera_context.ts';
 
-export function createProjectionFromName(name: ProjectionSpecification['type'], transformConstrain: TransformConstrainFunction | undefined, globalState: Record<string, any>): {
+/**
+ * @internal
+ * The style projection of a projection name or expression, and the projection the camera is projected with in it.
+ * The camera's world mapping is the style projection's, see {@link Projection.worldCoordinateHelper}.
+ */
+export function createProjectionFromName(name: ProjectionSpecification['type'], globalState: Record<string, any>): {
     projection: Projection;
-    transform: ITransform;
-    cameraHelper: ICameraHelper;
+    cameraProjection: CameraProjectionKind;
 } {
-    const transformOptions = {constrainOverride: transformConstrain};
     if (Array.isArray(name)) {
+        const registeredName = findRegisteredProjectionName(name);
+        if (registeredName) {
+            warnOnce(`Projection expressions cannot use the registered projection "${registeredName}", which only works as a plain name. Falling back to the globe projection.`);
+        }
         const globeProjection = new GlobeProjection({type: name}, globalState);
         return {
             projection: globeProjection,
-            transform: new GlobeTransform(transformOptions),
-            cameraHelper: new GlobeCameraHelper(globeProjection),
+            cameraProjection: 'globe',
+        };
+    }
+    const registered = getRegisteredProjection(name);
+    if (registered) {
+        const worldCoordinateHelper = new CRSWorldCoordinateHelper(registered);
+        return {
+            projection: new MercatorProjection(worldCoordinateHelper),
+            cameraProjection: 'mercator',
         };
     }
     switch (name) {
@@ -33,8 +42,7 @@ export function createProjectionFromName(name: ProjectionSpecification['type'], 
         {
             return {
                 projection: new MercatorProjection(),
-                transform: new MercatorTransform(transformOptions),
-                cameraHelper: new MercatorCameraHelper(),
+                cameraProjection: 'mercator',
             };
         }
         case 'globe':
@@ -50,16 +58,14 @@ export function createProjectionFromName(name: ProjectionSpecification['type'], 
             ]}, {});
             return {
                 projection: globeProjection,
-                transform: new GlobeTransform(transformOptions),
-                cameraHelper: new GlobeCameraHelper(globeProjection),
+                cameraProjection: 'globe',
             };
         }
         case 'vertical-perspective':
         {
             return {
                 projection: new VerticalPerspectiveProjection(),
-                transform: new VerticalPerspectiveTransform(transformOptions),
-                cameraHelper: new VerticalPerspectiveCameraHelper(),
+                cameraProjection: 'vertical-perspective',
             };
         }
         default:
@@ -67,9 +73,15 @@ export function createProjectionFromName(name: ProjectionSpecification['type'], 
             warnOnce(`Unknown projection name: ${name}. Falling back to mercator projection.`);
             return {
                 projection: new MercatorProjection(),
-                transform: new MercatorTransform(transformOptions),
-                cameraHelper: new MercatorCameraHelper(),
+                cameraProjection: 'mercator',
             };
         }
     }
+}
+
+/**
+ * The first registered projection named anywhere in a projection expression, or `undefined` if it names none.
+ */
+function findRegisteredProjectionName(expression: unknown[]): string | undefined {
+    return expression.flat(Infinity).find((item): item is string => typeof item === 'string' && getRegisteredProjection(item) !== undefined);
 }

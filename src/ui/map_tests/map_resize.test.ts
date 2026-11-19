@@ -16,8 +16,8 @@ describe('resize', () => {
         Object.defineProperty(container, 'clientHeight', {value: 250});
         map.resize();
 
-        expect(map._camera.transform.width).toBe(250);
-        expect(map._camera.transform.height).toBe(250);
+        expect(map._camera.renderedState.width).toBe(250);
+        expect(map._camera.renderedState.height).toBe(250);
 
     });
 
@@ -29,6 +29,16 @@ describe('resize', () => {
 
         map.resize();
         expect(onEvent).toHaveBeenCalled();
+    });
+
+    test('resizes the style layers', async () => {
+        const map = createMap({style: {version: 8, sources: {}, layers: [{id: 'background', type: 'background'}]}});
+        await map.once('idle');
+        const resize = vi.spyOn(map.style.getLayer('background'), 'resize');
+
+        map.resize();
+
+        expect(resize).toHaveBeenCalled();
     });
 
     test('listen to window resize event', () => {

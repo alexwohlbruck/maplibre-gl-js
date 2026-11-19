@@ -4,14 +4,14 @@ import {BoundingVolumeCache} from '../../util/primitives/bounding_volume_cache.t
 import {coveringZoomLevel, type CoveringTilesOptionsInternal} from './covering_tiles.ts';
 import {vec3, type vec4} from 'gl-matrix';
 import {OverscaledTileID} from '../../tile/tile_id.ts';
-import {earthRadius} from '../lng_lat.ts';
+import {earthRadius, LngLat} from '../lng_lat.ts';
 import {ConvexVolume} from '../../util/primitives/convex_volume.ts';
-import {threePlaneIntersection} from '../../util/util.ts';
+import {clamp, MAX_VALID_LATITUDE, threePlaneIntersection} from '../../util/util.ts';
 
-import type {IReadonlyTransform} from '../transform_interface.ts';
 import type {MercatorCoordinate} from '../mercator_coordinate.ts';
 import type {CoveringTilesDetailsProvider} from './covering_tiles_details_provider.ts';
 import type {IBoundingVolume} from '../../util/primitives/bounding_volume.ts';
+import type {ProjectedCamera} from '../../camera/projected_camera.ts';
 
 /**
  * Computes distance of a point to a tile in an arbitrary axis.
@@ -47,10 +47,10 @@ export class GlobeCoveringTilesDetailsProvider implements CoveringTilesDetailsPr
     private _boundingVolumeCache: BoundingVolumeCache<ConvexVolume> = new BoundingVolumeCache(this._computeTileBoundingVolume);
 
     /**
-     * Prepares the internal bounding volume cache for the next frame.
+     * The tiles end at the mercator edge, so a center past it selects the tiles from that edge.
      */
-    prepareNextFrame(): void {
-        this._boundingVolumeCache.swapBuffers();
+    getCenter(projectedCamera: ProjectedCamera): LngLat {
+        return new LngLat(projectedCamera.center.lng, clamp(projectedCamera.center.lat, -MAX_VALID_LATITUDE, MAX_VALID_LATITUDE));
     }
 
     /**
@@ -98,8 +98,8 @@ export class GlobeCoveringTilesDetailsProvider implements CoveringTilesDetailsPr
         return 0;
     }
     
-    allowVariableZoom(transform: IReadonlyTransform, options: CoveringTilesOptionsInternal): boolean {
-        return coveringZoomLevel(transform, options) > 4;
+    allowVariableZoom(projectedCamera: ProjectedCamera, options: CoveringTilesOptionsInternal): boolean {
+        return coveringZoomLevel(projectedCamera, options) > 4;
     }
 
     allowWorldCopies(): boolean {

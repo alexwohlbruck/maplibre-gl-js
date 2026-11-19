@@ -1,0 +1,66 @@
+import {afterEach, beforeEach, describe, test, expect, vi} from 'vitest';
+import {createProjectionFromName} from './projection_factory.ts';
+import {createCameraContext, usesGlobeControls} from '../../camera/camera_context.ts';
+import {addProjection, removeProjection} from './projection_crud.ts';
+import {MercatorProjection} from './mercator_projection.ts';
+
+afterEach(() => {
+    removeProjection('test:factory');
+    vi.restoreAllMocks();
+});
+
+describe('createProjectionFromName', () => {
+    test('resolves the built-in identity projection to a mercator projection named identity', () => {
+        const {projection} = createProjectionFromName('identity', {});
+        expect(projection).toBeInstanceOf(MercatorProjection);
+        expect(projection.name).toBe('identity');
+    });
+
+    test('runs the identity projection on the mercator camera projection, moved over a plane that does not wrap', () => {
+        const {projection, cameraProjection} = createProjectionFromName('identity', {});
+        expect(cameraProjection).toBe('mercator');
+        expect(projection.worldCoordinateHelper.wraps).toBe(false);
+        expect(usesGlobeControls(createCameraContext({projection: cameraProjection, worldCoordinateHelper: projection.worldCoordinateHelper}))).toBe(false);
+    });
+
+    test('falls back to mercator for a name that only Object.prototype has', () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const {projection} = createProjectionFromName('constructor', {});
+        expect(projection.name).toBe('mercator');
+    });
+
+    test('does not warn for a projection expression of built-in projections', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        createProjectionFromName(['interpolate', ['linear'], ['zoom'], 10, 'vertical-perspective', 12, 'mercator'], {});
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    describe('for a registered CRS', () => {
+        beforeEach(() => {
+            addProjection({
+                name: 'test:factory',
+                projection: {forward: ([lng, lat]) => [lng * 2, lat * 2], inverse: ([x, y]) => [x / 2, y / 2]},
+                tileMatrixSet: {origin: [-180, 180], extentAtZoom0: 360},
+            });
+        });
+
+        test('resolves its name to a mercator projection under that name over its definition', () => {
+            const {projection} = createProjectionFromName('test:factory', {});
+            expect(projection).toBeInstanceOf(MercatorProjection);
+            expect(projection.name).toBe('test:factory');
+            const world = projection.worldCoordinateHelper.worldFromLngLat(90, 90);
+            expect([world.x, world.y]).toEqual([1, 0]);
+        });
+
+        test('runs its camera on the mercator camera projection', () => {
+            const {cameraProjection} = createProjectionFromName('test:factory', {});
+            expect(cameraProjection).toBe('mercator');
+        });
+
+        test('warns that a projection expression naming it falls back to the globe projection', () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            createProjectionFromName(['step', ['zoom'], 'test:factory', 10, 'mercator'], {});
+            expect(warn).toHaveBeenCalledWith('Projection expressions cannot use the registered projection "test:factory", which only works as a plain name. Falling back to the globe projection.');
+        });
+    });
+});

@@ -24,7 +24,7 @@ uniform bool u_is_offset;
 uniform bool u_anchor_offset_is_map;
 
 out vec2 v_tex;
-flat out float v_total_opacity;
+out float v_total_opacity;
 
 #pragma maplibre: define lowp float opacity
 
@@ -60,7 +60,8 @@ void main() {
 
     // compute opacity and exit if too transparent:
     vec2 fade_opacity = unpack_opacity(a_fade_opacity);
-    float fade_change = fade_opacity[1] > 0.5 ? u_symbol_fade_change : -u_symbol_fade_change;
+    // Work around the iOS 15 ANGLE shader compiler bug (#8840).
+    float fade_change = mix(-u_symbol_fade_change, u_symbol_fade_change, fade_opacity[1]);
     // Terrain can hide the ground anchor while the elevated symbol remains visible.
     // Below ground it is judged where it stands at the surface, so the terrain over it does not hide it.
     float visibility = calculate_visibility(ele < ground_ele ? projectTileWithElevation(translated_a_pos, ground_ele) : projectedPoint);

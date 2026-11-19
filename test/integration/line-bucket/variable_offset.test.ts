@@ -4,11 +4,12 @@ import Point from '@mapbox/point-geometry';
 import {GEOJSONVT_CLIP_END, GEOJSONVT_CLIP_START} from '@maplibre/geojson-vt';
 import {LineBucket} from '../../../src/data/bucket/line_bucket.ts';
 import {LineStyleLayer} from '../../../src/style/style_layer/line_style_layer.ts';
-import {EvaluationParameters} from '../../../src/style/evaluation_parameters.ts';
 import {shaders} from '../../../src/shaders/shaders.ts';
+import {SubdivisionGranularitySetting} from '../../../src/render/subdivision_granularity_settings.ts';
+
+import type {EvaluationParameters} from '../../../src/style/evaluation_parameters.ts';
 import type {LayerSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {BucketFeature, BucketParameters} from '../../../src/data/bucket.ts';
-import {SubdivisionGranularitySetting} from '../../../src/render/subdivision_granularity_settings.ts';
 
 function makeLayer(paint: any): LineStyleLayer {
     const layer = new LineStyleLayer({id: 'test', type: 'line', paint} as LayerSpecification, {});
@@ -68,7 +69,7 @@ describe('LineBucket variable line-offset', () => {
 
         // ext buffer must be populated (one entry per layout vertex)
         expect(bucket.layoutVertexArray2.length).toBeGreaterThan(0);
-        expect(bucket.layoutVertexArray2.length).toBe(bucket.layoutVertexArray.length);
+        expect(bucket.layoutVertexArray2).toHaveLength(bucket.layoutVertexArray.length);
 
         // read the 3rd float (a_line_offset) of every vertex
         const f32 = bucket.layoutVertexArray2.float32;
@@ -107,6 +108,6 @@ describe('LineBucket variable line-offset', () => {
     test('a vector-tile line with no clip tags and a constant offset gets no progress', () => {
         const bucket = makeBucket(makeLayer({'line-offset': 50}));
         bucket.addFeature({type: 2, properties: {}} as unknown as BucketFeature, geometry, 0, undefined, {}, {}, SubdivisionGranularitySetting.noSubdivision);
-        expect(bucket.layoutVertexArray2.length).toBe(0);
+        expect(bucket.layoutVertexArray2).toHaveLength(0);
     });
 });

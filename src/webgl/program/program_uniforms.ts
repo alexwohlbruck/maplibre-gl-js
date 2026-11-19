@@ -6,11 +6,11 @@ import {heatmapUniforms, heatmapTextureUniforms, type HeatmapUniformsType, type 
 import {hillshadeUniforms, hillshadePrepareUniforms, type HillshadeUniformsType, type HillshadePrepareUniformsType} from './hillshade_program.ts';
 import {colorReliefUniforms, type ColorReliefUniformsType} from './color_relief_program.ts';
 import {lineUniforms, lineGradientUniforms, linePatternUniforms, lineSDFUniforms, lineGradientSDFUniforms, type LineUniformsType, type LineGradientUniformsType, type LinePatternUniformsType, type LineSDFUniformsType, type LineGradientSDFUniformsType} from './line_program.ts';
-import {layerOpacityUniforms, type LayerOpacityUniformsType} from './layer_opacity_program.ts';
+import {layerCompositeUniforms, type LayerCompositeUniformsType} from './layer_composite_program.ts';
 import {rasterUniforms, type RasterUniformsType} from './raster_program.ts';
 import {symbolIconUniforms, symbolSDFUniforms, symbolTextAndIconUniforms, type SymbolIconUniformsType, type SymbolSDFUniformsType, type symbolTextAndIconUniformsType} from './symbol_program.ts';
 import {backgroundUniforms, backgroundPatternUniforms, type BackgroundUniformsType, type BackgroundPatternUniformsType} from './background_program.ts';
-import {terrainUniforms, terrainDepthUniforms, type TerrainUniformsType, type TerrainDepthUniformsType} from './terrain_program.ts';
+import {terrainUniforms, terrainDepthUniforms, terrainHeightUniforms, type TerrainUniformsType, type TerrainDepthUniformsType, type TerrainHeightUniformsType} from './terrain_program.ts';
 import {atmosphereUniforms, type atmosphereUniformsType} from './atmosphere_program.ts';
 import {skyUniforms, type SkyUniformsType} from './sky_program.ts';
 import {shadingGroundUniforms, shadingBlurUniforms, type ShadingGroundUniformsType, type ShadingBlurUniformsType} from './shading_program.ts';
@@ -49,7 +49,7 @@ export const programUniforms: {
     linePattern: (context: Context, locations: UniformLocations) => LinePatternUniformsType;
     lineSDF: (context: Context, locations: UniformLocations) => LineSDFUniformsType;
     lineGradientSDF: (context: Context, locations: UniformLocations) => LineGradientSDFUniformsType;
-    layerOpacity: (context: Context, locations: UniformLocations) => LayerOpacityUniformsType;
+    layerComposite: (context: Context, locations: UniformLocations) => LayerCompositeUniformsType;
     raster: (context: Context, locations: UniformLocations) => RasterUniformsType;
     symbolIcon: (context: Context, locations: UniformLocations) => SymbolIconUniformsType;
     symbolSDF: (context: Context, locations: UniformLocations) => SymbolSDFUniformsType;
@@ -58,6 +58,7 @@ export const programUniforms: {
     backgroundPattern: (context: Context, locations: UniformLocations) => BackgroundPatternUniformsType;
     terrain: (context: Context, locations: UniformLocations) => TerrainUniformsType;
     terrainDepth: (context: Context, locations: UniformLocations) => TerrainDepthUniformsType;
+    terrainHeight: (context: Context, locations: UniformLocations) => TerrainHeightUniformsType;
     atmosphere: (context: Context, locations: UniformLocations) => atmosphereUniformsType;
     sky: (context: Context, locations: UniformLocations) => SkyUniformsType;
 } = {
@@ -87,7 +88,7 @@ export const programUniforms: {
     linePattern: linePatternUniforms,
     lineSDF: lineSDFUniforms,
     lineGradientSDF: lineGradientSDFUniforms,
-    layerOpacity: layerOpacityUniforms,
+    layerComposite: layerCompositeUniforms,
     raster: rasterUniforms,
     symbolIcon: symbolIconUniforms,
     symbolSDF: symbolSDFUniforms,
@@ -96,6 +97,7 @@ export const programUniforms: {
     backgroundPattern: backgroundPatternUniforms,
     terrain: terrainUniforms,
     terrainDepth: terrainDepthUniforms,
+    terrainHeight: terrainHeightUniforms,
     atmosphere: atmosphereUniforms,
     sky: skyUniforms
 };

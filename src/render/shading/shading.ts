@@ -10,12 +10,16 @@ import {
     CLIP_TO_UV, multiply, overheadMatrix, perMetreAt, regionQuad, steadyRegion, sunLightMatrix, tileToMercator,
     type Mat4, type Region,
 } from './sun_light.ts';
+import {getCameraMath} from '../../camera/camera_math_factory.ts';
 
 import type {Painter} from '../painter.ts';
+import type {FrameRenderContext} from '../frame_render_context.ts';
+import type {ProjectedCamera} from '../../camera/projected_camera.ts';
+import type {Style} from '../../style/style.ts';
 import type {OverscaledTileID} from '../../tile/tile_id.ts';
 import type {FillExtrusionBucket} from '../../data/bucket/fill_extrusion_bucket.ts';
 import type {FillExtrusionStyleLayer} from '../../style/style_layer/fill_extrusion_style_layer.ts';
-import type {ProjectionData} from '../../geo/projection/projection_data.ts';
+import type {RendererProjectionData} from '../../geo/projection/projection_data.ts';
 import type {UniformValues} from '../../webgl/uniform_binding.ts';
 import type {ShadedExtrusionUniformsType, ShadingReceiverUniformsType} from '../../webgl/program/shading_program.ts';
 
@@ -128,7 +132,7 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
 const clamp01 = (t: number) => Math.min(Math.max(t, 0), 1);
 
 /** A matrix as a tile's projection, for programs that take theirs from the projection block. */
-function projectionOf(matrix: ArrayLike<number>): ProjectionData {
+function projectionOf(matrix: ArrayLike<number>): RendererProjectionData {
     const main = Float32Array.from(matrix);
     return {mainMatrix: main, fallbackMatrix: main, tileMercatorCoords: [0, 0, 1, 1], clippingPlane: [0, 0, 0, 0], projectionTransition: 0, clipAntimeridian: false};
 }
@@ -219,6 +223,9 @@ export class Shading {
     private lamps: {texture: WebGLTexture; framebuffer: WebGLFramebuffer} | null = null;
     private lit: Array<{texture: WebGLTexture; framebuffer: WebGLFramebuffer; size: number}> = [];
     private empty: WebGLTexture | null = null;
+    /** The style and the frame being drawn, from {@link Shading.prepare} until the next. */
+    private style: Style | null = null;
+    private frameContext: FrameRenderContext | null = null;
     private wallUniforms = new WeakMap<WebGLProgram, {[name: string]: WebGLUniformLocation | null}>();
 
     constructor(painter: Painter, options: ShadingOptions = {}) {
@@ -226,27 +233,33 @@ export class Shading {
         extend(this, options);
     }
 
+    /** The camera of the frame being drawn. */
+    private get camera(): ProjectedCamera {
+        return this.frameContext.projectedCamera;
+    }
+
     /** How strongly the ground effects draw: they ramp in over `fadeZoom` levels as the extrusions grow. */
     groundOpacity(): number {
-        return smooth(clamp01((this.painter.transform.zoom - this.minZoom) / Math.max(this.fadeZoom, 0.001)));
+        return smooth(clamp01((this.camera.zoom - this.minZoom) / Math.max(this.fadeZoom, 0.001)));
     }
 
     private occlusionPitchFade(): number {
-        return this.topDownOpacity + (1 - this.topDownOpacity) * smooth(clamp01(this.painter.transform.pitch / Math.max(this.topDownPitch, 0.001)));
+        return this.topDownOpacity + (1 - this.topDownOpacity) * smooth(clamp01(this.camera.pitch / Math.max(this.topDownPitch, 0.001)));
     }
 
     /** The occlusion's radius on the ground, metres, at a zoom and a mercator y. */
     private occlusionRadius(zoom: number, y: number): number {
-        const tr = this.painter.transform;
+        const camera = this.camera;
+        const pixelRatio = this.frameContext.data.pixelRatio;
         const t = clamp01((zoom - this.minZoom) / (this.maxZoom - this.minZoom));
-        const pixels = Math.min(this.aoRadiusMin + t * (this.aoRadiusMax - this.aoRadiusMin), 0.2 * Math.max(tr.width, tr.height) * this.painter.pixelRatio);
-        return pixels / (tr.tileSize * 2 ** zoom * perMetreAt(y) * this.painter.pixelRatio);
+        const pixels = Math.min(this.aoRadiusMin + t * (this.aoRadiusMax - this.aoRadiusMin), 0.2 * Math.max(camera.width, camera.height) * pixelRatio);
+        return pixels / (camera.tileSize * 2 ** zoom * perMetreAt(y) * pixelRatio);
     }
 
     /** The layers that cast this frame, bottom first. */
     private castLayers(): FillExtrusionStyleLayer[] {
-        const style = this.painter.style;
-        const zoom = this.painter.transform.zoom;
+        const style = this.style;
+        const zoom = this.camera.zoom;
         const layers: FillExtrusionStyleLayer[] = [];
         for (const id of style._order) {
             const layer = style._layers[id];
@@ -265,9 +278,11 @@ export class Shading {
      * Ready the frame: draw the sun's shadow map and the ground occlusion again if what they show has changed.
      * Called before anything is drawn to the screen.
      */
-    prepare(): void {
+    prepare(style: Style, frameRenderContext: FrameRenderContext): void {
         const painter = this.painter;
-        const tr = painter.transform;
+        this.style = style;
+        this.frameContext = frameRenderContext;
+        const tr = frameRenderContext.projectedCamera;
         this.frame = null;
         this.occlusion = null;
         this.lights = null;
@@ -283,7 +298,7 @@ export class Shading {
         const tiles: CastTile[] = [];
         for (const layer of layers) {
             if (layer.paint.get('fill-extrusion-opacity') === 0) continue;
-            const manager = painter.style.tileManagers[layer.source];
+            const manager = style.tileManagers[layer.source];
             if (!manager) continue;
             for (const coord of manager.getVisibleCoordinates()) {
                 const bucket = manager.getTile(coord)?.getBucket(layer) as FillExtrusionBucket;
@@ -324,13 +339,13 @@ export class Shading {
         const occlusion = this.occlusion;
         if (!occlusion) return [0, 1];
         // Baked at the widest radius of its half zoom; the power narrows it to this zoom's.
-        const narrow = (occlusion.radius / this.occlusionRadius(this.painter.transform.zoom, occlusion.region.y)) ** 2;
+        const narrow = (occlusion.radius / this.occlusionRadius(this.camera.zoom, occlusion.region.y)) ** 2;
         return [this.aoIntensity * this.groundOpacity() * this.opacity * this.fade * this.occlusionPitchFade(), Math.max(narrow, 1)];
     }
 
     /** What of a tile's extrusions the passes read, for telling whether they have changed. */
     private castKey(tiles: CastTile[], key: Key): void {
-        const zoom = this.painter.transform.zoom;
+        const zoom = this.camera.zoom;
         for (const {layer, coord, bucket} of tiles) {
             const binders = bucket.programConfigurations.get(layer.id).binders;
             // A height that still depends on the zoom is drawn again as the zoom moves through its tile's level.
@@ -341,15 +356,15 @@ export class Shading {
     }
 
     private drawCast(tiles: CastTile[], depthMode: Readonly<DepthMode>, colorMode: Readonly<ColorMode>, tileMatrix: (coord: OverscaledTileID) => ArrayLike<number>): void {
-        const painter = this.painter;
-        const context = painter.context;
-        const terrain = painter.style.map.terrain;
+        const context = this.painter.context;
+        const frameContext = this.frameContext;
+        const terrain = frameContext.terrain;
         for (const {layer, coord, bucket} of tiles) {
             const configuration = bucket.programConfigurations.get(layer.id);
-            const program = painter.useProgram('fillExtrusionDepth', configuration, true);
+            const program = frameContext.useProgram('fillExtrusionDepth', configuration, true);
             program.draw(context, context.gl.TRIANGLES, depthMode, StencilMode.disabled, colorMode, CullFaceMode.disabled,
                 null, null, projectionOf(tileMatrix(coord)), `${layer.id}/cast`, bucket.layoutVertexBuffer, bucket.indexBuffer,
-                bucket.segments, layer.paint, painter.transform.zoom, configuration, terrain?.getAnchorElevations(bucket, coord));
+                bucket.segments, layer.paint, this.camera.zoom, configuration, terrain?.getAnchorElevations(bucket, coord));
         }
         // Casters draw with their own programs, in the state the extrusions were drawn in.
         context.setDepthMode(depthMode);
@@ -359,15 +374,16 @@ export class Shading {
     }
 
     private sunView(): {region: Region; floor: number} {
-        const painter = this.painter;
-        const tr = painter.transform;
+        const frameContext = this.frameContext;
+        const tr = this.camera;
+        const cameraMath = getCameraMath(tr);
         const centre = MercatorCoordinate.fromLngLat(tr.center);
         const perMetre = perMetreAt(centre.y);
         // The ground in sight: the view's corners, pulled in to the reach shadows are worth casting over.
         const reach = SUN_REACH * 2 ** (16 - tr.zoom) * perMetre;
         let [minX, minY, maxX, maxY] = [0, 0, 0, 0];
         for (const [x, y] of [[0, 0], [tr.width, 0], [tr.width, tr.height], [0, tr.height]]) {
-            const corner = MercatorCoordinate.fromLngLat(tr.screenPointToLocation(new Point(x, y)));
+            const corner = MercatorCoordinate.fromLngLat(cameraMath.screenPointToLocation(tr, frameContext.worldCoordinateHelper, new Point(x, y)));
             let [dx, dy] = [corner.x - centre.x, corner.y - centre.y];
             const d = Math.hypot(dx, dy);
             if (d > reach) [dx, dy] = [dx * reach / d, dy * reach / d];
@@ -375,8 +391,8 @@ export class Shading {
         }
         const half = Math.max(maxX - minX, maxY - minY) / 2;
         const region = steadyRegion(centre.x + (minX + maxX) / 2, centre.y + (minY + maxY) / 2, Math.max(half, 1e-9));
-        const terrain = painter.style.map.terrain;
-        const ground = terrain ? terrain.getElevationForLngLat(tr.center, tr) : 0;
+        const terrain = frameContext.terrain;
+        const ground = terrain ? terrain.getElevationForLngLat(tr.center, tr.tileZoom) : 0;
         return {region, floor: Math.round(ground / 25) * 25};
     }
 
@@ -498,7 +514,7 @@ export class Shading {
 
     /** The square of ground about the view that the occlusion and the lamplight are both drawn over, from overhead. */
     private overhead(): {region: Region; overhead: Mat4; uv: Mat4; zoom: number} {
-        const tr = this.painter.transform;
+        const tr = this.camera;
         // Held for half a zoom: the occlusion's radius is baked at its widest there and narrowed as it is read.
         const zoom = Math.floor(tr.zoom * 2) / 2;
         const centre = MercatorCoordinate.fromLngLat(tr.center);
@@ -523,7 +539,7 @@ export class Shading {
             }
             targets[i] = this.colorTarget(size, false);
         }
-        const program = painter.useProgram('shadingBlur', null, true);
+        const program = this.frameContext.useProgram('shadingBlur', null, true);
         const pass = (from: WebGLTexture, lod: number, to: number, step: [number, number]) => {
             context.bindFramebuffer.set(targets[to].framebuffer);
             context.viewport.set([0, 0, size, size]);
@@ -572,18 +588,18 @@ export class Shading {
 
     /** The footprints of the extrusions whose wall shader says they are lit, into the lamplight's alpha. */
     private drawLit(tiles: CastTile[], tileMatrix: (coord: OverscaledTileID) => ArrayLike<number>): void {
-        const painter = this.painter;
-        const context = painter.context;
-        const terrain = painter.style.map.terrain;
+        const context = this.painter.context;
+        const frameContext = this.frameContext;
+        const terrain = frameContext.terrain;
         for (const {layer, coord, bucket} of tiles) {
             const configuration = bucket.programConfigurations.get(layer.id);
-            const program = painter.useProgram('fillExtrusionDepth', configuration, true, ['#define LIGHT'], this.wallSource());
+            const program = frameContext.useProgram('fillExtrusionDepth', configuration, true, ['#define LIGHT'], this.wallSource());
             if (program.failedToCreate) continue;
             context.program.set(program.program);
             this.setWallUniforms(program.program);
             program.draw(context, context.gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, ColorMode.unblended, CullFaceMode.disabled,
                 null, null, projectionOf(tileMatrix(coord)), `${layer.id}/lit`, bucket.layoutVertexBuffer, bucket.indexBuffer,
-                bucket.segments, layer.paint, painter.transform.zoom, configuration, terrain?.getAnchorElevations(bucket, coord));
+                bucket.segments, layer.paint, this.camera.zoom, configuration, terrain?.getAnchorElevations(bucket, coord));
         }
     }
 
@@ -637,15 +653,16 @@ export class Shading {
     }
 
     /** Lay the shadows and occlusion on flat ground: one quad over all they reach. Terrain is shaded as it is drawn. */
-    drawGround(): void {
+    drawGround(frameRenderContext: FrameRenderContext): void {
         if (!this.shadesGround()) return;
         const painter = this.painter;
         const context = painter.context;
         const gl = context.gl;
         const region = this.frame ? this.sunRegion : (this.occlusion ?? this.lights).region;
         const quad = regionQuad(region);
-        const camera = painter.transform.getProjectionDataForCustomLayer(false).mainMatrix;
-        const program = painter.useProgram('shadingGround', null, true, ['#define SHADING']);
+        const projectedCamera = frameRenderContext.projectedCamera;
+        const camera = getCameraMath(projectedCamera).getProjectionDataForCustomLayer(projectedCamera, false).mainMatrix;
+        const program = frameRenderContext.useProgram('shadingGround', null, true, ['#define SHADING']);
         program.draw(context, gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, ColorMode.alphaBlended, CullFaceMode.disabled, {
             ...this.receive(),
             'u_matrix': Float32Array.from(multiply(camera, quad)),
@@ -715,6 +732,7 @@ export class Shading {
         this.lit = [];
         this.frame = this.occlusion = this.lights = this.sunKey = this.occlusionKey = this.lightsKey = null;
         this.active = false;
+        this.style = this.frameContext = null;
     }
 }
 

@@ -64,6 +64,8 @@ type TestData = {
     fadeDuration: number;
     debug: boolean;
     showOverdrawInspector: boolean;
+    /** Turns on the canvas's multisample antialiasing. */
+    antialias: boolean;
     showPadding: boolean;
     collisionDebug: boolean;
     localIdeographFontFamily: string;
@@ -272,6 +274,17 @@ async function getImageFromStyle(styleForTest: StyleWithTestData, page: Page): P
             }
 
             render(gl: WebGL2RenderingContext, args) {
+                this.draw(gl, args.defaultProjectionData.mainMatrix);
+            }
+
+            /** Draws the point into a terrain tile, whose south-west corner is (-1, -1) in clip space. */
+            renderToTerrainTile(gl: WebGL2RenderingContext, {tileID}: {tileID: {canonical: {x: number; y: number; z: number}; wrap: number}}) {
+                const tiles = 2 ** tileID.canonical.z;
+                const west = tileID.canonical.x + tileID.wrap * tiles;
+                this.draw(gl, [2 * tiles, 0, 0, 0, 0, -2 * tiles, 0, 0, 0, 0, 1, 0, -2 * west - 1, 2 * tileID.canonical.y + 1, 0, 1]);
+            }
+
+            draw(gl: WebGL2RenderingContext, matrix: Float32List) {
                 const vertexArray = new Float32Array([0.5, 0.5, 0.0]);
                 gl.useProgram(this.program);
                 const vertexBuffer = gl.createBuffer();
@@ -280,7 +293,7 @@ async function getImageFromStyle(styleForTest: StyleWithTestData, page: Page): P
                 const posAttrib = gl.getAttribLocation(this.program, 'aPos');
                 gl.enableVertexAttribArray(posAttrib);
                 gl.vertexAttribPointer(posAttrib, 3, gl.FLOAT, false, 0, 0);
-                gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'u_matrix'), false, args.defaultProjectionData.mainMatrix);
+                gl.uniformMatrix4fv(gl.getUniformLocation(this.program, 'u_matrix'), false, matrix);
                 gl.drawArrays(gl.POINTS, 0, 1);
             }
         }
@@ -685,7 +698,7 @@ async function getImageFromStyle(styleForTest: StyleWithTestData, page: Page): P
             attributionControl: false,
             maxPitch: options.maxPitch,
             pixelRatio: options.pixelRatio,
-            canvasContextAttributes: {preserveDrawingBuffer: true, powerPreference: 'default'},
+            canvasContextAttributes: {preserveDrawingBuffer: true, powerPreference: 'default', antialias: options.antialias ?? false},
             fadeDuration: options.fadeDuration || 0,
             localIdeographFontFamily: options.localIdeographFontFamily || false as any,
             crossSourceCollisions: typeof options.crossSourceCollisions === 'undefined' ? true : options.crossSourceCollisions,
@@ -777,13 +790,8 @@ function getReportItem(test: TestData) {
 }
 
 function addConsoleLogging(page: Page) {
-    page.on('console', async (message) => {
-        if (message.text() !== 'JSHandle@error') {
-            console.log(`${message.type().substring(0, 3).toUpperCase()} ${message.text()}`);
-            return;
-        }
-        const messages = await Promise.all(message.args().map((arg) => arg.getProperty('message')));
-        console.log(`${message.type().substring(0, 3).toUpperCase()} ${messages.filter(Boolean)}`);
+    page.on('console', (message) => {
+        console.log(`${message.type().substring(0, 3).toUpperCase()} ${message.text()}`);
     });
 
     page.on('pageerror', (e) => { console.error(ensureError(e).message); });

@@ -10,6 +10,7 @@ import {OverscaledTileID} from './tile_id.ts';
 import {SourceFeatureState} from '../source/source_state.ts';
 import {config} from '../util/config.ts';
 import {coveringTiles, coveringZoomLevel} from '../geo/projection/covering_tiles.ts';
+import {getCoveringTilesDetailsProvider} from '../geo/projection/covering_tiles_details_provider_factory.ts';
 import {Bounds} from '../geo/bounds.ts';
 import {EXTENT_BOUNDS} from '../data/extent_bounds.ts';
 import {GEOJSON_TILE_LAYER_NAME} from '../data/feature_index.ts';
@@ -17,6 +18,7 @@ import {hasRasterTransition, isRasterType, updateFadingTiles} from './tile_manag
 import {backfillDEM} from './tile_manager_raster_dem.ts';
 import {InViewTiles} from './tile_manager_in_view_tiles.ts';
 import {MapSourceDataEvent, type SourceEventType} from '../ui/events.ts';
+import {getCameraMath} from '../camera/camera_math_factory.ts';
 
 import type Point from '@mapbox/point-geometry';
 import type {Context} from '../webgl/context.ts';
@@ -24,7 +26,6 @@ import type {Source} from '../source/source.ts';
 import type {Map} from '../ui/map.ts';
 import type {Style} from '../style/style.ts';
 import type {Dispatcher} from '../util/dispatcher.ts';
-import type {IReadonlyTransform, ITransform} from '../geo/transform_interface.ts';
 import type {TileState} from './tile.ts';
 import type {FeatureState, ICanonicalTileID, SourceSpecification} from '@maplibre/maplibre-gl-style-spec';
 import type {Terrain} from '../render/terrain.ts';
@@ -32,6 +33,13 @@ import type {CanvasSourceSpecification} from '../source/canvas_source.ts';
 import type {LoadTileResult} from '../source/vector_tile_source.ts';
 import type {SymbolStyleLayer} from '../style/style_layer/symbol_style_layer.ts';
 import type {SymbolBucket} from '../data/bucket/symbol_bucket.ts';
+import type {ProjectedCamera} from '../camera/projected_camera.ts';
+import type {WorldCoordinateHelper} from '../geo/world_types.ts';
+
+/**
+ * Half the width of the world in mercator coordinates, which span from 0 to 1.
+ */
+const HALF_WORLD = 0.5;
 
 type TileResult = {
     tile: Tile;
@@ -74,6 +82,11 @@ export class TileManager extends Evented<SourceEventType> {
     _sourceLoaded: boolean;
     _maxContentElevationSeen: number = 0;
 
+    /**
+     * @internal
+     * signifies that the source itself failed to load and had no pending loads, so `loaded()` stops waiting for it
+     * until it starts loading again. A tile that fails does not set it, since `loaded()` already counts a failed tile as done.
+     */
     _sourceErrored: boolean;
     _inViewTiles: InViewTiles;
     _prevLng: number;
@@ -86,7 +99,9 @@ export class TileManager extends Evented<SourceEventType> {
     _cachedLayout: WeakMap<Tile, number> = new WeakMap();
     _paused: boolean;
     _shouldReloadOnResume: boolean;
-    transform: ITransform;
+    projectedCamera: ProjectedCamera;
+    /** The world mapping {@link TileManager.projectedCamera} was projected with. */
+    worldCoordinateHelper: WorldCoordinateHelper;
     terrain: Terrain;
     used: boolean;
     usedForTerrain: boolean;
@@ -111,9 +126,8 @@ export class TileManager extends Evented<SourceEventType> {
             this._sourceErrored = false;
         });
 
-        this.on('error', () => {
-            // Only set _sourceErrored if the source does not have pending loads.
-            this._sourceErrored = this._source.loaded();
+        this.on('error', (e: ErrorEvent & {tile?: Tile}) => {
+            if (!e.tile) this._sourceErrored = this._source.loaded();
         });
 
         this._source = createSource(id, options, dispatcher, this);
@@ -194,7 +208,7 @@ export class TileManager extends Evented<SourceEventType> {
         this._paused = false;
         this._shouldReloadOnResume = false;
         if (shouldReload) this.reload();
-        if (this.transform) this.update(this.transform, this.terrain);
+        if (this.projectedCamera) this.update(this.projectedCamera, this.worldCoordinateHelper, this.terrain);
     }
 
     async _loadTile(tile: Tile, id: string, state: TileState, hadData: boolean): Promise<void> {
@@ -208,7 +222,7 @@ export class TileManager extends Evented<SourceEventType> {
                 this._source.fire(new ErrorEvent(ensureError(err), {tile}));
             } else {
                 // continue to try loading parent/children tiles if a tile doesn't exist (404)
-                this.update(this.transform, this.terrain);
+                this.update(this.projectedCamera, this.worldCoordinateHelper, this.terrain);
             }
         }
     }
@@ -234,7 +248,7 @@ export class TileManager extends Evented<SourceEventType> {
             this._source.prepare();
         }
 
-        this._state.coalesceChanges(this._inViewTiles, this.map ? this.map.painter : null);
+        this._state.coalesceChanges(this._inViewTiles, this.style);
         for (const tile of this._inViewTiles.getAllTiles()) {
             tile.upload(context);
             tile.prepare(this.map.style.imageManager);
@@ -249,7 +263,7 @@ export class TileManager extends Evented<SourceEventType> {
     }
 
     getRenderableIds(symbolLayer?: boolean): string[] {
-        return this._inViewTiles.getRenderableIds(this.transform?.bearingInRadians, symbolLayer);
+        return this._inViewTiles.getRenderableIds(this.projectedCamera?.bearingInRadians, symbolLayer);
     }
 
     hasRenderableParent(tileID: OverscaledTileID): boolean {
@@ -349,7 +363,7 @@ export class TileManager extends Evented<SourceEventType> {
         // Reset feature state revision so initializeTileState re-applies
         // feature state to the tile's new bucket data after a reload.
         tile.featureStateRevision = -1;
-        this._state.initializeTileState(tile, this.map ? this.map.painter : null);
+        this._state.initializeTileState(tile, this.style);
 
         if (!tile.aborted) {
             this._source.fire(new MapSourceDataEvent('data', {tile, coord: tile.tileID}));
@@ -481,9 +495,9 @@ export class TileManager extends Evented<SourceEventType> {
      * are more likely to be found on devices with more memory and on pages where
      * the map is more important.
      */
-    updateCacheSize(transform: IReadonlyTransform): void {
-        const widthInTiles = Math.ceil(transform.width / this._source.tileSize) + 1;
-        const heightInTiles = Math.ceil(transform.height / this._source.tileSize) + 1;
+    updateCacheSize(projectedCamera: ProjectedCamera): void {
+        const widthInTiles = Math.ceil(projectedCamera.width / this._source.tileSize) + 1;
+        const heightInTiles = Math.ceil(projectedCamera.height / this._source.tileSize) + 1;
         const approxTilesInView = widthInTiles * heightInTiles;
         const commonZoomRange = this._maxTileCacheZoomLevels === null ?
             config.MAX_TILE_CACHE_ZOOM_LEVELS : this._maxTileCacheZoomLevels;
@@ -538,7 +552,7 @@ export class TileManager extends Evented<SourceEventType> {
         const tiles = this._inViewTiles.getAllTiles();
         for (const layerId in layers) {
             const layer = layers[layerId];
-            if (layer.type !== 'symbol' || layer.source !== this.id || layer.isHidden(this.transform.zoom)) continue;
+            if (layer.type !== 'symbol' || layer.source !== this.id || layer.isHidden(this.projectedCamera.zoom)) continue;
             const symbolLayer = layer as SymbolStyleLayer;
             if (!symbolLayer.layout) continue;
             const heightOffset = symbolLayer.layout.get('symbol-height-offset');
@@ -559,29 +573,32 @@ export class TileManager extends Evented<SourceEventType> {
      * Removes tiles that are outside the viewport and adds new tiles that
      * are inside the viewport.
      */
-    update(transform: ITransform, terrain?: Terrain): void {
+    update(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, terrain?: Terrain): void {
         if (!this._sourceLoaded || this._paused) {
             return;
         }
-        this.transform = transform;
+        this.projectedCamera = projectedCamera;
+        this.worldCoordinateHelper = worldCoordinateHelper;
         this.terrain = terrain;
 
-        this.updateCacheSize(transform);
-        this.handleWrapJump(this.transform.center.lng);
+        this.updateCacheSize(projectedCamera);
+        if (worldCoordinateHelper.wraps) {
+            this.handleWrapJump(this.projectedCamera.center.lng);
+        }
 
         let idealTileIDs: OverscaledTileID[];
 
         if (!this.used && !this.usedForTerrain) {
             idealTileIDs = [];
         } else if (this._source.tileID) { // image source
-            idealTileIDs = transform.getVisibleUnwrappedCoordinates(this._source.tileID)
+            idealTileIDs = getCameraMath(projectedCamera).getVisibleUnwrappedCoordinates(projectedCamera, worldCoordinateHelper, this._source.tileID)
                 .map((unwrapped) => new OverscaledTileID(unwrapped.canonical.z, unwrapped.wrap, unwrapped.canonical.z, unwrapped.canonical.x, unwrapped.canonical.y));
         } else {
-            idealTileIDs = coveringTiles(transform, {
+            idealTileIDs = coveringTiles(projectedCamera, worldCoordinateHelper, {
                 tileSize: this.usedForTerrain ? this.tileSize : this._source.tileSize,
                 minzoom: this._source.minzoom,
                 maxzoom: this._source.type === 'vector' && this.map._zoomLevelsToOverscale !== undefined
-                    ? Math.max(this._source.maxzoom, transform.maxZoom - this.map._zoomLevelsToOverscale)
+                    ? Math.max(this._source.maxzoom, projectedCamera.maxZoom - this.map._zoomLevelsToOverscale)
                     : this._source.maxzoom,
                 roundZoom: this.usedForTerrain ? false : this._source.roundZoom,
                 reparseOverscaled: this._source.reparseOverscaled,
@@ -611,7 +628,7 @@ export class TileManager extends Evented<SourceEventType> {
         // Retain is a list of tiles that we shouldn't delete, even if they are not
         // the most ideal tile for the current viewport. This may include tiles like
         // parent or child tiles that are *already* loaded.
-        const zoom: number = coveringZoomLevel(transform, this._source);
+        const zoom: number = coveringZoomLevel(projectedCamera, this._source);
         const retain: Record<string, OverscaledTileID> = this._updateRetainedTiles(idealTileIDs, zoom);
 
         // enable fading for raster source except when using terrain which doesn't currently support fading
@@ -677,7 +694,7 @@ export class TileManager extends Evented<SourceEventType> {
             if (tileID.canonical.z > this._source.minzoom) {
                 const parent = tileID.scaledTo(tileID.canonical.z - 1);
                 ancestors.push(parent);
-                // load very low zoom to calculate tile visibility in transform.coveringTiles and high zoom levels correct
+                // load very low zoom to calculate tile visibility in coveringTiles and high zoom levels correct
                 const parent2 = tileID.scaledTo(Math.max(this._source.minzoom, Math.min(tileID.canonical.z, 5)));
                 ancestors.push(parent2);
             }
@@ -770,7 +787,7 @@ export class TileManager extends Evented<SourceEventType> {
 
             // set the tileID because the cached tile could have had a different wrap value
             tile.tileID = tileID;
-            this._state.initializeTileState(tile, this.map ? this.map.painter : null);
+            this._state.initializeTileState(tile, this.style);
         }
 
         const cached = tile;
@@ -890,8 +907,8 @@ export class TileManager extends Evented<SourceEventType> {
         }
 
         this.reload(e.sourceDataChanged, e.shouldReloadTileOptions);
-        if (this.transform) {
-            this.update(this.transform, this.terrain);
+        if (this.projectedCamera) {
+            this.update(this.projectedCamera, this.worldCoordinateHelper, this.terrain);
         }
         this._didEmitContent = true;
     }
@@ -924,20 +941,21 @@ export class TileManager extends Evented<SourceEventType> {
      * Search through our current tiles and attempt to find the tiles that
      * cover the given bounds.
      * @param pointQueryGeometry - coordinates of the corners of bounding rectangle
+     * @param projectedCamera - the camera the query geometry is on the screen of
+     * @param worldCoordinateHelper - the world mapping the camera was projected with
      * @returns result items have `{tile, minX, maxX, minY, maxY}`, where min/max bounding values are the given bounds transformed in into the coordinate space of this tile.
      */
-    tilesIn(pointQueryGeometry: Point[], maxPitchScaleFactor: number, has3DLayer: boolean): TileResult[] {
+    tilesIn(pointQueryGeometry: Point[], maxPitchScaleFactor: number, has3DLayer: boolean, projectedCamera: ProjectedCamera | undefined = this.projectedCamera, worldCoordinateHelper: WorldCoordinateHelper | undefined = this.worldCoordinateHelper): TileResult[] {
         const tileResults: TileResult[] = [];
 
-        const transform = this.transform;
-        if (!transform) return tileResults;
-        const allowWorldCopies = transform.getCoveringTilesDetailsProvider().allowWorldCopies();
+        if (!projectedCamera) return tileResults;
+        const allowWorldCopies = getCoveringTilesDetailsProvider(projectedCamera).allowWorldCopies();
 
         const cameraPointQueryGeometry = has3DLayer ?
-            transform.getCameraQueryGeometry(pointQueryGeometry) :
+            getCameraMath(projectedCamera).getCameraQueryGeometry(projectedCamera, pointQueryGeometry) :
             pointQueryGeometry;
 
-        const project = (point: Point) => transform.screenPointToMercatorCoordinate(point, this.terrain);
+        const project = (point: Point) => getCameraMath(projectedCamera).screenPointToMercatorCoordinate(projectedCamera, worldCoordinateHelper, point, this.terrain);
         const queryGeometry = this.transformBbox(pointQueryGeometry, project, !allowWorldCopies);
         const cameraQueryGeometry = this.transformBbox(cameraPointQueryGeometry, project, !allowWorldCopies);
 
@@ -953,7 +971,7 @@ export class TileManager extends Evented<SourceEventType> {
             }
             // if the projection does not render world copies then we need to explicitly check for the bounding box crossing the antimeridian
             const tileIDs = allowWorldCopies ? [tile.tileID] : [tile.tileID.unwrapTo(-1), tile.tileID.unwrapTo(0)];
-            const scale = Math.pow(2, transform.zoom - tile.tileID.overscaledZ);
+            const scale = Math.pow(2, projectedCamera.zoom - tile.tileID.overscaledZ);
             const queryPadding = maxPitchScaleFactor * tile.queryPadding * EXTENT / tile.tileSize / scale;
 
             for (const tileID of tileIDs) {
@@ -980,6 +998,16 @@ export class TileManager extends Evented<SourceEventType> {
         return tileResults;
     }
 
+    /**
+     * Projects a screen geometry to mercator coordinates.
+     *
+     * A geometry that the projection wrapped around the antimeridian always spans more than half the world, which tells
+     * it apart from one that only fails the cover check by a rounding error, such as a query line near the prime meridian.
+     * @param geom - The geometry in screen pixels.
+     * @param project - Projects a screen point to mercator coordinates.
+     * @param checkWrap - Whether to move a geometry that the projection wrapped around the antimeridian back next to the
+     * rest of it, for projections that do not render world copies.
+     */
     private transformBbox(geom: Point[], project: (point: Point) => MercatorCoordinate, checkWrap: boolean): MercatorCoordinate[] {
         let transformed = geom.map(project);
         if (checkWrap) {
@@ -992,8 +1020,8 @@ export class TileManager extends Evented<SourceEventType> {
 
             const newBounds = Bounds.fromPoints(transformed);
 
-            if (!newBounds.covers(projected)) {
-                transformed = transformed.map((coord) => coord.x > 0.5 ?
+            if (newBounds.width() > HALF_WORLD && !newBounds.covers(projected)) {
+                transformed = transformed.map((coord) => coord.x > HALF_WORLD ?
                     new MercatorCoordinate(coord.x - 1, coord.y, coord.z) :
                     coord
                 );
@@ -1003,11 +1031,7 @@ export class TileManager extends Evented<SourceEventType> {
     }
 
     getVisibleCoordinates(symbolLayer?: boolean): OverscaledTileID[] {
-        const coords = this.getRenderableIds(symbolLayer).map((id) => this._inViewTiles.getTileById(id).tileID);
-        if (this.transform) {
-            this.transform.populateCache(coords);
-        }
-        return coords;
+        return this.getRenderableIds(symbolLayer).map((id) => this._inViewTiles.getTileById(id).tileID);
     }
 
     hasTransition(): boolean {

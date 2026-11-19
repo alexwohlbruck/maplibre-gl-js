@@ -10,6 +10,7 @@ import {warnOnce} from '../util/util.ts';
 import {allowsVerticalWritingMode, allowsLetterSpacing} from '../util/script_detection.ts';
 import {findPoleOfInaccessibility} from '../util/find_pole_of_inaccessibility.ts';
 import {EXTENT} from '../data/extent.ts';
+import {isOutsideTile} from '../data/extent_bounds.ts';
 import {EvaluationParameters} from '../style/evaluation_parameters.ts';
 import {SIZE_PACK_FACTOR, MAX_PACKED_SIZE, MAX_GLYPH_ICON_SIZE} from './symbol_size.ts';
 import {getIconPadding, type SymbolPadding} from '../style/style_layer/symbol_style_layer.ts';
@@ -321,18 +322,18 @@ function addFeature(bucket: SymbolBucket,
     if (shapedIcon && iconTextFit !== 'none') {
         if (bucket.allowVerticalPlacement && shapedTextOrientations.vertical) {
             verticallyShapedIcon = fitIconToText(shapedIcon, shapedTextOrientations.vertical, iconTextFit,
-                layout.get('icon-text-fit-padding'), iconOffset, fontScale);
+                layout.get('icon-text-fit-padding'), iconOffset, fontScale, layoutIconSize);
         }
         if (defaultHorizontalShaping) {
             shapedIcon = fitIconToText(shapedIcon, defaultHorizontalShaping, iconTextFit,
-                layout.get('icon-text-fit-padding'), iconOffset, fontScale);
+                layout.get('icon-text-fit-padding'), iconOffset, fontScale, layoutIconSize);
         }
     }
 
     const granularity = (canonical) ? subdivisionGranularity.line.getGranularityForZoomLevel(canonical.z) : 1;
 
     const addSymbolAtAnchor = (line, anchor) => {
-        if (anchor.x < 0 || anchor.x >= EXTENT || anchor.y < 0 || anchor.y >= EXTENT) {
+        if (isOutsideTile(anchor)) {
             // Symbol layers are drawn across tile boundaries, We filter out symbols
             // outside our tile boundaries (which may be included in vector tile buffers)
             // to prevent double-drawing symbols.
@@ -342,7 +343,7 @@ function addFeature(bucket: SymbolBucket,
             bucket.collisionBoxArray, feature.index, feature.sourceLayerIndex, bucket.index,
             textBoxScale, [textPadding, textPadding, textPadding, textPadding], textAlongLine, textOffset,
             iconBoxScale, iconPadding, iconAlongLine, iconOffset,
-            feature, sizes, isSDFIcon, canonical, layoutTextSize, hasPromoteId);
+            feature, sizes, isSDFIcon, canonical, layoutTextSize, layoutIconSize, hasPromoteId);
     };
 
     if (symbolPlacement === 'line') {
@@ -528,6 +529,7 @@ function addSymbol(bucket: SymbolBucket,
     isSDFIcon: boolean,
     canonical: CanonicalTileID,
     layoutTextSize: number,
+    layoutIconSize: number,
     hasPromoteId: boolean) {
 
     const lineArray = bucket.addToLineVertexArray(anchor, line);
@@ -566,8 +568,8 @@ function addSymbol(bucket: SymbolBucket,
     if (shapedIcon) {
         const iconRotate = layer.layout.get('icon-rotate').evaluate(feature, {});
         const hasIconTextFit = layer.layout.get('icon-text-fit') !== 'none';
-        const iconQuads = getIconQuads(shapedIcon, iconRotate, isSDFIcon, hasIconTextFit);
-        const verticalIconQuads = verticallyShapedIcon ? getIconQuads(verticallyShapedIcon, iconRotate, isSDFIcon, hasIconTextFit) : undefined;
+        const iconQuads = getIconQuads(shapedIcon, iconRotate, isSDFIcon, hasIconTextFit, layoutIconSize);
+        const verticalIconQuads = verticallyShapedIcon ? getIconQuads(verticallyShapedIcon, iconRotate, isSDFIcon, hasIconTextFit, layoutIconSize) : undefined;
         iconCollisionFeature = new CollisionFeature(collisionBoxArray, anchor, featureIndex, sourceLayerIndex, bucketIndex, shapedIcon, iconBoxScale, iconPadding, /*align boxes to line*/false, iconRotate);
 
         numIconVertices = iconQuads.length * 4;

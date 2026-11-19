@@ -50,6 +50,7 @@ export function drawCustom(painter: Painter, tileManager: TileManager, layer: Cu
                 applyTerrainMatrix: params.applyTerrainMatrix,
             });
         },
+        depthRangeFor3D: [frameRenderContext.depthRangeFor3D[0], frameRenderContext.depthRangeFor3D[1]],
         renderTerrainHeightMap: terrain && frameRenderContext.currentPass === 'offscreen' ? (target: TerrainHeightMapTarget) => drawTerrainHeightMap(frameRenderContext, terrain, target) : undefined
     };
 

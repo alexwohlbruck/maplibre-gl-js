@@ -48,6 +48,7 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Per-frame elevation-range cache | internal `Terrain.beginFrame` | `6278321dc` (part) |
 | Building ground elevation buffer, tile-agreed anchor | internal attribute `a_anchor_elevation` replaces `a_centroid` | `43e498a61` |
 | Anchors kept on the GPU | `FillExtrusionBucket.centroidVertexBuffer` | `75f89a5c9` |
+| 3D depth range for custom layers | `CustomRenderMethodInput.depthRangeFor3D: [number, number]` | sync to v6.19.0 |
 | Clipping-mask reuse | none | `f3cddca7d`, `5d70660cc` |
 | Tile cache kept through a layer change | internal `TileManager.relayout` | `a91513a81` |
 | Parse a tile's layers as read | none | `6278321dc` (part) |
@@ -1193,6 +1194,16 @@ Otherwise skip it. Parchment on `dev` had a vendored custom layer (`lib/vendor/a
 Shading), so this commit exists for compatibility.
 
 **Commits.** `75f89a5c9`.
+
+### 3D depth range for custom layers
+
+**Purpose.** Custom layers that draw 3D objects (models, landmarks) share the depth buffer with the map's extrusions, so they need the depth range the map draws its 3D layers in. Upstream used to expose it on `painter.renderContext`; since v6.19.0 the frame state is internal to `FrameRenderContext`.
+
+**API.** `CustomRenderMethodInput.depthRangeFor3D: [number, number]`, a copy of `FrameRenderContext.depthRangeFor3D` for the frame: `[0, 1 - (layerCount + 2) * NUM_SUBLAYERS * DEPTH_EPSILON]` once the frame has been prepared. Pass it to `gl.depthRange` before drawing 3D geometry.
+
+**Implementation.** `src/webgl/draw/draw_custom.ts` adds it to the render input; the type is in `src/style/style_layer/custom_style_layer.ts`. Test: `draw_custom.test.ts`.
+
+**Native porting notes.** Native custom layers receive `CustomLayerRenderParameters`; add the 3D depth range there (Native's `PaintParameters::depthRangeFor3D`, likely).
 
 ## Performance
 

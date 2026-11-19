@@ -75,6 +75,7 @@ describe('drawCustom', () => {
         expect(result.args.fov).toBe(projectedCamera.fov * Math.PI / 180);
         expect(result.args.modelViewProjectionMatrix).toEqual(projectedCamera.modelViewProjectionMatrix);
         expect(result.args.projectionMatrix).toEqual(projectedCamera.projectionMatrix);
+        expect(result.args.depthRangeFor3D).toEqual([0, 1]);
         expectToBeCloseToArray(result.args.defaultProjectionData.tileMercatorCoords, [0, 0, 1, 1]);
         expect(result.args.defaultProjectionData.mainMatrix).toBeInstanceOf(Float64Array);
         expect(result.args.defaultProjectionData.fallbackMatrix).toBeInstanceOf(Float64Array);

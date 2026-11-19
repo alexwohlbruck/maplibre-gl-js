@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.5/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.11.2-transit.18-terrain.6/LICENSE.txt
 */
 //#region \0rolldown/runtime.js
 var __create = Object.create;
@@ -9843,6 +9843,50 @@ if (!layoutSymbol["symbol-anchor-offset"]) {
 			"parameters": ["zoom"]
 		},
 		"property-type": "data-constant"
+	};
+}
+const paintFillExtrusion = latest["paint_fill-extrusion"];
+if (!paintFillExtrusion["fill-extrusion-cast-shadows"]) {
+	paintFillExtrusion["fill-extrusion-cast-shadows"] = {
+		"type": "boolean",
+		"default": false,
+		"doc": "Whether the layer takes part in the map's shading: its extrusions cast shadows and ground occlusion, and are shaded by them. Has no effect until shading is enabled on the map.",
+		"expression": {
+			"interpolated": false,
+			"parameters": ["zoom"]
+		},
+		"property-type": "data-constant"
+	};
+	paintFillExtrusion["fill-extrusion-roof-color"] = {
+		"type": "color",
+		"default": "rgba(0, 0, 0, 0)",
+		"transition": true,
+		"requires": ["fill-extrusion-cast-shadows"],
+		"doc": "The colour of an extrusion's top face under the map's shading. A fully transparent colour, the default, leaves the top the colour of the walls.",
+		"expression": {
+			"interpolated": true,
+			"parameters": [
+				"zoom",
+				"feature",
+				"feature-state"
+			]
+		},
+		"property-type": "data-driven"
+	};
+	for (const [name, doc] of [["fill-extrusion-facade-style", "A number handed to the shading's wall shader for each extrusion, to choose how its walls are drawn."], ["fill-extrusion-facade-seed", "A whole number from 0 to 65535 handed to the shading's wall shader for each extrusion, hashed to vary one building from the next. A value taken from the feature, not its geometry, is the same in every zoom's tiles."]]) paintFillExtrusion[name] = {
+		"type": "number",
+		"default": 0,
+		"requires": ["fill-extrusion-cast-shadows"],
+		doc,
+		"expression": {
+			"interpolated": false,
+			"parameters": [
+				"zoom",
+				"feature",
+				"feature-state"
+			]
+		},
+		"property-type": "data-driven"
 	};
 }
 //#endregion
@@ -20128,6 +20172,7 @@ function addVertex$1(vertexArray, x, y, nx, ny, nz, t, e) {
 }
 var FillExtrusionBucket = class {
 	constructor(options) {
+		this.paintRevision = 0;
 		this.zoom = options.zoom;
 		this.overscaling = options.overscaling;
 		this.layers = options.layers;
@@ -20175,6 +20220,7 @@ var FillExtrusionBucket = class {
 	update(states, vtLayer, imagePositions) {
 		if (!this.stateDependentLayers.length) return;
 		this.programConfigurations.updatePaintArrays(states, vtLayer, this.stateDependentLayers, { imagePositions });
+		this.paintRevision++;
 	}
 	isEmpty() {
 		return this.layoutVertexArray.length === 0 && this.centroidVertexArray.length === 0;
@@ -20328,7 +20374,11 @@ const getPaint$3 = () => paint$3 = paint$3 || new Properties({
 	"fill-extrusion-pattern": new CrossFadedDataDrivenProperty(latest["paint_fill-extrusion"]["fill-extrusion-pattern"], "fill-extrusion-pattern"),
 	"fill-extrusion-height": new DataDrivenProperty(latest["paint_fill-extrusion"]["fill-extrusion-height"], "fill-extrusion-height"),
 	"fill-extrusion-base": new DataDrivenProperty(latest["paint_fill-extrusion"]["fill-extrusion-base"], "fill-extrusion-base"),
-	"fill-extrusion-vertical-gradient": new DataConstantProperty(latest["paint_fill-extrusion"]["fill-extrusion-vertical-gradient"], "fill-extrusion-vertical-gradient")
+	"fill-extrusion-vertical-gradient": new DataConstantProperty(latest["paint_fill-extrusion"]["fill-extrusion-vertical-gradient"], "fill-extrusion-vertical-gradient"),
+	"fill-extrusion-cast-shadows": new DataConstantProperty(latest["paint_fill-extrusion"]["fill-extrusion-cast-shadows"], "fill-extrusion-cast-shadows"),
+	"fill-extrusion-roof-color": new DataDrivenProperty(latest["paint_fill-extrusion"]["fill-extrusion-roof-color"], "fill-extrusion-roof-color"),
+	"fill-extrusion-facade-style": new DataDrivenProperty(latest["paint_fill-extrusion"]["fill-extrusion-facade-style"], "fill-extrusion-facade-style"),
+	"fill-extrusion-facade-seed": new DataDrivenProperty(latest["paint_fill-extrusion"]["fill-extrusion-facade-seed"], "fill-extrusion-facade-seed")
 });
 var fill_extrusion_style_layer_properties_g_default = {
 	get paint() {

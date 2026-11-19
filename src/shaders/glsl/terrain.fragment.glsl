@@ -9,6 +9,11 @@ uniform bool u_is_globe_mode;
 in vec2 v_texture_pos;
 in float v_fog_depth;
 
+#ifdef SHADING
+in highp vec4 v_sun;
+in highp vec2 v_occlusion;
+#endif
+
 const float gamma = 2.2;
 
 vec4 gammaToLinear(vec4 color) {
@@ -21,6 +26,11 @@ vec4 linearToGamma(vec4 color) {
 
 void main() {
     vec4 surface_color = texture(u_texture, vec2(v_texture_pos.x, 1.0 - v_texture_pos.y));
+    #ifdef SHADING
+    // Laid over each drape as it would be over them all: the drapes are premultiplied.
+    vec4 shade = ground_shade(v_sun, v_occlusion);
+    surface_color.rgb = surface_color.rgb * (1.0 - shade.a) + shade.rgb * surface_color.a;
+    #endif
 
     // Skip fog blending in globe mode or when fog opacity is zero
     if (!u_is_globe_mode && u_fog_ground_blend_opacity > 0.0 && v_fog_depth > u_fog_ground_blend) {

@@ -33,6 +33,12 @@ import fillPatternFrag from './glsl/fill_pattern.fragment.glsl.g.ts';
 import fillPatternVert from './glsl/fill_pattern.vertex.glsl.g.ts';
 import fillExtrusionFrag from './glsl/fill_extrusion.fragment.glsl.g.ts';
 import fillExtrusionVert from './glsl/fill_extrusion.vertex.glsl.g.ts';
+import fillExtrusionDepthFrag from './glsl/fill_extrusion_depth.fragment.glsl.g.ts';
+import fillExtrusionDepthVert from './glsl/fill_extrusion_depth.vertex.glsl.g.ts';
+import shadingGroundFrag from './glsl/shading_ground.fragment.glsl.g.ts';
+import shadingGroundVert from './glsl/shading_ground.vertex.glsl.g.ts';
+import shadingBlurFrag from './glsl/shading_blur.fragment.glsl.g.ts';
+import shadingBlurVert from './glsl/shading_blur.vertex.glsl.g.ts';
 import fillExtrusionPatternFrag from './glsl/fill_extrusion_pattern.fragment.glsl.g.ts';
 import fillExtrusionPatternVert from './glsl/fill_extrusion_pattern.vertex.glsl.g.ts';
 import hillshadePrepareFrag from './glsl/hillshade_prepare.fragment.glsl.g.ts';
@@ -101,6 +107,9 @@ export const shaders: {
     fillPattern: PreparedShader;
     fillExtrusion: PreparedShader;
     fillExtrusionPattern: PreparedShader;
+    fillExtrusionDepth: PreparedShader;
+    shadingGround: PreparedShader;
+    shadingBlur: PreparedShader;
     hillshadePrepare: PreparedShader;
     hillshade: PreparedShader;
     line: PreparedShader;
@@ -139,6 +148,9 @@ export const shaders: {
     fillPattern: prepare(fillPatternFrag, fillPatternVert),
     fillExtrusion: prepare(fillExtrusionFrag, fillExtrusionVert),
     fillExtrusionPattern: prepare(fillExtrusionPatternFrag, fillExtrusionPatternVert),
+    fillExtrusionDepth: prepare(fillExtrusionDepthFrag, fillExtrusionDepthVert),
+    shadingGround: prepare(shadingGroundFrag, shadingGroundVert),
+    shadingBlur: prepare(shadingBlurFrag, shadingBlurVert),
     hillshadePrepare: prepare(hillshadePrepareFrag, hillshadePrepareVert),
     hillshade: prepare(hillshadeFrag, hillshadeVert),
     line: prepare(lineFrag, lineVert),

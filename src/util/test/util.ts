@@ -44,6 +44,9 @@ export class StubMap extends Evented {
         return 1;
     }
 
+    isMoving(): boolean { return false; }
+    isZooming(): boolean { return false; }
+
     setTerrain(terrain: TerrainSpecification): void { this._terrain = terrain; }
     getTerrain(): TerrainSpecification { return this._terrain; }
 

@@ -86,6 +86,8 @@ export class FillExtrusionBucket implements Bucket {
     programConfigurations: ProgramConfigurationSet<FillExtrusionStyleLayer>;
     segments: SegmentVector;
     uploaded: boolean;
+    /** Bumped when feature state repaints the bucket: what the map's shading drew of it is then stale. */
+    paintRevision = 0;
     features: BucketFeature[];
 
     constructor(options: BucketParameters<FillExtrusionStyleLayer>) {
@@ -154,6 +156,7 @@ export class FillExtrusionBucket implements Bucket {
         this.programConfigurations.updatePaintArrays(states, vtLayer, this.stateDependentLayers, {
             imagePositions
         });
+        this.paintRevision++;
     }
 
     isEmpty(): boolean {

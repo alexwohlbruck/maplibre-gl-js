@@ -36,6 +36,7 @@ import {isRasterStyleLayer} from '../style/style_layer/raster_style_layer.ts';
 import {isBackgroundStyleLayer} from '../style/style_layer/background_style_layer.ts';
 import {isCustomStyleLayer} from '../style/style_layer/custom_style_layer.ts';
 
+import type {Shading} from './shading/shading.ts';
 import type {OverscaledTileID} from '../tile/tile_id.ts';
 import type {IReadonlyTransform} from '../geo/transform_interface.ts';
 import type {Style} from '../style/style.ts';
@@ -77,6 +78,13 @@ export type RTTObject = {
     size: number;
 };
 
+const chunkIds = new Map<string, number>();
+/** A short name for a block of shader source, for the program cache's key. */
+function chunkId(source: string): number {
+    if (!chunkIds.has(source)) chunkIds.set(source, chunkIds.size + 1);
+    return chunkIds.get(source);
+}
+
 /**
  * @internal
  * Initialize a new painter object.
@@ -86,6 +94,8 @@ export class Painter {
     context: Context;
     transform: IReadonlyTransform;
     renderToTexture: IRenderToTexture;
+    /** The map's shading, while it is on: see {@link Shading}. */
+    shading: Shading | null = null;
     _tileTextures: {
         [_: number]: Texture[];
     };
@@ -569,6 +579,7 @@ export class Painter {
         }
 
         this.maybeDrawDepth();
+        this.shading?.prepare();
 
         if (this.renderToTexture) {
             this.renderToTexture.prepareForRender(this.style, this.transform.zoom);
@@ -662,6 +673,9 @@ export class Painter {
             // for cross-tile symbol fading. Symbol layers don't use tile clipping, so no need to render
             // separate clipping masks
             const coords = (layer.type === 'symbol' ? coordsDescendingSymbol : coordsDescending)[layer.source];
+
+            // Terrain is shaded as it is drawn; flat ground under the first layer that casts.
+            if (!this.renderToTexture && this.shading?.groundLayer === layer.id) this.shading.drawGround();
 
             this.renderTileClippingMasks(layer, coordsAscending[layer.source]);
             this.renderLayer(this, tileManager, layer, coords, renderContext);
@@ -890,10 +904,11 @@ export class Painter {
      * @param programConfiguration - Configuration of shader's inputs.
      * @param forceSimpleProjection - Whether to force the use of a shader variant with simple mercator projection vertex shader.
      * @param defines - Additional macros to be injected at the beginning of the shader. Expected format is `['#define XYZ']`, etc.
+     * @param fragmentChunk - Source set before the fragment shader's own, after the preludes: functions it calls.
      * False by default. Use true when drawing with a simple projection matrix is desired, eg. when drawing a fullscreen quad.
      * @returns
      */
-    useProgram(name: string, programConfiguration?: ProgramConfiguration | null, forceSimpleProjection: boolean = false, defines: string[] = []): Program<any> {
+    useProgram(name: string, programConfiguration?: ProgramConfiguration | null, forceSimpleProjection: boolean = false, defines: string[] = [], fragmentChunk: string = ''): Program<any> {
         this.cache ||= {};
         const useTerrain = !!this.style.map.terrain;
 
@@ -906,7 +921,7 @@ export class Painter {
         const configurationKey = (programConfiguration ? programConfiguration.cacheKey : '');
         const overdrawKey = (this._showOverdrawInspector ? '/overdraw' : '');
         const terrainKey = (useTerrain ? '/terrain' : '');
-        const definesKey = (defines ? `/${defines.join('/')}` : '');
+        const definesKey = (defines ? `/${defines.join('/')}` : '') + (fragmentChunk ? `/${chunkId(fragmentChunk)}` : '');
 
         const key = name + configurationKey + projectionKey + overdrawKey + terrainKey + definesKey;
 
@@ -919,7 +934,8 @@ export class Painter {
             useTerrain,
             projectionPrelude,
             projectionDefine,
-            defines
+            defines,
+            fragmentChunk
         );
         return this.cache[key];
     }
@@ -953,6 +969,7 @@ export class Painter {
     }
 
     destroy(): void {
+        this.shading?.destroy();
         if (this._tileTextures) {
             for (const size in this._tileTextures) {
                 const textures = this._tileTextures[size];

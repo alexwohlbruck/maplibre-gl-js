@@ -74,7 +74,8 @@ export class Program<Us extends UniformBindings> {
         useTerrain: boolean,
         projectionPrelude: PreparedShader,
         projectionDefine: string,
-        extraDefines: string[] = []) {
+        extraDefines: string[] = [],
+        fragmentChunk: string = '') {
 
         const gl = context.gl;
         this.program = gl.createProgram();
@@ -108,7 +109,7 @@ export class Program<Us extends UniformBindings> {
             defines.push(...extraDefines);
         }
 
-        const fragmentSource = defines.concat(shaders.prelude.fragmentSource, projectionPrelude.fragmentSource, source.fragmentSource).join('\n');
+        const fragmentSource = defines.concat(shaders.prelude.fragmentSource, projectionPrelude.fragmentSource, fragmentChunk, source.fragmentSource).join('\n');
         const vertexSource = defines.concat(shaders.prelude.vertexSource, projectionPrelude.vertexSource, source.vertexSource).join('\n');
 
         const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);

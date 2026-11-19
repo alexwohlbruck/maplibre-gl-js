@@ -8,7 +8,7 @@ import {
 } from '../program/fill_extrusion_program.ts';
 import {getProjectionDataForTile, getTerrainDataForTile, type RenderContext} from '../../render/render_context.ts';
 import {updatePatternPositionsInProgram} from '../../render/update_pattern_positions_in_program.ts';
-import {translatePosition} from '../../util/util.ts';
+import {extend, translatePosition} from '../../util/util.ts';
 
 import type {Painter} from '../../render/painter.ts';
 import type {TileManager} from '../../tile/tile_manager.ts';
@@ -64,6 +64,13 @@ function drawExtrusionTiles(
     const opacity = layer.paint.get('fill-extrusion-opacity');
     const constantPattern = patternProperty.constantOr(null);
     const transform = painter.transform;
+    const shading = !image && painter.shading?.shades(layer) ? painter.shading : null;
+    // Looking straight down, the ground and a roofless base share a depth: the extrusions are drawn to win.
+    const planView = !!shading && Math.abs(transform.pitch) < 0.001;
+    if (planView) {
+        gl.enable(gl.POLYGON_OFFSET_FILL);
+        gl.polygonOffset(0, -8);
+    }
 
     for (const coord of coords) {
         const tile = tileManager.getTile(coord);
@@ -72,7 +79,9 @@ function drawExtrusionTiles(
 
         const terrainData = getTerrainDataForTile(renderContext, coord);
         const programConfiguration = bucket.programConfigurations.get(layer.id);
-        const program = painter.useProgram(image ? 'fillExtrusionPattern' : 'fillExtrusion', programConfiguration);
+        const program = shading ?
+            painter.useProgram('fillExtrusion', programConfiguration, false, ['#define SHADING'], shading.wallSource() ?? '') :
+            painter.useProgram(image ? 'fillExtrusionPattern' : 'fillExtrusion', programConfiguration);
 
         if (image) {
             painter.context.activeTexture.set(gl.TEXTURE0);
@@ -94,10 +103,19 @@ function drawExtrusionTiles(
         const uniformValues = image ?
             fillExtrusionPatternUniformValues(painter, shouldUseVerticalGradient, opacity, translate, coord, crossfade, tile) :
             fillExtrusionUniformValues(painter, shouldUseVerticalGradient, opacity, translate);
+        if (shading && !program.failedToCreate) {
+            extend(uniformValues, shading.extrusionUniforms(coord));
+            context.program.set(program.program);
+            shading.setWallUniforms(program.program);
+        }
 
         program.draw(context, context.gl.TRIANGLES, depthMode, stencilMode, colorMode, CullFaceMode.backCCW,
             uniformValues, terrainData, projectionData, layer.id, bucket.layoutVertexBuffer, bucket.indexBuffer,
             bucket.segments, layer.paint, painter.transform.zoom,
             programConfiguration, painter.style.map.terrain?.getAnchorElevations(bucket, coord));
+    }
+    if (planView) {
+        gl.polygonOffset(0, 0);
+        gl.disable(gl.POLYGON_OFFSET_FILL);
     }
 }

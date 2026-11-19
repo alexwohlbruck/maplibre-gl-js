@@ -5,6 +5,7 @@ import {
     UniformColor
 } from '../uniform_binding.ts';
 import {Color} from '@maplibre/maplibre-gl-style-spec';
+import {shadingReceiverUniforms, shadingMatrixUniforms, type ShadingReceiverUniformsType, type ShadingMatrixUniformsType} from './shading_program.ts';
 
 import type {Sky} from '../../style/sky.ts';
 import type {mat4} from 'gl-matrix';
@@ -26,7 +27,7 @@ export type TerrainUniformsType = {
     'u_horizon_color': UniformColor;
     'u_horizon_fog_blend': Uniform1f;
     'u_is_globe_mode': Uniform1f;
-};
+} & Partial<ShadingReceiverUniformsType & ShadingMatrixUniformsType>;
 
 export type TerrainDepthUniformsType = {
     'u_ele_delta': Uniform1f;
@@ -46,7 +47,9 @@ const terrainUniforms = (context: Context, locations: UniformLocations): Terrain
     'u_fog_ground_blend_opacity': new Uniform1f(context, locations.u_fog_ground_blend_opacity),
     'u_horizon_color': new UniformColor(context, locations.u_horizon_color),
     'u_horizon_fog_blend': new Uniform1f(context, locations.u_horizon_fog_blend),
-    'u_is_globe_mode': new Uniform1f(context, locations.u_is_globe_mode)
+    'u_is_globe_mode': new Uniform1f(context, locations.u_is_globe_mode),
+    // Set only while the map's shading lies on the terrain.
+    ...(locations.u_sun_matrix ? {...shadingReceiverUniforms(context, locations), ...shadingMatrixUniforms(context, locations)} : {}),
 });
 
 const terrainDepthUniforms = (context: Context, locations: UniformLocations): TerrainDepthUniformsType => ({

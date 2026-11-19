@@ -32,6 +32,7 @@ import {isAbortError} from '../util/abort_error.ts';
 import {coveringTiles, type CoveringTilesOptions, createCalculateTileZoomFunction} from '../geo/projection/covering_tiles.ts';
 import {CanonicalTileID, type OverscaledTileID} from '../tile/tile_id.ts';
 import {isStyleImageWebGLData} from '../style/style_image.ts';
+import {Shading, type ShadingOptions} from '../render/shading/shading.ts';
 
 import type {PaddingOptions} from '../geo/edge_insets.ts';
 import type {Source} from '../source/source.ts';
@@ -3616,6 +3617,25 @@ export class Map extends Evented<MapEventType> {
     }
 
     /**
+     * Turns the map's shading on with these options, or off with `null`: sunlight on the extrusions of layers with
+     * `fill-extrusion-cast-shadows`, their shadows on each other and the ground, and occlusion where they meet it.
+     * Returns the live {@link Shading}, whose fields can be set from frame to frame.
+     *
+     * @param options - The shading's levers, or `null` to turn it off.
+     */
+    setShading(options: ShadingOptions | null): Shading | null {
+        this.painter.shading?.destroy();
+        this.painter.shading = options ? new Shading(this.painter, options) : null;
+        this.triggerRepaint();
+        return this.painter.shading;
+    }
+
+    /** The map's shading, or `null` while it is off. */
+    getShading(): Shading | null {
+        return this.painter.shading;
+    }
+
+    /**
      * Draws a layer or leaves it undrawn, without reloading its tiles: a muted layer's source keeps loading and
      * its features stay queryable with {@link Map.querySourceFeatures}. Setting `visibility` to `none` would stop
      * the source loading, and zeroing a data-driven opacity re-parses every tile of the source.
@@ -4264,7 +4284,13 @@ export class Map extends Evented<MapEventType> {
             throw new GPUInitializationError(attributes, creationEvent);
         }
 
+        // The shading outlives a lost context: it has let go of what it drew on the old one, and draws again on this.
+        const shading = this.painter?.shading;
         this.painter = new Painter(gl, this._camera.transform);
+        if (shading) {
+            shading.painter = this.painter;
+            this.painter.shading = shading;
+        }
     }
 
     /**
@@ -4414,7 +4440,7 @@ export class Map extends Evented<MapEventType> {
 
         const isGlobeRendering = this.style.projection?.transitionState > 0;
 
-        this.terrain?.beginFrame();
+        this.terrain?.beginFrame?.();
 
         // A custom layer may have used the context asynchronously. Mark the state as dirty.
         this.painter.context.setDirty();

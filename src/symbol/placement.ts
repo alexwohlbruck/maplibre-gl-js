@@ -1340,7 +1340,7 @@ export class Placement {
             now - this.lastPlacementChangeTime < this.fadeDuration;
     }
 
-    stillRecent(now: number, zoom: number): boolean {
+    stillRecent(now: number, zoom: number, stretch: number = 1): boolean {
         // The adjustment makes placement more frequent when zooming.
         // This condition applies the adjustment only after the map has
         // stopped zooming. This avoids adding extra jank while zooming.
@@ -1349,7 +1349,7 @@ export class Placement {
             1;
         this.zoomAtLastRecencyCheck = zoom;
 
-        return this.commitTime + this.fadeDuration * durationAdjustment > now;
+        return this.commitTime + this.fadeDuration * durationAdjustment * stretch > now;
     }
 
     setStale(): void {

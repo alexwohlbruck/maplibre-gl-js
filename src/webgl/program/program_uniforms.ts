@@ -13,6 +13,7 @@ import {backgroundUniforms, backgroundPatternUniforms, type BackgroundUniformsTy
 import {terrainUniforms, terrainDepthUniforms, type TerrainUniformsType, type TerrainDepthUniformsType} from './terrain_program.ts';
 import {atmosphereUniforms, type atmosphereUniformsType} from './atmosphere_program.ts';
 import {skyUniforms, type SkyUniformsType} from './sky_program.ts';
+import {shadingGroundUniforms, shadingBlurUniforms, type ShadingGroundUniformsType, type ShadingBlurUniformsType} from './shading_program.ts';
 
 import type {Context} from '../context.ts';
 import type {UniformLocations} from '../uniform_binding.ts';
@@ -24,6 +25,9 @@ const emptyUniforms = (_: Context, __: UniformLocations): EmptyUniforms => ({});
 export const programUniforms: {
     fillExtrusion: (context: Context, locations: UniformLocations) => FillExtrusionUniformsType;
     fillExtrusionPattern: (context: Context, locations: UniformLocations) => FillExtrusionPatternUniformsType;
+    fillExtrusionDepth: (context: Context, locations: UniformLocations) => EmptyUniforms;
+    shadingGround: (context: Context, locations: UniformLocations) => ShadingGroundUniformsType;
+    shadingBlur: (context: Context, locations: UniformLocations) => ShadingBlurUniformsType;
     fill: (context: Context, locations: UniformLocations) => FillUniformsType;
     fillPattern: (context: Context, locations: UniformLocations) => FillPatternUniformsType;
     fillOutline: (context: Context, locations: UniformLocations) => FillOutlineUniformsType;
@@ -59,6 +63,9 @@ export const programUniforms: {
 } = {
     fillExtrusion: fillExtrusionUniforms,
     fillExtrusionPattern: fillExtrusionPatternUniforms,
+    fillExtrusionDepth: emptyUniforms,
+    shadingGround: shadingGroundUniforms,
+    shadingBlur: shadingBlurUniforms,
     fill: fillUniforms,
     fillPattern: fillPatternUniforms,
     fillOutline: fillOutlineUniforms,

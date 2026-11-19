@@ -7,6 +7,7 @@ import {
 } from '../uniform_binding.ts';
 import {mat3, vec3} from 'gl-matrix';
 import {extend} from '../../util/util.ts';
+import {shadedExtrusionUniforms, type ShadedExtrusionUniformsType} from './shading_program.ts';
 
 import type {Context} from '../../webgl/context.ts';
 import type {Painter} from '../../render/painter.ts';
@@ -23,7 +24,7 @@ export type FillExtrusionUniformsType = {
     'u_vertical_gradient': Uniform1f;
     'u_opacity': Uniform1f;
     'u_fill_translate': Uniform2f;
-};
+} & Partial<ShadedExtrusionUniformsType>;
 
 export type FillExtrusionPatternUniformsType = {
     'u_lightpos': Uniform3f;
@@ -51,6 +52,8 @@ const fillExtrusionUniforms = (context: Context, locations: UniformLocations): F
     'u_vertical_gradient': new Uniform1f(context, locations.u_vertical_gradient),
     'u_opacity': new Uniform1f(context, locations.u_opacity),
     'u_fill_translate': new Uniform2f(context, locations.u_fill_translate),
+    // Set only for extrusions the map's shading lights; the plain program has none of them.
+    ...(locations.u_shade_band ? shadedExtrusionUniforms(context, locations) : {}),
 });
 
 const fillExtrusionPatternUniforms = (context: Context, locations: UniformLocations): FillExtrusionPatternUniformsType => ({

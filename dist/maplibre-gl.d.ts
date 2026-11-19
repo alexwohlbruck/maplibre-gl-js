@@ -1,5 +1,5 @@
 import Point, { default as Point$1 } from "@mapbox/point-geometry";
-import { mat2, mat4, vec3, vec4 } from "gl-matrix";
+import { mat2, mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { GeoJSONVTOptions } from "@maplibre/geojson-vt";
 import { AllLayoutProperties, AllPaintProperties, Color, ColorArray, CompositeExpression, DiffCommand, Feature, FeatureFilter, FeatureState, FilterSpecification, FontFacesSpecification, Formatted, FormattedSection, GeoJSONSourceSpecification, GlobalProperties, ICanonicalTileID, IMercatorCoordinate, ImageSourceSpecification, InterpolationType, LayerSpecification, LightSpecification, MLFontFace, NumberArray, Padding, ProjectionSpecification, PromoteIdSpecification, PropertyValueSpecification, RasterDEMSourceSpecification, RasterSourceSpecification, ResolvedImage, SkySpecification, SourceExpression, SourceSpecification, SpriteSpecification, StateSpecification, StylePropertyExpression, StylePropertySpecification, StyleSpecification, TerrainSpecification, TransitionSpecification, ValidationError, VariableAnchorOffsetCollection, VectorSourceSpecification, VideoSourceSpecification, VisibilityExpression, VisibilitySpecification } from "@maplibre/maplibre-gl-style-spec";
 import { VectorTileFeatureLike, VectorTileLayerLike } from "@maplibre/vt-pbf";
@@ -1501,12 +1501,53 @@ declare class Uniform1i extends Uniform<number> {
   constructor(context: Context, location: WebGLUniformLocation);
   set(v: number): void;
 }
+declare class Uniform1f extends Uniform<number> {
+  constructor(context: Context, location: WebGLUniformLocation);
+  set(v: number): void;
+}
+declare class Uniform2f extends Uniform<vec2> {
+  constructor(context: Context, location: WebGLUniformLocation);
+  set(v: vec2): void;
+}
+declare class Uniform3f extends Uniform<vec3> {
+  constructor(context: Context, location: WebGLUniformLocation);
+  set(v: vec3): void;
+}
+declare class UniformMatrix4f extends Uniform<mat4> {
+  constructor(context: Context, location: WebGLUniformLocation);
+  set(v: mat4): void;
+}
 /**
  * @internal
  * A uniform bindings
  */
 type UniformBindings = {
   [_: string]: Uniform<any>;
+};
+//#endregion
+//#region src/webgl/program/shading_program.d.ts
+/** What every program shaded by the map's shading reads: see `sun_shade` in the fragment prelude. */
+type ShadingReceiverUniformsType = {
+  "u_sun_shadow": Uniform1i;
+  "u_sun": Uniform3f;
+  "u_occlusion": Uniform1i;
+  "u_occlusion_strength": Uniform2f;
+  "u_ground": Uniform2f;
+  "u_shadow_color": Uniform3f;
+};
+/** A shaded extrusion's own light: see the `SHADING` branch of the fill-extrusion shaders. */
+type ShadedExtrusionUniformsType = ShadingReceiverUniformsType & {
+  "u_sun_matrix": UniformMatrix4f;
+  "u_shade_strength": Uniform1f;
+  "u_shade_band": Uniform1f;
+  "u_shade_edge": Uniform1f;
+  "u_shade_edge_width": Uniform1f;
+  "u_sun_tint": Uniform3f;
+  "u_sky_tint": Uniform3f;
+  "u_wall_rise": Uniform1f;
+  "u_roof_lift": Uniform1f;
+  "u_unit_metres": Uniform1f;
+  "u_wall_origin": Uniform2f;
 };
 //#endregion
 //#region src/style/zoom_history.d.ts
@@ -5121,7 +5162,7 @@ declare class Placement {
   symbolFadeChange(now: number): number;
   zoomAdjustment(zoom: number): number;
   hasTransitions(now: number): boolean;
-  stillRecent(now: number, zoom: number): boolean;
+  stillRecent(now: number, zoom: number, stretch?: number): boolean;
   setStale(): void;
 }
 //#endregion
@@ -5477,6 +5518,8 @@ declare class FillExtrusionBucket implements Bucket {
   programConfigurations: ProgramConfigurationSet<FillExtrusionStyleLayer>;
   segments: SegmentVector;
   uploaded: boolean;
+  /** Bumped when feature state repaints the bucket: what the map's shading drew of it is then stale. */
+  paintRevision: number;
   features: BucketFeature[];
   constructor(options: BucketParameters<FillExtrusionStyleLayer>);
   populate(features: IndexedFeature[], options: PopulateParameters, canonical: CanonicalTileID): void;
@@ -5520,6 +5563,10 @@ type FillExtrusionPaintProps = {
   "fill-extrusion-height": DataDrivenProperty<number>;
   "fill-extrusion-base": DataDrivenProperty<number>;
   "fill-extrusion-vertical-gradient": DataConstantProperty<boolean>;
+  "fill-extrusion-cast-shadows": DataConstantProperty<boolean>;
+  "fill-extrusion-roof-color": DataDrivenProperty<Color>;
+  "fill-extrusion-facade-style": DataDrivenProperty<number>;
+  "fill-extrusion-facade-seed": DataDrivenProperty<number>;
 };
 type FillExtrusionPaintPropsPossiblyEvaluated = {
   "fill-extrusion-opacity": number;
@@ -5530,6 +5577,10 @@ type FillExtrusionPaintPropsPossiblyEvaluated = {
   "fill-extrusion-height": PossiblyEvaluatedPropertyValue<number>;
   "fill-extrusion-base": PossiblyEvaluatedPropertyValue<number>;
   "fill-extrusion-vertical-gradient": boolean;
+  "fill-extrusion-cast-shadows": boolean;
+  "fill-extrusion-roof-color": PossiblyEvaluatedPropertyValue<Color>;
+  "fill-extrusion-facade-style": PossiblyEvaluatedPropertyValue<number>;
+  "fill-extrusion-facade-seed": PossiblyEvaluatedPropertyValue<number>;
 };
 //#endregion
 //#region src/style/style_layer/fill_extrusion_style_layer.d.ts
@@ -6031,6 +6082,184 @@ type DrawFunctions = {
   terrainDepth: typeof drawDepth;
 };
 //#endregion
+//#region src/render/shading/sun_light.d.ts
+/**
+ * The geometry of the map's shading: the ground it covers, kept still while the camera moves over it, and the sun's
+ * view of that ground.
+ *
+ * Mercator in, clip out: x and y in 0-1 world units and z in mercator units (metres times `perMetre`).
+ */
+type Mat4 = Float64Array;
+//#endregion
+//#region src/render/shading/shading.d.ts
+/** What a receiver needs of the sun's shadow map for one frame. */
+type SunFrame = {
+  /** Clip ← mercator, for the sun's view. */
+  light: Mat4;
+  perMetre: number;
+  texture: WebGLTexture;
+  /** Texels on a side of the map. */
+  size: number;
+  depthPerMetre: number;
+  /** Metres a texel spans across the light, its longer side. */
+  texelMetres: number;
+  /** How much of the shadow shows, 0 to 1. */
+  strength: number;
+};
+/** What a caster is handed to draw where it meets the ground: clip ← mercator, from overhead. */
+type OcclusionFrame = {
+  matrix: Mat4;
+};
+/**
+ * Anything besides the extrusions that takes part in the shading, drawing with its own programs: a custom layer's
+ * models. Each draw is called mid-pass with the target, depth and colour state already set.
+ */
+type ShadingCaster = {
+  /** Changes whenever what it casts changes; without one its shadows are redrawn every frame. */
+  shadowVersion?: number;
+  /** Draw depth into the sun's shadow map. */
+  drawSunDepth?(gl: WebGL2RenderingContext, frame: SunFrame): void;
+  /** Draw where it stands on the ground, in any colour, for the ground occlusion. */
+  drawOcclusion?(gl: WebGL2RenderingContext, frame: OcclusionFrame): void;
+  /** This frame's sun shadow map, to be shaded by. */
+  receiveSun?(frame: SunFrame): void;
+};
+/**
+ * GLSL that draws on a shaded wall, and the uniforms it declares. `source` defines
+ * `vec3 shade_wall(vec3 color, vec3 wall, float seed, float style)`: `wall` is metres along the wall, metres up it
+ * and the roof's height; `seed` a 0-1 hash of `fill-extrusion-facade-seed`, `style` its `fill-extrusion-facade-style`.
+ */
+type WallShader = {
+  source: string;
+  uniforms?: {
+    [name: string]: number | number[];
+  };
+};
+type ShadingOptions = Partial<Pick<Shading, "enabled" | "minZoom" | "maxZoom" | "strength" | "band" | "edge" | "edgeWidth" | "wallShader" | "sunShadows" | "groundOcclusion" | "visibility" | "opacity" | "sunCeiling" | "heightScale" | "shadowAlpha" | "shadowOffset" | "shadowColor" | "sunTint" | "skyTint" | "wallRise" | "roofLift" | "casters" | "fadeZoom" | "topDownOpacity" | "topDownPitch" | "aoRadiusMin" | "aoRadiusMax" | "aoIntensity" | "shadowMapSize">>;
+/**
+ * The map's shading: sunlight on the extrusions that cast (`fill-extrusion-cast-shadows`), the shadows they and the
+ * registered casters throw on each other and on the ground, and the occlusion where a wall meets it.
+ *
+ * Shadows come from one depth map drawn from the sun, and occlusion from the footprints drawn from overhead and
+ * blurred. Both cover a square of ground that holds still while the camera moves over it, so a frame that only
+ * moves the camera draws neither again.
+ *
+ * Every lever is a field read each frame; set one and repaint.
+ */
+declare class Shading {
+  painter: Painter;
+  enabled: boolean;
+  /** The zooms the ground effects arrive over, and the occlusion's radius runs between. */
+  minZoom: number;
+  maxZoom: number;
+  /** How dark the foot of a wall is, and the share of the wall the darkening reaches up. */
+  strength: number;
+  band: number;
+  /** The roofline edge: how dark, and how many device pixels wide. */
+  edge: number;
+  edgeWidth: number;
+  wallShader: WallShader | null;
+  sunShadows: boolean;
+  groundOcclusion: boolean;
+  /** How much of the shadows and occlusion shows at a pitch, 0 to 1. */
+  visibility: number | ((pitch: number) => number);
+  /** Below 1 the ground effects thin with the extrusions over them. */
+  opacity: number;
+  /** The tallest caster, metres. */
+  sunCeiling: number;
+  /** A shadow's length as a multiple of its caster's height. */
+  heightScale: number;
+  shadowAlpha: number;
+  /** The ground-plane direction a shadow falls, +x east and +y north. */
+  shadowOffset: [number, number];
+  shadowColor: [number, number, number];
+  sunTint: [number, number, number];
+  skyTint: [number, number, number];
+  /** How much lighter a wall is at its top than its foot, and a roof than the walls. */
+  wallRise: number;
+  roofLift: number;
+  casters: Set<ShadingCaster>;
+  /** Zoom levels past `minZoom` the ground effects ramp in over. */
+  fadeZoom: number;
+  /** What the occlusion drops to looking straight down, reached below `topDownPitch`. */
+  topDownOpacity: number;
+  topDownPitch: number;
+  /** The occlusion's radius in device pixels at `minZoom` and `maxZoom`, and its strength. */
+  aoRadiusMin: number;
+  aoRadiusMax: number;
+  aoIntensity: number;
+  shadowMapSize: number;
+  /** This frame's sun shadow map, or null with no sun. */
+  frame: SunFrame | null;
+  /** Whether cast extrusions are shaded this frame. */
+  active: boolean;
+  /** The layer the flat ground's shading is drawn beneath. */
+  groundLayer: string | null;
+  /** How many times each map has been drawn: a camera move alone should add to neither. */
+  drawn: {
+    sun: number;
+    occlusion: number;
+  };
+  private fade;
+  private sunRegion;
+  private sunTexture;
+  private sunFramebuffer;
+  private sunSize;
+  private sunKey;
+  private emptySun;
+  private occlusion;
+  private occlusionKey;
+  private coverage;
+  private blurred;
+  private empty;
+  private wallUniforms;
+  constructor(painter: Painter, options?: ShadingOptions);
+  /** How strongly the ground effects draw: they ramp in over `fadeZoom` levels as the extrusions grow. */
+  groundOpacity(): number;
+  private occlusionPitchFade;
+  /** The occlusion's radius on the ground, metres, at a zoom and a mercator y. */
+  private occlusionRadius;
+  /** The layers that cast this frame, bottom first. */
+  private castLayers;
+  /** Whether a layer is drawn shaded this frame. */
+  shades(layer: FillExtrusionStyleLayer): boolean;
+  /**
+   * Ready the frame: draw the sun's shadow map and the ground occlusion again if what they show has changed.
+   * Called before anything is drawn to the screen.
+   */
+  prepare(): void;
+  /** What of a tile's extrusions the passes read, for telling whether they have changed. */
+  private castKey;
+  private drawCast;
+  private sunView;
+  /** Ready the sun's shadow map; whether it was drawn again. */
+  private updateSun;
+  private sunTarget;
+  /** A depth texture a shadow sampler compares against. */
+  private depthTexture;
+  private clearTexture;
+  private colorTarget;
+  /** Ready the ground occlusion: the cast footprints from overhead, blurred to its radius. Whether it was drawn again. */
+  private updateOcclusion;
+  /** A matrix from a tile's units into the sun's clip space; identity with no sun. */
+  sunMatrix(coord: OverscaledTileID): Float32Array;
+  /** A matrix from a tile's units into the ground occlusion's texture. */
+  occlusionMatrix(coord: OverscaledTileID): Float32Array;
+  /** Whether anything is laid on the ground this frame. */
+  shadesGround(): boolean;
+  /** Bind the maps for a receiver, and give the uniforms that read them. */
+  receive(): UniformValues<ShadingReceiverUniformsType>;
+  /** Lay the shadows and occlusion on flat ground: one quad over all they reach. Terrain is shaded as it is drawn. */
+  drawGround(): void;
+  /** A shaded extrusion's light and where its tile lies: the sun's view, and the fixed grid its walls are measured on. */
+  extrusionUniforms(coord: OverscaledTileID): UniformValues<ShadedExtrusionUniformsType>;
+  /** The wall shader as a block of fragment source, for the program that draws shaded extrusions. */
+  wallSource(): string | null;
+  /** Set the wall shader's own uniforms on a program in use. */
+  setWallUniforms(program: WebGLProgram): void;
+  destroy(): void;
+}
+//#endregion
 //#region src/render/pattern_atlas.d.ts
 /**
  * A texture atlas of the pattern images that are drawn without a tile's own {@link ImageAtlas},
@@ -6356,6 +6585,8 @@ declare class Painter {
   context: Context;
   transform: IReadonlyTransform;
   renderToTexture: IRenderToTexture;
+  /** The map's shading, while it is on: see {@link Shading}. */
+  shading: Shading | null;
   _tileTextures: {
     [_: number]: Texture[];
   };
@@ -6503,10 +6734,11 @@ declare class Painter {
    * @param programConfiguration - Configuration of shader's inputs.
    * @param forceSimpleProjection - Whether to force the use of a shader variant with simple mercator projection vertex shader.
    * @param defines - Additional macros to be injected at the beginning of the shader. Expected format is `['#define XYZ']`, etc.
+   * @param fragmentChunk - Source set before the fragment shader's own, after the preludes: functions it calls.
    * False by default. Use true when drawing with a simple projection matrix is desired, eg. when drawing a fullscreen quad.
    * @returns
    */
-  useProgram(name: string, programConfiguration?: ProgramConfiguration | null, forceSimpleProjection?: boolean, defines?: string[]): Program<any>;
+  useProgram(name: string, programConfiguration?: ProgramConfiguration | null, forceSimpleProjection?: boolean, defines?: string[], fragmentChunk?: string): Program<any>;
   setCustomLayerDefaults(): void;
   setBaseState(): void;
   initDebugOverlayCanvas(): void;
@@ -7898,7 +8130,7 @@ declare class Program<Us extends UniformBindings> {
   terrainUniforms: TerrainPreludeUniformsType;
   binderUniforms: BinderUniform[];
   failedToCreate: boolean;
-  constructor(context: Context, source: PreparedShader, configuration: ProgramConfiguration, fixedUniforms: (b: Context, a: UniformLocations) => Us, showOverdrawInspector: boolean, useTerrain: boolean, projectionPrelude: PreparedShader, projectionDefine: string, extraDefines?: string[]);
+  constructor(context: Context, source: PreparedShader, configuration: ProgramConfiguration, fixedUniforms: (b: Context, a: UniformLocations) => Us, showOverdrawInspector: boolean, useTerrain: boolean, projectionPrelude: PreparedShader, projectionDefine: string, extraDefines?: string[], fragmentChunk?: string);
   draw(context: Context, drawMode: DrawMode, depthMode: Readonly<DepthMode>, stencilMode: Readonly<StencilMode>, colorMode: Readonly<ColorMode>, cullFaceMode: Readonly<CullFaceMode>, uniformValues: UniformValues<Us>, terrain: TerrainData, projectionData: ProjectionData, layerID: string, layoutVertexBuffer: VertexBuffer, indexBuffer: IndexBuffer, segments: SegmentVector, currentProperties?: any, zoom?: number | null, configuration?: ProgramConfiguration | null, dynamicLayoutBuffer?: VertexBuffer | null, dynamicLayoutBuffer2?: VertexBuffer | null, dynamicLayoutBuffer3?: VertexBuffer | null): void;
 }
 //#endregion
@@ -15219,6 +15451,16 @@ declare class Map$1 extends Evented<MapEventType> {
    */
   setLayerZoomRange(layerId: string, minzoom: number, maxzoom: number): this;
   /**
+   * Turns the map's shading on with these options, or off with `null`: sunlight on the extrusions of layers with
+   * `fill-extrusion-cast-shadows`, their shadows on each other and the ground, and occlusion where they meet it.
+   * Returns the live {@link Shading}, whose fields can be set from frame to frame.
+   *
+   * @param options - The shading's levers, or `null` to turn it off.
+   */
+  setShading(options: ShadingOptions | null): Shading | null;
+  /** The map's shading, or `null` while it is off. */
+  getShading(): Shading | null;
+  /**
    * Draws a layer or leaves it undrawn, without reloading its tiles: a muted layer's source keeps loading and
    * its features stay queryable with {@link Map.querySourceFeatures}. Setting `visibility` to `none` would stop
    * the source loading, and zeroing a data-driven opacity re-parses every tile of the source.
@@ -17982,4 +18224,4 @@ declare function setWorkerUrl(value: string): void;
  */
 declare function importScriptInWorkers(workerUrl: string): Promise<void>;
 //#endregion
-export { type Actor, type ActorMessage, type AddLayerObject, type AddProtocolAction, type AddProtocolResponseData, type Alignment, type AlphaImage, type AnchoredCameraOptions, type AnimationOptions, type AroundCenterOptions, type AttributionControlOptions, type BoxZoomEndHandler, type BoxZoomHandlerOptions, type Bucket, type CalculateTileZoomFunction, type CameraForBoundsOptions, type CameraOptions, type CameraUpdateTransformFunction, type CanonicalTileRange, type CanvasSourceSpecification, type CenterZoomBearing, type CollisionBoxArray, type Complete, type ControlPosition, type Coordinates, type CoveringTilesOptions, type CreateTileMeshOptions, type CustomLayerInterface, type CustomLayerProjectionData, type CustomLayerProjectionDataParams, type CustomRenderMethod, type CustomRenderMethodInput, type DashEntry, type Dispatcher, type DistributiveKeys, type DistributiveOmit, type DragPanOptions, type EaseToOptions, type ErrorEventType, Event$1 as Event, type EventTypeMap, type EventedParentData, type ExpiryData, type FeatureIdentifier, type FeatureIndex, type FitBoundsOptions, type FlyToOptions, type FullscreenControlEventType, type FullscreenControlOptions, type GeoJSONFeature, type GeoJSONFeatureDiff, type GeoJSONFeatureId, type GeoJSONSourceDiff, type GeolocateControlEventType, type GeolocateControlOptions, type GestureOptions, type GetClusterOptions, type GetResourceResponse, type GlyphMap, type GlyphPosition, type GlyphPositions, type Handler, type HandlerResult, type IActor, type IControl, type ImageAtlas, type ImageSourceImage, type ImageSourceWarp, type IndicesType, type JumpToOptions, type Listener, type LngLatBoundsLike, type LngLatLike, type LoadTileResult, type LogoControlOptions, Map$1 as Map, Map$1 as MapLibreMap, type MapEventType, type MapGeoJSONFeature, type MapLayerEventType, type MapLayerMouseEvent, type MapLayerTouchEvent, type MapOptions, type MapSourceDataType, type MarkerEventType, type MarkerOptions, type Mat4f32, type Mat4f64, type MessageType, type MissingStyleImageResolver, type NavigationControlOptions, type Offset, type OverscaledTileID, type PaddingOptions, type PaintPropertyEntry, type Painter, Point, type PointLike, type PopupEventType, type PopupOptions, type PositionAnchor, type ProjectionData, type ProjectionDataParams, type ProjectionMatrix, type QueryRenderedFeaturesOptions, type QuerySourceFeatureOptions, type RendererProjectionData, type RequestParameters, type RequestResponseMessageMap, type RequestTransformFunction, type RequireAtLeastOne, type ResourceType, type ScaleControlOptions, type SetClusterOptions, type Source, type SourceClass, type SourceEventType, type StyleGlyph, type StyleImage, type StyleImageData, type StyleImageInterface, type StyleImageMetadata, type StyleImageSource, type StyleImageWebGLData, type StyleImageWebGLTarget, type StyleLayer, type StyleOptions, type StyleSetterOptions, type StyleSwapOptions, type Subscription, type TextFit, type Tile, type TileMesh, type TransformConstrainFunction, type TransformStyleFunction, type Unit, type UnwrappedTileIDLiteral, type UpdateImageOptions, type WebGLContextAttributesWithType, type WorkerGlobalScopeInterface, type WorkerTileResult, getMaxParallelImageRequests, getRTLTextPluginStatus, getVersion, getWorkerCount, getWorkerUrl, importScriptInWorkers, setMaxParallelImageRequests, setRTLTextPlugin, setWorkerCount, setWorkerUrl };
+export { type Actor, type ActorMessage, type AddLayerObject, type AddProtocolAction, type AddProtocolResponseData, type Alignment, type AlphaImage, type AnchoredCameraOptions, type AnimationOptions, type AroundCenterOptions, type AttributionControlOptions, type BoxZoomEndHandler, type BoxZoomHandlerOptions, type Bucket, type CalculateTileZoomFunction, type CameraForBoundsOptions, type CameraOptions, type CameraUpdateTransformFunction, type CanonicalTileRange, type CanvasSourceSpecification, type CenterZoomBearing, type CollisionBoxArray, type Complete, type ControlPosition, type Coordinates, type CoveringTilesOptions, type CreateTileMeshOptions, type CustomLayerInterface, type CustomLayerProjectionData, type CustomLayerProjectionDataParams, type CustomRenderMethod, type CustomRenderMethodInput, type DashEntry, type Dispatcher, type DistributiveKeys, type DistributiveOmit, type DragPanOptions, type EaseToOptions, type ErrorEventType, Event$1 as Event, type EventTypeMap, type EventedParentData, type ExpiryData, type FeatureIdentifier, type FeatureIndex, type FitBoundsOptions, type FlyToOptions, type FullscreenControlEventType, type FullscreenControlOptions, type GeoJSONFeature, type GeoJSONFeatureDiff, type GeoJSONFeatureId, type GeoJSONSourceDiff, type GeolocateControlEventType, type GeolocateControlOptions, type GestureOptions, type GetClusterOptions, type GetResourceResponse, type GlyphMap, type GlyphPosition, type GlyphPositions, type Handler, type HandlerResult, type IActor, type IControl, type ImageAtlas, type ImageSourceImage, type ImageSourceWarp, type IndicesType, type JumpToOptions, type Listener, type LngLatBoundsLike, type LngLatLike, type LoadTileResult, type LogoControlOptions, Map$1 as Map, Map$1 as MapLibreMap, type MapEventType, type MapGeoJSONFeature, type MapLayerEventType, type MapLayerMouseEvent, type MapLayerTouchEvent, type MapOptions, type MapSourceDataType, type MarkerEventType, type MarkerOptions, type Mat4f32, type Mat4f64, type MessageType, type MissingStyleImageResolver, type NavigationControlOptions, type OcclusionFrame, type Offset, type OverscaledTileID, type PaddingOptions, type PaintPropertyEntry, type Painter, Point, type PointLike, type PopupEventType, type PopupOptions, type PositionAnchor, type ProjectionData, type ProjectionDataParams, type ProjectionMatrix, type QueryRenderedFeaturesOptions, type QuerySourceFeatureOptions, type RendererProjectionData, type RequestParameters, type RequestResponseMessageMap, type RequestTransformFunction, type RequireAtLeastOne, type ResourceType, type ScaleControlOptions, type SetClusterOptions, type Shading, type ShadingCaster, type ShadingOptions, type Source, type SourceClass, type SourceEventType, type StyleGlyph, type StyleImage, type StyleImageData, type StyleImageInterface, type StyleImageMetadata, type StyleImageSource, type StyleImageWebGLData, type StyleImageWebGLTarget, type StyleLayer, type StyleOptions, type StyleSetterOptions, type StyleSwapOptions, type Subscription, type SunFrame, type TextFit, type Tile, type TileMesh, type TransformConstrainFunction, type TransformStyleFunction, type Unit, type UnwrappedTileIDLiteral, type UpdateImageOptions, type WallShader, type WebGLContextAttributesWithType, type WorkerGlobalScopeInterface, type WorkerTileResult, getMaxParallelImageRequests, getRTLTextPluginStatus, getVersion, getWorkerCount, getWorkerUrl, importScriptInWorkers, setMaxParallelImageRequests, setRTLTextPlugin, setWorkerCount, setWorkerUrl };

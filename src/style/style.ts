@@ -74,9 +74,13 @@ import type {Projection} from '../geo/projection/projection.ts';
 import type {OverscaledTileID} from '../tile/tile_id.ts';
 
 const empty = emptyStyle();
+/** How many times longer a placement is kept while the camera pans or turns than at rest. */
+const MOVING_PLACEMENT_STRETCH = 2;
+
 /**
  * A feature identifier that is bound to a source
  */
+
 export type FeatureIdentifier = {
     /**
      * Unique id of the feature.
@@ -1957,7 +1961,9 @@ export class Style extends Evented<MapEventType> {
 
         const placementInputsChanged = symbolBucketsChanged || this._placementInputsChanged(transform, showCollisionBoxes, crossSourceCollisions);
 
-        const placementSettled = this.pauseablePlacement?.isDone() && !this.placement.stillRecent(now(), transform.zoom);
+        // Panning or turning, labels ride the map they were placed on: placing them half as often is not seen, and halves its cost.
+        const stretch = this.map.isMoving() && !this.map.isZooming() ? MOVING_PLACEMENT_STRETCH : 1;
+        const placementSettled = this.pauseablePlacement?.isDone() && !this.placement.stillRecent(now(), transform.zoom, stretch);
 
         if (forceFullPlacement || !this.pauseablePlacement || (placementSettled && (placementInputsChanged || this.placement.stale))) {
             this._symbolPlacementTriggered = false;

@@ -134,4 +134,49 @@ if (!layoutSymbol['symbol-anchor-offset']) {
     };
 }
 
+const paintFillExtrusion = (v8 as any)['paint_fill-extrusion'];
+
+if (!paintFillExtrusion['fill-extrusion-cast-shadows']) {
+    // The extrusion's part in the map's shading (`Map.setShading`): a layer that casts is drawn into the sun's
+    // shadow map and the ground occlusion, and is itself lit by them.
+    paintFillExtrusion['fill-extrusion-cast-shadows'] = {
+        'type': 'boolean',
+        'default': false,
+        'doc': 'Whether the layer takes part in the map\'s shading: its extrusions cast shadows and ground occlusion, and are shaded by them. Has no effect until shading is enabled on the map.',
+        'expression': {
+            'interpolated': false,
+            'parameters': ['zoom']
+        },
+        'property-type': 'data-constant'
+    };
+    paintFillExtrusion['fill-extrusion-roof-color'] = {
+        'type': 'color',
+        'default': 'rgba(0, 0, 0, 0)',
+        'transition': true,
+        'requires': ['fill-extrusion-cast-shadows'],
+        'doc': 'The colour of an extrusion\'s top face under the map\'s shading. A fully transparent colour, the default, leaves the top the colour of the walls.',
+        'expression': {
+            'interpolated': true,
+            'parameters': ['zoom', 'feature', 'feature-state']
+        },
+        'property-type': 'data-driven'
+    };
+    for (const [name, doc] of [
+        ['fill-extrusion-facade-style', 'A number handed to the shading\'s wall shader for each extrusion, to choose how its walls are drawn.'],
+        ['fill-extrusion-facade-seed', 'A whole number from 0 to 65535 handed to the shading\'s wall shader for each extrusion, hashed to vary one building from the next. A value taken from the feature, not its geometry, is the same in every zoom\'s tiles.'],
+    ]) {
+        paintFillExtrusion[name] = {
+            'type': 'number',
+            'default': 0,
+            'requires': ['fill-extrusion-cast-shadows'],
+            doc,
+            'expression': {
+                'interpolated': false,
+                'parameters': ['zoom', 'feature', 'feature-state']
+            },
+            'property-type': 'data-driven'
+        };
+    }
+}
+
 export {};

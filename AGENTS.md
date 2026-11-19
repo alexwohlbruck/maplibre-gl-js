@@ -228,3 +228,9 @@ const params: WorkerTileParameters = sendAsync.mock.lastCall[0].data;
 The same goes for `mockResolvedValue` and `mockRejectedValue` over a function that returns a promise,
 `vi.useFakeTimers()` over a real wait, and asymmetric matchers such as `expect.objectContaining` over
 picking fields out one by one.
+
+## Fork changes
+
+Every change this fork makes on top of upstream is written up in [`FORK.md`](FORK.md), which the MapLibre Native forks are ported from. A pull request that changes fork behaviour updates its section there: the API and style-spec surface, the exact behaviour, the shaders and buffers it touches, and notes for porting it.
+
+Upstream releases are merged in, not rebased onto, because published tags point into the fork's history. After a merge, rebuild `dist/` in its own commit, tag `v<upstream>-transit.1-terrain.1`, and update `FORK.md` wherever a feature had to move.

@@ -249,18 +249,12 @@ export class Placement {
         this.placedOrientations = {};
     }
 
-    /** Whether a symbol lies in the clip: the line it is placed along, or its anchor where it has none. */
-    private _isClipped(bucket: SymbolBucket, symbolInstance: SymbolInstance, clipped: (points: number[]) => boolean): boolean {
-        const textIndex = [symbolInstance.centerJustifiedTextSymbolIndex, symbolInstance.leftJustifiedTextSymbolIndex, symbolInstance.rightJustifiedTextSymbolIndex, symbolInstance.verticalPlacedTextSymbolIndex].find(i => i >= 0);
-        const placedSymbol = textIndex !== undefined ? bucket.text.placedSymbolArray.get(textIndex) :
-            symbolInstance.placedIconSymbolIndex >= 0 ? bucket.icon.placedSymbolArray.get(symbolInstance.placedIconSymbolIndex) : null;
-        if (!placedSymbol || placedSymbol.lineLength < 2) return clipped([symbolInstance.anchorX, symbolInstance.anchorY]);
-        const line = bucket.lineVertexArray;
-        const points: number[] = [];
-        for (let i = placedSymbol.lineStartIndex; i < placedSymbol.lineStartIndex + placedSymbol.lineLength; i++) {
-            points.push(line.getx(i), line.gety(i));
-        }
-        return clipped(points);
+    /**
+     * Whether a symbol lies in the clip, by its anchor: a name placed along a road that runs on from the
+     * ground onto a bridge is left out where it sits on the bridge and kept where it sits on the ground.
+     */
+    private _isClipped(symbolInstance: SymbolInstance, clipped: (points: number[]) => boolean): boolean {
+        return clipped([symbolInstance.anchorX, symbolInstance.anchorY]);
     }
 
     private _getTerrainElevationFunc(tileID: OverscaledTileID): GetElevation | undefined {
@@ -505,7 +499,7 @@ export class Placement {
 
         const placeSymbol = (symbolInstance: SymbolInstance, collisionArrays: CollisionArrays, symbolIndex: number) => {
             if (seenCrossTileIDs[symbolInstance.crossTileID]) return;
-            if (clipped && this._isClipped(bucket, symbolInstance, clipped)) {
+            if (clipped && this._isClipped(symbolInstance, clipped)) {
                 this.placements[symbolInstance.crossTileID] = new JointPlacement(false, false, false);
                 return;
             }

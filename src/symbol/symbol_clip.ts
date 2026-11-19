@@ -13,9 +13,9 @@ type ClipPolygon = {
 };
 
 /**
- * An area whose symbols are left out at placement, for a set of layers: those placed along a line lying within
- * one of its polygons, and those at a point in one, as a `within` filter has it. Unlike the filter it costs no
- * tile reload to change: the symbols stay in their buckets and are only never placed.
+ * An area whose symbols are left out at placement, for a set of layers: each symbol whose anchor lies in one of
+ * its polygons. Unlike a `within` filter it costs no tile reload to change, as the symbols stay in their buckets
+ * and are only never placed, and it takes a line running out of the area symbol by symbol, not whole.
  */
 export type SymbolClip = {
     layerIds: ReadonlySet<string>;

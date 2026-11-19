@@ -3650,9 +3650,9 @@ export class Map extends Evented<MapEventType> {
     }
 
     /**
-     * Leaves the symbols of the given layers unplaced wherever the line they are placed along, or the point they
-     * stand at, lies wholly inside an area, without reloading their tiles as a `within` filter would. One clip
-     * holds at a time; `null` clears it.
+     * Leaves each symbol of the given layers unplaced whose anchor lies inside an area, without reloading their
+     * tiles as a `within` filter would: a name along a line that runs out of the area is still placed outside it.
+     * One clip holds at a time; `null` clears it.
      *
      * @param layerIds - The IDs of the symbol layers to clip.
      * @param area - The area to clip them in, in longitude and latitude.

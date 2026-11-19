@@ -51795,6 +51795,7 @@ function drawCustom(painter, tileManager, layer, coords, frameRenderContext) {
 				applyTerrainMatrix: params.applyTerrainMatrix
 			});
 		},
+		depthRangeFor3D: [frameRenderContext.depthRangeFor3D[0], frameRenderContext.depthRangeFor3D[1]],
 		renderTerrainHeightMap: terrain && frameRenderContext.currentPass === "offscreen" ? (target) => drawTerrainHeightMap(frameRenderContext, terrain, target) : void 0
 	};
 	const renderingMode = implementation.renderingMode ? implementation.renderingMode : "2d";

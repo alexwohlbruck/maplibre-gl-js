@@ -6410,6 +6410,11 @@ type CustomRenderMethodInput = {
    * Call it again after the camera moves, terrain tiles load or the terrain changes, and set up your WebGL state afterwards.
    */
   renderTerrainHeightMap?: (target: TerrainHeightMapTarget) => void;
+  /**
+   * The depth range the map draws its 3D layers (extrusions, 3D models) in this frame, for `gl.depthRange`, so a
+   * custom layer's 3D objects test against them in one depth buffer.
+   */
+  depthRangeFor3D: [number, number];
 };
 /**
  * @param gl - The map's gl context.

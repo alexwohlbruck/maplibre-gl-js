@@ -36,7 +36,7 @@ import {defaultLocale} from './default_locale.ts';
 import {isAbortError} from '../util/abort_error.ts';
 import {coveringTiles, type CoveringTilesOptions, createCalculateTileZoomFunction} from '../geo/projection/covering_tiles.ts';
 import {getCameraMath} from '../camera/camera_math_factory.ts';
-import {setMaxBounds, setMaxPitch, setMaxZoom, setMinPitch, setMinZoom, setRenderWorldCopies} from '../camera/camera_updates.ts';
+import {setMaxBounds, setMaxPitch, setMaxZoom, setMinPitch, setMinZoom, setNearFarZOverride, setRenderWorldCopies} from '../camera/camera_updates.ts';
 import {getCameraSolver} from '../camera/camera_solver_factory.ts';
 import {applyConstrain} from '../camera/camera_constrain.ts';
 import {getMaxBounds} from '../camera/camera_view_state.ts';
@@ -80,7 +80,7 @@ import type {CanvasSourceSpecification} from '../source/canvas_source.ts';
 import type {GeoJSONFeature, MapGeoJSONFeature} from '../util/vectortile_to_geojson.ts';
 import type {ControlPosition, IControl} from './control/control.ts';
 import type {QueryRenderedFeaturesOptions, QuerySourceFeatureOptions} from '../source/query_features.ts';
-import type {TransformConstrainFunction, CameraOptions, CameraForBoundsOptions, PointLike} from '../camera/camera_types.ts';
+import type {TransformConstrainFunction, CameraOptions, CameraForBoundsOptions, NearFarZ, PointLike} from '../camera/camera_types.ts';
 import type {CameraProjectionKind} from '../camera/camera_context.ts';
 import type {WorldCoordinateHelper} from '../geo/world_types.ts';
 
@@ -1293,6 +1293,25 @@ export class Map extends Evented<MapEventType> {
      * ```
      */
     setVerticalFieldOfView(fov: number, eventData?: any): this { this._camera.setVerticalFieldOfView(fov, eventData); return this; }
+
+    /**
+     * Fork: clips at these near and far distances, in the camera's units (pixels at the map's center), in place of
+     * the ones the projection computes. A narrow field of view standing in for an orthographic camera needs them
+     * closed around the map, or the depth buffer has no precision left. `null` computes them again; the globe
+     * always computes its own.
+     *
+     * @param nearFarZ - The clip distances, or `null`.
+     */
+    setNearFarZ(nearFarZ: NearFarZ | null): this {
+        const current = this._camera.renderedState.nearFarZOverride;
+        if (current?.nearZ === nearFarZ?.nearZ && current?.farZ === nearFarZ?.farZ) return this;
+        this._camera.applyStateChange(view => setNearFarZOverride(view, nearFarZ));
+        this._update();
+        return this;
+    }
+
+    /** Fork: the clip distances set with {@link Map.setNearFarZ}, or `null` while the projection computes them. */
+    getNearFarZ(): NearFarZ | null { return this._camera.renderedState.nearFarZOverride; }
     /**
      * Returns the map's current bearing. The bearing is the compass direction that is "up"; for example, a bearing
      * of 90° orients the map so that east is up.

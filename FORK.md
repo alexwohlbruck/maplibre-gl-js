@@ -50,6 +50,7 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Anchors kept on the GPU | `FillExtrusionBucket.centroidVertexBuffer` | `75f89a5c9` |
 | 3D depth range for custom layers | `CustomRenderMethodInput.depthRangeFor3D: [number, number]` | sync to v6.19.0 |
 | Terrain relief shading | terrain property `shading` (number 0–4, default 0) | after the v6.19.0 sync |
+| Clip distances override | `Map#setNearFarZ({nearZ, farZ} \| null)`, `Map#getNearFarZ()` | after the v6.19.0 sync |
 | Clipping-mask reuse | none | `f3cddca7d`, `5d70660cc` |
 | Tile cache kept through a layer change | internal `TileManager.relayout` | `a91513a81` |
 | Parse a tile's layers as read | none | `6278321dc` (part) |
@@ -1205,6 +1206,18 @@ Shading), so this commit exists for compatibility.
 **Implementation.** `src/webgl/draw/draw_custom.ts` adds it to the render input; the type is in `src/style/style_layer/custom_style_layer.ts`. Test: `draw_custom.test.ts`.
 
 **Native porting notes.** Native custom layers receive `CustomLayerRenderParameters`; add the 3D depth range there (Native's `PaintParameters::depthRangeFor3D`, likely).
+
+### Clip distances (`setNearFarZ`)
+
+**Purpose.** Parchment draws its flat top-down view with a 0.5° field of view so it reads as orthographic. That puts the camera roughly a hundred times further away, and with the computed near plane (`height / 50` pixels) the depth buffer has about 2 m of precision left at the map: landmark roofs, lower floors and the ground fight. The camera has to be clipped close around the map instead. Before v6.19.0 the app called `transform.overrideNearFarZ`; that transform is gone.
+
+**API.** `Map#setNearFarZ(nearFarZ: {nearZ: number; farZ: number} | null)` clips at these distances, in the camera's units (pixels at the map's centre, the units of `cameraToCenterDistance`), until `null` hands them back to the projection. `Map#getNearFarZ()` returns the override or `null`. The globe ignores it and keeps its own. Setting the same values again is a no-op; a change re-renders.
+
+**Implementation.** Upstream already carries `CameraViewState.nearFarZOverride`, which `projectCamera` passes to the mercator camera math in place of `calculateNearFarZ`, and an internal `setNearFarZOverride` update that nothing called. `src/ui/map.ts` applies it through `Camera.applyStateChange`, so it survives later camera moves. Test: `src/ui/map_tests/map_near_far_z.test.ts`.
+
+**How Parchment uses it.** In the top-down view (pitch under 0.001°, not globe) it sets `nearZ = 0.5 × d` and `farZ = 2 × d`, with `d` the camera-to-centre distance at the narrowed field of view, and clears it once the map tilts.
+
+**Native porting notes.** Native's `TransformState` computes near and far in `getProjMatrix`; give it an optional override with the same units, cleared by passing nothing.
 
 ## Performance
 

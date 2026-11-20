@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.4/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.5/LICENSE.txt
 */
 // \0rolldown/runtime.js
 var __create = Object.create;
@@ -10229,7 +10229,7 @@ if (!paintFillExtrusion["fill-extrusion-cast-shadows"]) {
 	};
 }
 // package.json
-var version$2 = "6.19.0-transit.1-terrain.4";
+var version$2 = "6.19.0-transit.1-terrain.5";
 // node_modules/@mapbox/point-geometry/index.js
 /**
 * A standalone point geometry with useful accessor, comparison, and
@@ -53269,6 +53269,13 @@ function setMinElevationForCurrentTile(view, minElevationForCurrentTile) {
 		minElevationForCurrentTile
 	};
 }
+/** @internal Sets the depth range to use instead of the one the projection computes, or null to let it compute one. */
+function setNearFarZOverride(view, nearFarZOverride) {
+	return {
+		...view,
+		nearFarZOverride
+	};
+}
 /**
 * @internal
 * Sets or clears the geographical bounds the camera keeps to, and constrains the camera to the new bounds.
@@ -61576,6 +61583,25 @@ var Map$1 = class extends Evented {
 	setVerticalFieldOfView(fov, eventData) {
 		this._camera.setVerticalFieldOfView(fov, eventData);
 		return this;
+	}
+	/**
+	* Fork: clips at these near and far distances, in the camera's units (pixels at the map's center), in place of
+	* the ones the projection computes. A narrow field of view standing in for an orthographic camera needs them
+	* closed around the map, or the depth buffer has no precision left. `null` computes them again; the globe
+	* always computes its own.
+	*
+	* @param nearFarZ - The clip distances, or `null`.
+	*/
+	setNearFarZ(nearFarZ) {
+		const current = this._camera.renderedState.nearFarZOverride;
+		if (current?.nearZ === nearFarZ?.nearZ && current?.farZ === nearFarZ?.farZ) return this;
+		this._camera.applyStateChange((view) => setNearFarZOverride(view, nearFarZ));
+		this._update();
+		return this;
+	}
+	/** Fork: the clip distances set with {@link Map.setNearFarZ}, or `null` while the projection computes them. */
+	getNearFarZ() {
+		return this._camera.renderedState.nearFarZOverride;
 	}
 	/**
 	* Returns the map's current bearing. The bearing is the compass direction that is "up"; for example, a bearing

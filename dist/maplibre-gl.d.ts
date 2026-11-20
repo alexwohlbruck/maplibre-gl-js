@@ -14060,6 +14060,17 @@ declare class Map$1 extends Evented<MapEventType> {
    */
   setVerticalFieldOfView(fov: number, eventData?: any): this;
   /**
+   * Fork: clips at these near and far distances, in the camera's units (pixels at the map's center), in place of
+   * the ones the projection computes. A narrow field of view standing in for an orthographic camera needs them
+   * closed around the map, or the depth buffer has no precision left. `null` computes them again; the globe
+   * always computes its own.
+   *
+   * @param nearFarZ - The clip distances, or `null`.
+   */
+  setNearFarZ(nearFarZ: NearFarZ | null): this;
+  /** Fork: the clip distances set with {@link Map.setNearFarZ}, or `null` while the projection computes them. */
+  getNearFarZ(): NearFarZ | null;
+  /**
    * Returns the map's current bearing. The bearing is the compass direction that is "up"; for example, a bearing
    * of 90° orients the map so that east is up.
    *

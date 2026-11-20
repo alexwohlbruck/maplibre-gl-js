@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.1/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.2/LICENSE.txt
 */
 // \0rolldown/runtime.js
 var __create = Object.create;
@@ -9746,6 +9746,14 @@ function createVisibility(visibility, rootKey, globalState) {
 * to reference/v8.json there.
 */
 const layoutSymbol = latest.layout_symbol;
+const terrain = latest.terrain;
+terrain["shading"] ||= {
+	"type": "number",
+	"default": 0,
+	"minimum": 0,
+	"maximum": 1,
+	"doc": "How strongly the style's light shades the terrain's slopes: 0 leaves it unshaded, 1 shades it as fully as the light lights fill extrusions."
+};
 const layoutLine = latest.layout_line;
 const paintLine = latest.paint_line;
 layoutLine["line-rounded-corner-distance"] ||= {

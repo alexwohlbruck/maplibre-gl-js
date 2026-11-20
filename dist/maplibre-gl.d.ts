@@ -2008,6 +2008,18 @@ type SkyPropsPossiblyEvaluated = {
   "sky-horizon-blend": number;
   "atmosphere-blend": number;
 };
+type LightProps = {
+  "anchor": DataConstantProperty<"map" | "viewport">;
+  "position": DataConstantProperty<[number, number, number]>;
+  "color": DataConstantProperty<Color>;
+  "intensity": DataConstantProperty<number>;
+};
+type LightPropsPossiblyEvaluated = {
+  "anchor": "map" | "viewport";
+  "position": [number, number, number];
+  "color": Color;
+  "intensity": number;
+};
 type TerrainPreludeUniformsType = {
   "u_depth": Uniform1i;
   "u_terrain": Uniform1i;
@@ -4763,18 +4775,6 @@ type ProjectionDataParams = {
    * Set to true if the globe matrix should be applied (i.e. when rendering globe)
    */
   applyGlobeMatrix?: boolean;
-};
-type LightProps = {
-  "anchor": DataConstantProperty<"map" | "viewport">;
-  "position": DataConstantProperty<[number, number, number]>;
-  "color": DataConstantProperty<Color>;
-  "intensity": DataConstantProperty<number>;
-};
-type LightPropsPossiblyEvaluated = {
-  "anchor": "map" | "viewport";
-  "position": [number, number, number];
-  "color": Color;
-  "intensity": number;
 };
 /**
  * @internal
@@ -8157,6 +8157,8 @@ declare class Terrain {
    * multiplicator for the elevation. Used to make terrain more "extreme".
    */
   exaggeration: number;
+  /** How strongly the style's light shades the terrain's slopes, 0 to 1: see `TerrainSpecification.shading`. */
+  shading: number;
   /**
    * to not see pixels in the render-to-texture tiles it is good to render them bigger
    * this number is the multiplicator (must be a power of 2) for the current tileSize.

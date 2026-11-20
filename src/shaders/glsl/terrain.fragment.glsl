@@ -8,6 +8,7 @@ uniform bool u_is_globe_mode;
 
 in vec2 v_texture_pos;
 in float v_fog_depth;
+in float v_relief;
 
 #ifdef SHADING
 in highp vec4 v_sun;
@@ -26,6 +27,7 @@ vec4 linearToGamma(vec4 color) {
 
 void main() {
     vec4 surface_color = texture(u_texture, vec2(v_texture_pos.x, 1.0 - v_texture_pos.y));
+    surface_color.rgb *= v_relief;
     #ifdef SHADING
     // Laid over each drape as it would be over them all: the drapes are premultiplied.
     vec4 shade = ground_shade(v_sun, v_occlusion);

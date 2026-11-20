@@ -49,6 +49,7 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Building ground elevation buffer, tile-agreed anchor | internal attribute `a_anchor_elevation` replaces `a_centroid` | `43e498a61` |
 | Anchors kept on the GPU | `FillExtrusionBucket.centroidVertexBuffer` | `75f89a5c9` |
 | 3D depth range for custom layers | `CustomRenderMethodInput.depthRangeFor3D: [number, number]` | sync to v6.19.0 |
+| Terrain relief shading | terrain property `shading` (number 0–1, default 0) | after the v6.19.0 sync |
 | Clipping-mask reuse | none | `f3cddca7d`, `5d70660cc` |
 | Tile cache kept through a layer change | internal `TileManager.relayout` | `a91513a81` |
 | Parse a tile's layers as read | none | `6278321dc` (part) |
@@ -1844,6 +1845,19 @@ Faces turned away from the light (`facing ≤ 0`) take no shadow test; they are 
   - 3D objects and landmarks (`lib/map-objects/object-layer.ts`, `landmark-layer.ts`): `drawSunDepth`, `drawOcclusion`, `drawLights`, `receiveLights`.
   - Bridge decks (`lib/map-decks/mesh-shadow.ts`, `baked-bridge-layer.ts`): `drawSunDepth`, `drawOcclusion`, `receiveOcclusion`.
   - Tunnels (`lib/map-tunnels/tunnel-layer.ts`): `drawSunDepth`.
+
+### Terrain relief shading
+
+**Purpose.** Hillshading as part of the 3D lighting rather than a raster overlay: the terrain's slopes are lit by the style's `light`, the same light fill extrusions are lit by, so mountains read in relief and their shading turns with whatever moves that light (in Parchment, the sun).
+
+**API.** Terrain property `shading`, number 0–1, default 0 (added in `fork_extensions.ts` to `v8.terrain`; read in the `Terrain` constructor as `Terrain.shading`). 0 leaves the terrain exactly as upstream draws it.
+
+**Behaviour.** Per terrain vertex: the normal from central differences of the elevation 64 tile units either side, `n = normalize(-dz/dx, -dz/dy, 2·64·metresPerUnit)` (x east, y south, z up, elevation in exaggerated metres). With `L` the light's unit direction (`sphericalToCartesian(light.position)`, turned by the camera bearing when `light.anchor` is `viewport`, as for extrusions) and `I` the light's intensity:
+`slope = mix(1 − I, 1, clamp(n·L, 0, 1))`, `level = mix(1 − I, 1, clamp(L.z, 0, 1))`, `relief = mix(1, clamp(slope / max(level, 0.05), 0.35, 1.4), shading)`. The draped colour is multiplied by `relief` before the shading's shadows and the fog are laid over it, so flat ground keeps its colour and only slopes change. `metresPerUnit` is the tile's metres per tile unit at its centre latitude: `2π·earthRadius·cos(lat) / 2^z / 8192`.
+
+**Implementation.** `terrainRelief()` in `src/webgl/program/terrain_program.ts` computes `u_relief` (light xyz, strength) and `u_relief_scale` (metres per unit, intensity) per tile; `draw_terrain.ts` passes them; `terrain.vertex.glsl` computes `v_relief` (four extra DEM reads per vertex, only when the strength is above 0); `terrain.fragment.glsl` multiplies by it. Test: `terrain_program.test.ts`.
+
+**Native porting notes.** Native's terrain is drawn by its own terrain/hillshade programs; add the same per-vertex normal from the DEM and the same formula, fed by the style light (`EvaluatedLight`, likely). Per-vertex lighting relies on the 128-cell terrain mesh; a coarser mesh wants it per fragment.
 
 ## Porting order
 

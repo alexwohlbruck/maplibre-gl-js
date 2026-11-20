@@ -14,6 +14,17 @@
 import {v8} from '@maplibre/maplibre-gl-style-spec';
 
 const layoutSymbol = (v8 as any).layout_symbol;
+const terrain = (v8 as any).terrain;
+
+// Relief lit by the style's `light`, the one fill extrusions are lit by, so slopes turned to it brighten and slopes
+// turned away darken as the extrusions' walls do.
+terrain['shading'] ||= {
+    'type': 'number',
+    'default': 0,
+    'minimum': 0,
+    'maximum': 1,
+    'doc': 'How strongly the style\'s light shades the terrain\'s slopes: 0 leaves it unshaded, 1 shades it as fully as the light lights fill extrusions.'
+};
 const layoutLine = (v8 as any).layout_line;
 const paintLine = (v8 as any).paint_line;
 

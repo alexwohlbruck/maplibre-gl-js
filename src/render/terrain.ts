@@ -124,6 +124,8 @@ export class Terrain {
      * multiplicator for the elevation. Used to make terrain more "extreme".
      */
     exaggeration: number;
+    /** How strongly the style's light shades the terrain's slopes, 0 to 1: see `TerrainSpecification.shading`. */
+    shading: number;
     /**
      * to not see pixels in the render-to-texture tiles it is good to render them bigger
      * this number is the multiplicator (must be a power of 2) for the current tileSize.
@@ -173,6 +175,7 @@ export class Terrain {
         this.tileManager = new TerrainTileManager(tileManager);
         this.options = options;
         this.exaggeration = typeof options.exaggeration === 'number' ? options.exaggeration : 1.0;
+        this.shading = typeof (options as {shading?: number}).shading === 'number' ? Math.min(Math.max((options as {shading?: number}).shading, 0), 1) : 0;
         this._terrainSkirtLength = terrainSkirtLength;
         this.qualityFactor = 2;
         this.meshSize = 128;

@@ -48961,6 +48961,8 @@ var Context = class {
 		this.extTextureFilterAnisotropic = gl.getExtension("EXT_texture_filter_anisotropic");
 		if (this.extTextureFilterAnisotropic) this.extTextureFilterAnisotropicMax = gl.getParameter(this.extTextureFilterAnisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
 		this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+		this.parallelShaderCompile = gl.getExtension("KHR_parallel_shader_compile");
+		this.programsPending = false;
 		gl.getExtension("EXT_color_buffer_half_float");
 		gl.getExtension("EXT_color_buffer_float");
 		this.boundUniformBuffers = [];
@@ -49370,8 +49372,10 @@ function getIntegerAttributeNames(gl, program) {
 * A webgl program to execute in the GPU space
 */
 var Program = class {
-	constructor(context, source, configuration, fixedUniforms, showOverdrawInspector, useTerrain, projectionPrelude, projectionDefine, extraDefines = [], fragmentChunk = "") {
+	constructor(context, source, configuration, fixedUniforms, showOverdrawInspector, useTerrain, projectionPrelude, projectionDefine, extraDefines = [], fragmentChunk = "", deferLink = false) {
+		this.finishLink = null;
 		const gl = context.gl;
+		this.context = context;
 		this.program = gl.createProgram();
 		const staticAttrInfo = getTokenizedAttributesAndUniforms(source.staticAttributes);
 		const dynamicAttrInfo = configuration ? configuration.getBinderAttributes() : [];
@@ -49410,38 +49414,58 @@ var Program = class {
 		const uniformLocations = {};
 		this.numAttributes = allAttrInfo.length;
 		gl.linkProgram(this.program);
-		if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
-			if (gl.isContextLost() || gl.getProgramParameter(this.program, gl.ATTACHED_SHADERS) === 0) {
-				this.failedToCreate = true;
-				return;
+		const finish = () => {
+			if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
+				if (gl.isContextLost() || gl.getProgramParameter(this.program, gl.ATTACHED_SHADERS) === 0) {
+					this.failedToCreate = true;
+					return;
+				}
+				if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) throw new Error(`Could not compile fragment shader: ${gl.getShaderInfoLog(fragmentShader)}`);
+				if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) throw new Error(`Could not compile vertex shader: ${gl.getShaderInfoLog(vertexShader)}`);
+				throw new Error(`Program failed to link: ${gl.getProgramInfoLog(this.program)}`);
 			}
-			if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) throw new Error(`Could not compile fragment shader: ${gl.getShaderInfoLog(fragmentShader)}`);
-			if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) throw new Error(`Could not compile vertex shader: ${gl.getShaderInfoLog(vertexShader)}`);
-			throw new Error(`Program failed to link: ${gl.getProgramInfoLog(this.program)}`);
+			applyUBOBindings(gl, this.program);
+			const integerAttributeNames = getIntegerAttributeNames(gl, this.program);
+			for (const name of allAttrInfo) {
+				if (!name) continue;
+				const location = gl.getAttribLocation(this.program, name);
+				if (location >= 0) this.attributes[name] = {
+					location,
+					isInteger: integerAttributeNames.has(name)
+				};
+			}
+			gl.deleteShader(vertexShader);
+			gl.deleteShader(fragmentShader);
+			for (const uniform of allUniformsInfo) if (uniform && !uniformLocations[uniform]) {
+				const uniformLocation = gl.getUniformLocation(this.program, uniform);
+				if (uniformLocation) uniformLocations[uniform] = uniformLocation;
+			}
+			this.fixedUniforms = fixedUniforms(context, uniformLocations);
+			this.terrainUniforms = terrainPreludeUniforms(context, uniformLocations);
+			this.binderUniforms = configuration ? configuration.getUniforms(context, uniformLocations) : [];
+		};
+		if (deferLink && context.parallelShaderCompile) this.finishLink = finish;
+		else finish();
+	}
+	/**
+	* Whether the program has linked and can draw. A deferred program that is still linking flags the context
+	* so the map renders again, and is finished here the first time the driver reports it complete.
+	*/
+	isReady() {
+		if (!this.finishLink) return !this.failedToCreate;
+		const gl = this.context.gl;
+		if (!gl.isContextLost() && !gl.getProgramParameter(this.program, this.context.parallelShaderCompile.COMPLETION_STATUS_KHR)) {
+			this.context.programsPending = true;
+			return false;
 		}
-		applyUBOBindings(gl, this.program);
-		const integerAttributeNames = getIntegerAttributeNames(gl, this.program);
-		for (const name of allAttrInfo) {
-			if (!name) continue;
-			const location = gl.getAttribLocation(this.program, name);
-			if (location >= 0) this.attributes[name] = {
-				location,
-				isInteger: integerAttributeNames.has(name)
-			};
-		}
-		gl.deleteShader(vertexShader);
-		gl.deleteShader(fragmentShader);
-		for (const uniform of allUniformsInfo) if (uniform && !uniformLocations[uniform]) {
-			const uniformLocation = gl.getUniformLocation(this.program, uniform);
-			if (uniformLocation) uniformLocations[uniform] = uniformLocation;
-		}
-		this.fixedUniforms = fixedUniforms(context, uniformLocations);
-		this.terrainUniforms = terrainPreludeUniforms(context, uniformLocations);
-		this.binderUniforms = configuration ? configuration.getUniforms(context, uniformLocations) : [];
+		const finish = this.finishLink;
+		this.finishLink = null;
+		finish();
+		return !this.failedToCreate;
 	}
 	draw(context, drawMode, depthMode, stencilMode, colorMode, cullFaceMode, uniformValues, terrain, projectionData, layerID, layoutVertexBuffer, indexBuffer, segments, currentProperties, zoom, configuration, dynamicLayoutBuffer, dynamicLayoutBuffer2, dynamicLayoutBuffer3) {
 		const gl = context.gl;
-		if (this.failedToCreate) return;
+		if (!this.isReady()) return;
 		context.program.set(this.program);
 		context.terrainUniformBuffer.bind();
 		context.frameUniformBuffer.bind();
@@ -50121,6 +50145,34 @@ const programUniforms = {
 	sky: skyUniforms
 };
 // src/webgl/program_cache.ts
+/**
+* Programs that draw a style layer straight to the screen, which can skip a frame while they link. Programs that
+* fill a cached texture or a mask the next draw reads (prepare passes, clipping, depth, terrain, shading) link
+* at once, since a frame drawn without them would be kept.
+*/
+const DEFERRED_PROGRAMS = /* @__PURE__ */ new Set([
+	"background",
+	"backgroundPattern",
+	"circle",
+	"fill",
+	"fillOutline",
+	"fillOutlinePattern",
+	"fillPattern",
+	"fillExtrusion",
+	"fillExtrusionPattern",
+	"line",
+	"lineVariableOffset",
+	"lineGradient",
+	"linePattern",
+	"lineSDF",
+	"lineGradientSDF",
+	"raster",
+	"hillshade",
+	"colorRelief",
+	"symbolIcon",
+	"symbolSDF",
+	"symbolTextAndIcon"
+]);
 const chunkIds = /* @__PURE__ */ new Map();
 /** A short name for a block of shader source, for the program cache's key. */
 function chunkId(source) {
@@ -50146,7 +50198,7 @@ var ProgramCache = class {
 		const terrainKey = variant.useTerrain ? "/terrain" : "";
 		const definesKey = (variant.defines ? `/${variant.defines.join("/")}` : "") + (variant.fragmentChunk ? `/${chunkId(variant.fragmentChunk)}` : "");
 		const key = variant.name + configurationKey + projectionKey + overdrawKey + terrainKey + definesKey;
-		this.programs[key] ||= new Program(this.context, shaders[variant.name], variant.programConfiguration, programUniforms[variant.name], variant.showOverdrawInspector, variant.useTerrain, variant.projectionShaderVariant.prelude, variant.projectionShaderVariant.define, variant.defines, variant.fragmentChunk);
+		this.programs[key] ||= new Program(this.context, shaders[variant.name], variant.programConfiguration, programUniforms[variant.name], variant.showOverdrawInspector, variant.useTerrain, variant.projectionShaderVariant.prelude, variant.projectionShaderVariant.define, variant.defines, variant.fragmentChunk, DEFERRED_PROGRAMS.has(variant.name));
 		return this.programs[key];
 	}
 	destroy() {
@@ -51262,7 +51314,7 @@ function drawExtrusionTiles(tileManager, layer, coords, depthMode, stencilMode, 
 		const translate = translatePosition(projectedCamera, tile, layer.paint.get("fill-extrusion-translate"), layer.paint.get("fill-extrusion-translate-anchor"));
 		const shouldUseVerticalGradient = layer.paint.get("fill-extrusion-vertical-gradient");
 		const uniformValues = image ? fillExtrusionPatternUniformValues(projectedCamera, frameRenderContext.data.light, shouldUseVerticalGradient, opacity, translate, coord, crossfade, tile) : fillExtrusionUniformValues(projectedCamera, frameRenderContext.data.light, shouldUseVerticalGradient, opacity, translate);
-		if (shading && !program.failedToCreate) {
+		if (shading && program.isReady()) {
 			extend(uniformValues, shading.extrusionUniforms(coord));
 			context.program.set(program.program);
 			shading.setWallUniforms(program.program);
@@ -59890,6 +59942,8 @@ var RenderToTexture = class {
 		const stack = this._stacks.length - 1, layers = this._stacks[stack] || [];
 		frameRenderContext.isRenderingToTexture = true;
 		setFrameUniformWorldSize(painter.context.frameUniformBuffer, this.rttSize, this.rttSize);
+		const programsPending = painter.context.programsPending;
+		const incomplete = [];
 		for (const tile of this._renderableTiles) {
 			this._rttTiles.push(tile);
 			if (tile.getRTT(stack)) continue;
@@ -59900,6 +59954,7 @@ var RenderToTexture = class {
 				stencil: 0
 			});
 			frameRenderContext.invalidateTileClippingMasks();
+			painter.context.programsPending = false;
 			for (const layerId of layers) {
 				const layer = style._layers[layerId];
 				const coords = layer.source ? this._coordsAscending[layer.source][tile.tileID.key] : [tile.tileID];
@@ -59915,12 +59970,15 @@ var RenderToTexture = class {
 				if (fingerprintKey) tile.rttFingerprint[fingerprintKey] = this._rttFingerprints[fingerprintKey][tile.tileID.key];
 			}
 			obj.texture.generateMipmap();
+			if (painter.context.programsPending) incomplete.push(tile);
 		}
+		painter.context.programsPending = programsPending || incomplete.length > 0;
 		frameRenderContext.isRenderingToTexture = false;
 		frameRenderContext.invalidateTileClippingMasks();
 		setFrameUniformWorldSize(painter.context.frameUniformBuffer, painter.context.gl.drawingBufferWidth, painter.context.gl.drawingBufferHeight);
 		drawTerrain(this.painter, this.terrain, this._rttTiles, frameRenderContext);
 		this._rttTiles = [];
+		for (const tile of incomplete) tile.releaseRTTStack(painter, stack);
 	}
 };
 // src/ui/default_locale.ts
@@ -64345,6 +64403,7 @@ var Map$1 = class extends Evented {
 		this._placementDirty = this.style?._updatePlacement(this._camera.projectedCamera, this._camera.context.worldCoordinateHelper, this.showCollisionBoxes, fadeDuration, this._crossSourceCollisions, globeRenderingChanged, this._isolatedCollisionLayers);
 		const projection = this.style.projection;
 		const projectionTransition = projection?.transitionState ?? 0;
+		this.painter.context.programsPending = false;
 		this.painter.render(this.style, this._camera.projectedCamera, this._camera.context.worldCoordinateHelper, {
 			showTileBoundaries: this.showTileBoundaries,
 			showOverdrawInspector: this._showOverdrawInspector,
@@ -64375,7 +64434,7 @@ var Map$1 = class extends Evented {
 		}
 		if (this.style && (this.style.hasTransitions() || crossFading)) this._styleDirty = true;
 		if (this.style && !this._placementDirty) this.style._releaseSymbolFadeTiles();
-		const somethingDirty = this._sourcesDirty || this._styleDirty || this._placementDirty || this.painter.renderToTexture?.needsFollowUpFrame;
+		const somethingDirty = this._sourcesDirty || this._styleDirty || this._placementDirty || this.painter.renderToTexture?.needsFollowUpFrame || this.painter.context.programsPending;
 		if (somethingDirty || this._repaint) this.triggerRepaint();
 		else if (!this.isMoving() && this.loaded()) this.fire(new MapLibreEvent("idle"));
 		if (this._loaded && !this._fullyLoaded && !somethingDirty) this._fullyLoaded = true;

@@ -22,8 +22,8 @@ terrain['shading'] ||= {
     'type': 'number',
     'default': 0,
     'minimum': 0,
-    'maximum': 1,
-    'doc': 'How strongly the style\'s light shades the terrain\'s slopes: 0 leaves it unshaded, 1 shades it as fully as the light lights fill extrusions.'
+    'maximum': 4,
+    'doc': 'How strongly the style\'s light shades the terrain\'s slopes: 0 leaves it unshaded, 1 shades it as the light lights fill extrusions, and more exaggerates the relief.'
 };
 const layoutLine = (v8 as any).layout_line;
 const paintLine = (v8 as any).paint_line;

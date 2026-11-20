@@ -20,7 +20,7 @@ float relief_shade(vec2 pos) {
     float floor_light = 1.0 - u_relief_scale.y;
     float slope = mix(floor_light, 1.0, clamp(dot(n, u_relief.xyz), 0.0, 1.0));
     float level = mix(floor_light, 1.0, clamp(u_relief.z, 0.0, 1.0));
-    return mix(1.0, clamp(slope / max(level, 0.05), 0.35, 1.4), u_relief.w);
+    return clamp(mix(1.0, slope / max(level, 0.05), u_relief.w), 0.3, 1.5);
 }
 
 #ifdef SHADING

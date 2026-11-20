@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.3/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.4/LICENSE.txt
 */
 // \0rolldown/runtime.js
 var __create = Object.create;
@@ -9751,8 +9751,8 @@ terrain["shading"] ||= {
 	"type": "number",
 	"default": 0,
 	"minimum": 0,
-	"maximum": 1,
-	"doc": "How strongly the style's light shades the terrain's slopes: 0 leaves it unshaded, 1 shades it as fully as the light lights fill extrusions."
+	"maximum": 4,
+	"doc": "How strongly the style's light shades the terrain's slopes: 0 leaves it unshaded, 1 shades it as the light lights fill extrusions, and more exaggerates the relief."
 };
 const layoutLine = latest.layout_line;
 const paintLine = latest.paint_line;

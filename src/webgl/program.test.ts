@@ -39,4 +39,40 @@ describe('Program', () => {
 
         expect(() => cache.getProgram(clippingMaskVariant)).toThrow('Program failed to link');
     });
+
+    describe('with parallel shader compilation', () => {
+        const COMPLETION_STATUS_KHR = 0x91B1;
+        const fillVariant = {...clippingMaskVariant, name: 'fill'};
+        let context: Context;
+        let linked: boolean;
+
+        beforeEach(() => {
+            linked = false;
+            vi.mocked(gl.getExtension).mockImplementation(((name: string) => (name === 'KHR_parallel_shader_compile' ? {COMPLETION_STATUS_KHR} : null)) as any);
+            vi.mocked(gl.getProgramParameter).mockImplementation((_program, pname) => (pname === COMPLETION_STATUS_KHR ? linked : true));
+            context = new Context(gl);
+            cache = new ProgramCache(context);
+        });
+
+        test('a layer program reads nothing from the driver until it reports the link complete', () => {
+            const program = cache.getProgram(fillVariant);
+
+            expect(program.isReady()).toBe(false);
+            expect(context.programsPending).toBe(true);
+            expect(gl.getUniformLocation).not.toHaveBeenCalled();
+
+            linked = true;
+            expect(program.isReady()).toBe(true);
+            expect(gl.getUniformLocation).toHaveBeenCalled();
+            expect(program.fixedUniforms).toBeDefined();
+        });
+
+        test('a mask program links at once, since a frame drawn without it would be kept', () => {
+            const program = cache.getProgram(clippingMaskVariant);
+
+            expect(gl.getUniformLocation).toHaveBeenCalled();
+            expect(program.isReady()).toBe(true);
+            expect(context.programsPending).toBe(false);
+        });
+    });
 });

@@ -18,6 +18,17 @@ type ProgramVariant = {
     fragmentChunk?: string;
 };
 
+/**
+ * Programs that draw a style layer straight to the screen, which can skip a frame while they link. Programs that
+ * fill a cached texture or a mask the next draw reads (prepare passes, clipping, depth, terrain, shading) link
+ * at once, since a frame drawn without them would be kept.
+ */
+const DEFERRED_PROGRAMS = new Set([
+    'background', 'backgroundPattern', 'circle', 'fill', 'fillOutline', 'fillOutlinePattern', 'fillPattern',
+    'fillExtrusion', 'fillExtrusionPattern', 'line', 'lineVariableOffset', 'lineGradient', 'linePattern', 'lineSDF',
+    'lineGradientSDF', 'raster', 'hillshade', 'colorRelief', 'symbolIcon', 'symbolSDF', 'symbolTextAndIcon'
+]);
+
 const chunkIds = new Map<string, number>();
 /** A short name for a block of shader source, for the program cache's key. */
 function chunkId(source: string): number {
@@ -59,7 +70,8 @@ export class ProgramCache {
             variant.projectionShaderVariant.prelude,
             variant.projectionShaderVariant.define,
             variant.defines,
-            variant.fragmentChunk
+            variant.fragmentChunk,
+            DEFERRED_PROGRAMS.has(variant.name)
         );
         return this.programs[key];
     }

@@ -318,6 +318,8 @@ export class RenderToTexture {
         const stack = this._stacks.length - 1, layers = this._stacks[stack] || [];
         frameRenderContext.isRenderingToTexture = true;
         setFrameUniformWorldSize(painter.context.frameUniformBuffer, this.rttSize, this.rttSize);
+        const programsPending = painter.context.programsPending;
+        const incomplete: Tile[] = [];
         for (const tile of this._renderableTiles) {
             this._rttTiles.push(tile);
             // Cache hit: this tile already has a RTT object for this stack from a previous frame.
@@ -326,6 +328,7 @@ export class RenderToTexture {
             painter.bindRTT(obj);
             painter.context.clear({color: Color.transparent, stencil: 0});
             frameRenderContext.invalidateTileClippingMasks();
+            painter.context.programsPending = false;
             for (const layerId of layers) {
                 const layer = style._layers[layerId];
                 const coords = layer.source ? this._coordsAscending[layer.source][tile.tileID.key] : [tile.tileID];
@@ -336,12 +339,16 @@ export class RenderToTexture {
                 if (fingerprintKey) tile.rttFingerprint[fingerprintKey] = this._rttFingerprints[fingerprintKey][tile.tileID.key];
             }
             obj.texture.generateMipmap();
+            if (painter.context.programsPending) incomplete.push(tile);
         }
+        painter.context.programsPending = programsPending || incomplete.length > 0;
         frameRenderContext.isRenderingToTexture = false;
         frameRenderContext.invalidateTileClippingMasks();
         setFrameUniformWorldSize(painter.context.frameUniformBuffer, painter.context.gl.drawingBufferWidth, painter.context.gl.drawingBufferHeight);
         drawTerrain(this.painter, this.terrain, this._rttTiles, frameRenderContext);
         this._rttTiles = [];
+        // A texture drawn while one of its layers' programs was still linking lacks that layer: redraw it next frame.
+        for (const tile of incomplete) tile.releaseRTTStack(painter, stack);
     }
 
 }

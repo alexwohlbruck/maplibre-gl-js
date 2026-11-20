@@ -4699,6 +4699,7 @@ export class Map extends Evented<MapEventType> {
         const projectionTransition = projection?.transitionState ?? 0;
 
         // Actually draw
+        this.painter.context.programsPending = false;
         this.painter.render(this.style, this._camera.projectedCamera, this._camera.context.worldCoordinateHelper, {
             showTileBoundaries: this.showTileBoundaries,
             showOverdrawInspector: this._showOverdrawInspector,
@@ -4742,7 +4743,7 @@ export class Map extends Evented<MapEventType> {
         // Even though `_styleDirty` and `_sourcesDirty` are reset in this
         // method, synchronous events fired during Style.update or
         // Style._updateSources could have caused them to be set again.
-        const somethingDirty = this._sourcesDirty || this._styleDirty || this._placementDirty || this.painter.renderToTexture?.needsFollowUpFrame;
+        const somethingDirty = this._sourcesDirty || this._styleDirty || this._placementDirty || this.painter.renderToTexture?.needsFollowUpFrame || this.painter.context.programsPending;
         if (somethingDirty || this._repaint) {
             this.triggerRepaint();
         } else if (!this.isMoving() && this.loaded()) {

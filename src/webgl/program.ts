@@ -65,6 +65,8 @@ export class Program<Us extends UniformBindings> {
     terrainUniforms: TerrainPreludeUniformsType;
     binderUniforms: BinderUniform[];
     failedToCreate: boolean;
+    private readonly context: Context;
+    private finishLink: (() => void) | null = null;
 
     constructor(context: Context,
         source: PreparedShader,
@@ -75,9 +77,11 @@ export class Program<Us extends UniformBindings> {
         projectionPrelude: PreparedShader,
         projectionDefine: string,
         extraDefines: string[] = [],
-        fragmentChunk: string = '') {
+        fragmentChunk: string = '',
+        deferLink: boolean = false) {
 
         const gl = context.gl;
+        this.context = context;
         this.program = gl.createProgram();
 
         const staticAttrInfo = getTokenizedAttributesAndUniforms(source.staticAttributes);
@@ -139,48 +143,72 @@ export class Program<Us extends UniformBindings> {
         // only asked how they compiled when the link failed, to name the one at fault.
         gl.linkProgram(this.program);
 
-        if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
-            // A dead GPU process answers every query with 0 until isContextLost() turns true, so a
-            // failed link with zero attached shaders means the driver died, not the shaders (#8607).
-            if (gl.isContextLost() || gl.getProgramParameter(this.program, gl.ATTACHED_SHADERS) === 0) {
-                this.failedToCreate = true;
-                return;
+        const finish = () => {
+            if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
+                // A dead GPU process answers every query with 0 until isContextLost() turns true, so a
+                // failed link with zero attached shaders means the driver died, not the shaders (#8607).
+                if (gl.isContextLost() || gl.getProgramParameter(this.program, gl.ATTACHED_SHADERS) === 0) {
+                    this.failedToCreate = true;
+                    return;
+                }
+                if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+                    throw new Error(`Could not compile fragment shader: ${gl.getShaderInfoLog(fragmentShader)}`);
+                }
+                if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+                    throw new Error(`Could not compile vertex shader: ${gl.getShaderInfoLog(vertexShader)}`);
+                }
+                throw new Error(`Program failed to link: ${gl.getProgramInfoLog(this.program)}`);
             }
-            if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-                throw new Error(`Could not compile fragment shader: ${gl.getShaderInfoLog(fragmentShader)}`);
-            }
-            if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-                throw new Error(`Could not compile vertex shader: ${gl.getShaderInfoLog(vertexShader)}`);
-            }
-            throw new Error(`Program failed to link: ${gl.getProgramInfoLog(this.program)}`);
-        }
 
-        applyUBOBindings(gl, this.program);
+            applyUBOBindings(gl, this.program);
 
-        const integerAttributeNames = getIntegerAttributeNames(gl, this.program);
-        for (const name of allAttrInfo) {
-            if (!name) continue;
-            const location = gl.getAttribLocation(this.program, name);
-            if (location >= 0) {
-                this.attributes[name] = {location, isInteger: integerAttributeNames.has(name)};
-            }
-        }
-
-        gl.deleteShader(vertexShader);
-        gl.deleteShader(fragmentShader);
-
-        for (const uniform of allUniformsInfo) {
-            if (uniform && !uniformLocations[uniform]) {
-                const uniformLocation = gl.getUniformLocation(this.program, uniform);
-                if (uniformLocation) {
-                    uniformLocations[uniform] = uniformLocation;
+            const integerAttributeNames = getIntegerAttributeNames(gl, this.program);
+            for (const name of allAttrInfo) {
+                if (!name) continue;
+                const location = gl.getAttribLocation(this.program, name);
+                if (location >= 0) {
+                    this.attributes[name] = {location, isInteger: integerAttributeNames.has(name)};
                 }
             }
-        }
 
-        this.fixedUniforms = fixedUniforms(context, uniformLocations);
-        this.terrainUniforms = terrainPreludeUniforms(context, uniformLocations);
-        this.binderUniforms = configuration ? configuration.getUniforms(context, uniformLocations) : [];
+            gl.deleteShader(vertexShader);
+            gl.deleteShader(fragmentShader);
+
+            for (const uniform of allUniformsInfo) {
+                if (uniform && !uniformLocations[uniform]) {
+                    const uniformLocation = gl.getUniformLocation(this.program, uniform);
+                    if (uniformLocation) {
+                        uniformLocations[uniform] = uniformLocation;
+                    }
+                }
+            }
+
+            this.fixedUniforms = fixedUniforms(context, uniformLocations);
+            this.terrainUniforms = terrainPreludeUniforms(context, uniformLocations);
+            this.binderUniforms = configuration ? configuration.getUniforms(context, uniformLocations) : [];
+        };
+
+        // With parallel compilation the driver links off the main thread; reading any result before it
+        // finishes would block, so a deferred program is finished by the first draw that finds it complete.
+        if (deferLink && context.parallelShaderCompile) this.finishLink = finish;
+        else finish();
+    }
+
+    /**
+     * Whether the program has linked and can draw. A deferred program that is still linking flags the context
+     * so the map renders again, and is finished here the first time the driver reports it complete.
+     */
+    isReady(): boolean {
+        if (!this.finishLink) return !this.failedToCreate;
+        const gl = this.context.gl;
+        if (!gl.isContextLost() && !gl.getProgramParameter(this.program, this.context.parallelShaderCompile.COMPLETION_STATUS_KHR)) {
+            this.context.programsPending = true;
+            return false;
+        }
+        const finish = this.finishLink;
+        this.finishLink = null;
+        finish();
+        return !this.failedToCreate;
     }
 
     draw(context: Context,
@@ -205,7 +233,7 @@ export class Program<Us extends UniformBindings> {
 
         const gl = context.gl;
 
-        if (this.failedToCreate) return;
+        if (!this.isReady()) return;
 
         context.program.set(this.program);
         context.terrainUniformBuffer.bind();

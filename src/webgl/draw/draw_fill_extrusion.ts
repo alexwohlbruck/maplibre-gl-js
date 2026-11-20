@@ -101,7 +101,7 @@ function drawExtrusionTiles(
         const uniformValues = image ?
             fillExtrusionPatternUniformValues(projectedCamera, frameRenderContext.data.light, shouldUseVerticalGradient, opacity, translate, coord, crossfade, tile) :
             fillExtrusionUniformValues(projectedCamera, frameRenderContext.data.light, shouldUseVerticalGradient, opacity, translate);
-        if (shading && !program.failedToCreate) {
+        if (shading && program.isReady()) {
             extend(uniformValues, shading.extrusionUniforms(coord));
             context.program.set(program.program);
             shading.setWallUniforms(program.program);

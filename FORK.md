@@ -56,6 +56,7 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Tile cache kept through a layer change | internal `TileManager.relayout` | `a91513a81` |
 | Parse a tile's layers as read | none | `6278321dc` (part) |
 | Labels placed half as often while panning | none (`MOVING_PLACEMENT_STRETCH = 2`) | `f6bb4474e` (part) |
+| Layer programs link without blocking | none (internal `Program.isReady`, `Context.programsPending`) | see below |
 | Muted layers | `Map#setLayerMuted(layerId, muted)`, runtime only | `d8ea3c430` |
 | Symbol clip | `Map#setSymbolClip(layerIds, Polygon \| MultiPolygon \| null)` | `d8ea3c430`, `e3cc0358d` (anchor only) |
 | Negative extrusion height hides | `fill-extrusion-height < 0` not drawn | `d8ea3c430` |
@@ -1426,6 +1427,55 @@ commit time, together with the `TransformState` / `UpdateParameters` camera-movi
 recency. Multiply the window by 2 when the transform is moving and not zooming.
 
 **Commits.** `f6bb4474e` (the `style.ts` / `placement.ts` part only).
+
+### Layer programs link without blocking
+
+**Purpose.** Each shader variant is compiled the first time a layer draws with it. Upstream reads the link status
+straight after `linkProgram`, so the main thread waits for the driver to compile and link every new variant, one
+at a time. On Parchment's style this was about 770 ms of blocked main thread while the map first drew. With
+`KHR_parallel_shader_compile` the driver links off the main thread, and the fork reads nothing from a layer's
+program until the driver says the link is done. The layer appears a frame or a few later instead of holding up
+the whole frame.
+
+**API / style-spec surface.** None. Internal: `Program.isReady()`, `Context.parallelShaderCompile`,
+`Context.programsPending`.
+
+**Behaviour.**
+- `Context` requests `KHR_parallel_shader_compile` once. Without it, every program links at once as upstream does.
+- `ProgramCache` defers only the programs that draw a style layer straight to the screen: `background`,
+  `backgroundPattern`, `circle`, `fill`, `fillOutline`, `fillOutlinePattern`, `fillPattern`, `fillExtrusion`,
+  `fillExtrusionPattern`, `line`, `lineVariableOffset`, `lineGradient`, `linePattern`, `lineSDF`,
+  `lineGradientSDF`, `raster`, `hillshade`, `colorRelief`, `symbolIcon`, `symbolSDF`, `symbolTextAndIcon`.
+  Everything else (clipping masks, depth, prepare passes, heatmap, terrain, sky, shading, collision debug) links
+  at once, because a frame drawn without it would be kept: a missing mask, a prepared texture or a shadow map.
+- A deferred program compiles both shaders, binds nothing, and calls `linkProgram`. It then stores the rest of
+  the upstream constructor (link status check, UBO bindings, attribute and uniform locations, uniform bindings)
+  as a closure.
+- `Program.isReady()`: done programs return `!failedToCreate`. A deferred one queries `COMPLETION_STATUS_KHR`
+  (skipped when the context is lost); while that is false it sets `context.programsPending = true` and returns
+  false. Once it is true, the closure runs once, which throws on a compile or link error exactly as upstream.
+- `Program.draw` returns early unless `isReady()`. Extrusion drawing calls `isReady()` before setting the shading
+  wall uniforms, which read the program's uniform locations.
+- `Map._render` clears `programsPending` before `painter.render` and treats it as dirty afterwards, so the map
+  keeps rendering, and does not fire `idle`, until every program it asked for has linked.
+- Render-to-texture (terrain draping) caches each tile's texture. `_renderStack` notes which tiles were drawn
+  while a program was pending and releases those stacks after `drawTerrain`, so they are drawn again once the
+  program is ready instead of keeping a texture without that layer.
+
+**Implementation in GL JS.** `src/webgl/program.ts`, `src/webgl/program_cache.ts` (`DEFERRED_PROGRAMS`),
+`src/webgl/context.ts`, `src/webgl/render_to_texture.ts` (`_renderStack`), `src/webgl/draw/draw_fill_extrusion.ts`,
+`src/ui/map.ts` (`_render`).
+
+**Tests.** `src/webgl/program.test.ts`: a deferred layer program reads no uniform locations until the driver
+reports the link complete, and sets `programsPending` meanwhile; a clipping-mask program links at once.
+
+**Native porting notes.** Native compiles shaders through `gfx::ShaderProgramBase` / the backend's program cache
+(likely `gl::ProgramGL::create`, `mtl::ShaderProgram`, `vulkan::ShaderProgram`). Metal and Vulkan already build
+pipelines off the render thread in some paths; for GL, the same split applies: issue compile and link, poll
+`GL_COMPLETION_STATUS_KHR` where the driver has `GL_KHR_parallel_shader_compile`, skip the layer's drawables
+while it is false and request another frame. Keep mask, depth, prepare and offscreen passes synchronous.
+
+**Commits.** see the `parallel-shaders` branch.
 
 ## Hiding without reload
 

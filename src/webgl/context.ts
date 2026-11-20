@@ -34,6 +34,9 @@ export class Context {
 
     currentNumAttributes: number;
     maxTextureSize: number;
+    parallelShaderCompile: KHR_parallel_shader_compile | null;
+    /** Set when a draw was skipped because its program is still linking; the map renders again until it clears. */
+    programsPending: boolean;
 
     clearColor: ClearColor;
     clearDepth: ClearDepth;
@@ -117,6 +120,9 @@ export class Context {
         }
 
         this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+
+        this.parallelShaderCompile = gl.getExtension('KHR_parallel_shader_compile');
+        this.programsPending = false;
 
         gl.getExtension('EXT_color_buffer_half_float');
         gl.getExtension('EXT_color_buffer_float');

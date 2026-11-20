@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.2/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.3/LICENSE.txt
 */
 // \0rolldown/runtime.js
 var __create = Object.create;
@@ -10229,7 +10229,7 @@ if (!paintFillExtrusion["fill-extrusion-cast-shadows"]) {
 	};
 }
 // package.json
-var version$2 = "6.19.0-transit.1-terrain.2";
+var version$2 = "6.19.0-transit.1-terrain.3";
 // node_modules/@mapbox/point-geometry/index.js
 /**
 * A standalone point geometry with useful accessor, comparison, and

@@ -31,7 +31,12 @@ in vec4 a_elevation;
 out highp vec2 v_tile_pos;
 out float v_lift;
 // Metres an elevated line's depth is pulled towards the camera, so the terrain or deck under it does not cover it.
+// The globe's matrix rounds depth by hundreds of metres, so there only the planet's far side still covers a line.
+#ifdef GLOBE
+#define ELEVATION_DEPTH_BIAS (2.0 + 10000.0 * u_projection_transition)
+#else
 #define ELEVATION_DEPTH_BIAS 2.0
+#endif
 #endif
 #ifdef GLOBE
 out float v_depth;

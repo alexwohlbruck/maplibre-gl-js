@@ -442,6 +442,7 @@ Profile string format (parsed by `parseElevationProfile`, `src/data/bucket/line_
    `projectTileFor3D(edge_pos, elevation)` instead of `projectTile`. Depth is taken from a second projection at
    `elevation + ELEVATION_DEPTH_BIAS (2.0 m)`: `gl_Position = (with_extrude.xy, depth_at.z/depth_at.w · with_extrude.w,
    with_extrude.w)`, pulling the line 2 m toward the camera so the terrain or deck it sits on does not z-fight it.
+   Under globe (`#ifdef GLOBE`) the bias is `2.0 + 10000.0 · u_projection_transition` metres; see Globe below.
    Outputs `v_tile_pos` (tile coordinate of the vertex) and `v_lift = elevation − ground`.
    `v_gamma_scale` is computed normally (upstream sets 1.0 under `TERRAIN3D` because the drape mesh handles it; an
    elevated line is not draped, so it computes it).
@@ -458,8 +459,16 @@ Profile string format (parsed by `parseElevationProfile`, `src/data/bucket/line_
 7. `line-depth-occlusion-factor`: only `0` vs non-zero matters. `0` → one `'unoccluded'` pass, depth test disabled,
    drawn whole (no underground/overground split) at the deferred overground point, so it paints over 3D features.
 
-Globe: the shaders use `projectTileFor3D`, which has globe and mercator implementations, so it compiles under globe;
-nothing else is globe-specific and it is untested there.
+Globe: the shaders use `projectTileFor3D`, which has globe and mercator implementations, so it compiles under globe.
+The globe's depth cannot hold a 2 m bias. The vertical-perspective camera's near plane is 0.5 px (mercator's is
+`height / 50`), and its matrix multiplies unit-sphere positions scaled by the globe radius in pixels, so float32
+rounding in clip z and w is roughly `R · 2⁻²³ · cameraToCenterDistance / (2 · nearZ)`, measured at a few hundred
+metres at zoom 11 and in theory the same at every zoom. Terrain and line vertices round differently, so a 2 m bias left the overground pass failing in
+patches that moved with every pan: ribbons broke into dashes below zoom 12, where Parchment's globe hands over to
+mercator. The bias therefore grows with `u_projection_transition`, to 10 km on the full globe. A 200 m bias still
+dropped pieces, and 2 km held on an 800 px viewport. The error scales with viewport height, so 10 km leaves room for
+tall screens. On the globe, terrain and 3D layers therefore no longer hide an elevated line, but the far side of the
+planet still does. Pure mercator is unchanged.
 
 **Implementation in GL JS.**
 - `src/data/bucket/line_elevation.ts` (new): `ElevationRun`, `parseElevationProfile`, `elevateLine`, `ElevatedLine`.

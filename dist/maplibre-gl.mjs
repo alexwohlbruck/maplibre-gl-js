@@ -508,7 +508,11 @@ out highp float v_projection_tile_x;vec3 globeRotateVector(vec3 vec,vec2 angles)
 layout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;uniform vec2 u_translation;uniform mediump float u_ratio;out vec2 v_normal;out vec2 v_width2;out float v_gamma_scale;
 #ifdef LINE_ELEVATION
 in vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;
+#ifdef GLOBE
+#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)
+#else
 #define ELEVATION_DEPTH_BIAS 2.0
+#endif
 #endif
 out highp float v_linesofar;
 #ifdef GLOBE
@@ -555,7 +559,11 @@ v_width2=vec2(outset,inset);}`),lineVariableOffset:aM(rM,`
 layout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;layout(location=3) in float a_line_offset;uniform vec2 u_translation;uniform mediump float u_ratio;out vec2 v_normal;out vec2 v_width2;out float v_gamma_scale;
 #ifdef LINE_ELEVATION
 in vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;
+#ifdef GLOBE
+#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)
+#else
 #define ELEVATION_DEPTH_BIAS 2.0
+#endif
 #endif
 out highp float v_linesofar;
 #ifdef GLOBE
@@ -627,7 +635,11 @@ fragColor=vec4(1.0);
 layout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;layout(location=3) in float a_uv_x;layout(location=4) in float a_split_index;uniform vec2 u_translation;uniform mediump float u_ratio;uniform float u_image_height;out vec2 v_normal;out vec2 v_width2;out float v_gamma_scale;
 #ifdef LINE_ELEVATION
 in vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;
+#ifdef GLOBE
+#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)
+#else
 #define ELEVATION_DEPTH_BIAS 2.0
+#endif
 #endif
 out highp vec2 v_uv;
 #ifdef GLOBE
@@ -709,7 +721,11 @@ fragColor=vec4(1.0);
 layout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;uniform vec2 u_translation;uniform mediump float u_ratio;out vec2 v_normal;out vec2 v_width2;out float v_linesofar;out float v_gamma_scale;
 #ifdef LINE_ELEVATION
 in vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;
+#ifdef GLOBE
+#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)
+#else
 #define ELEVATION_DEPTH_BIAS 2.0
+#endif
 #endif
 out float v_width;
 #ifdef GLOBE
@@ -800,7 +816,11 @@ fragColor=vec4(1.0);
 layout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;uniform vec2 u_translation;uniform mediump float u_ratio;uniform float u_tileratio;uniform float u_crossfade_from;uniform float u_crossfade_to;uniform float u_lineatlas_height;out vec2 v_normal;out vec2 v_width2;out vec2 v_tex_a;out vec2 v_tex_b;out float v_gamma_scale;
 #ifdef LINE_ELEVATION
 in vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;
+#ifdef GLOBE
+#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)
+#else
 #define ELEVATION_DEPTH_BIAS 2.0
+#endif
 #endif
 #ifdef GLOBE
 out float v_depth;
@@ -886,7 +906,11 @@ fragColor=vec4(1.0);
 layout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;layout(location=3) in float a_uv_x;layout(location=4) in float a_split_index;uniform vec2 u_translation;uniform mediump float u_ratio;uniform float u_image_height;uniform float u_tileratio;uniform float u_crossfade_from;uniform float u_crossfade_to;uniform float u_lineatlas_height;out vec2 v_normal;out vec2 v_width2;out float v_gamma_scale;
 #ifdef LINE_ELEVATION
 in vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;
+#ifdef GLOBE
+#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)
+#else
 #define ELEVATION_DEPTH_BIAS 2.0
+#endif
 #endif
 out highp vec2 v_uv;out vec2 v_tex_a;out vec2 v_tex_b;
 #ifdef GLOBE

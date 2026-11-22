@@ -34,7 +34,7 @@ Render tests that differ from upstream's expected images because of fork behavio
 | `line-rounded-corner-distance` | layout, number, metres, default 0, data-constant | `2d5cf38cf` |
 | Symbol anchor offset | layout `symbol-anchor-offset` (`[x,y]` px, default `[0,0]`, data-driven, interpolated), `symbol-anchor-offset-alignment` (`map`/`viewport`, default `viewport`) | `f19ffd515` (`7ccc7e5a2` moves its attribute) |
 | Isolated collision layers | `MapOptions.isolatedCollisionLayers?: string[]` (fixed at construction) | `f19ffd515` |
-| Line elevation profiles | layout `line-elevation-profile` (string, data-driven), paint `line-depth-occlusion-factor` (0..1, default 1); attribute `a_elevation` | `d4da4b0d8`, `0e74dcf2f`, `999d1c7bb` |
+| Line elevation profiles | layout `line-elevation-profile` (string, data-driven), paint `line-depth-occlusion-factor` (0..1, default 1); attribute `a_elevation` | `d4da4b0d8`, `0e74dcf2f`, `999d1c7bb`, `80f24d716` (globe depth bias) |
 | Datum heights and `line-pitch-alignment` | paint `line-pitch-alignment` (`map`/`viewport`, default `map`); `~` prefix in profiles | `999d1c7bb` |
 | Elevated line draw order / underground pass | none (internal `FrameRenderContext.elevatedPass`) | `cd7a8cfeb`, `331f48e06` |
 | Profile point snapping and run paths | none | `331f48e06`, `c72c06fd7` |

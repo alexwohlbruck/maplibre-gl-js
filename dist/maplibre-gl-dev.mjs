@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.5/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.7/LICENSE.txt
 */
 // \0rolldown/runtime.js
 var __create = Object.create;
@@ -10146,6 +10146,16 @@ if (!layoutLine["line-elevation-profile"]) {
 		"property-type": "data-constant"
 	};
 }
+if (!layoutSymbol["symbol-elevation-profile"]) layoutSymbol["symbol-elevation-profile"] = {
+	"type": "string",
+	"default": "",
+	"doc": "Heights along the feature, in the format of `line-elevation-profile`. Each symbol placed within reach of a run takes the run's height under its anchor, measured from sea level or, for a `~` run, from the terrain, in place of `symbol-height-offset` and `symbol-height-anchor`. A symbol off every run keeps those.",
+	"expression": {
+		"interpolated": false,
+		"parameters": ["zoom", "feature"]
+	},
+	"property-type": "data-driven"
+};
 if (layoutSymbol["symbol-height-anchor"]?.["property-type"] === "data-constant") layoutSymbol["symbol-height-anchor"] = {
 	...layoutSymbol["symbol-height-anchor"],
 	"expression": {
@@ -10229,7 +10239,7 @@ if (!paintFillExtrusion["fill-extrusion-cast-shadows"]) {
 	};
 }
 // package.json
-var version$2 = "6.19.0-transit.1-terrain.5";
+var version$2 = "6.19.0-transit.1-terrain.7";
 // node_modules/@mapbox/point-geometry/index.js
 /**
 * A standalone point geometry with useful accessor, comparison, and
@@ -30929,6 +30939,8 @@ function addFeature(bucket, feature, shapedTextOrientations, shapedIcon, imageMa
 		if (defaultHorizontalShaping) shapedIcon = fitIconToText(shapedIcon, defaultHorizontalShaping, iconTextFit, layout.get("icon-text-fit-padding"), iconOffset, fontScale, layoutIconSize);
 	}
 	const granularity = canonical ? subdivisionGranularity.line.getGranularityForZoomLevel(canonical.z) : 1;
+	const profile = canonical ? layout.get("symbol-elevation-profile").evaluate(feature, {}, canonical) : "";
+	const runs = profile ? parseElevationProfile(profile, canonical) : [];
 	const addSymbolAtAnchor = (line, anchor) => {
 		if (isOutsideTile(anchor)) return;
 		addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, imageMap, verticallyShapedIcon, bucket.layers[0], bucket.collisionBoxArray, feature.index, feature.sourceLayerIndex, bucket.index, textBoxScale, [
@@ -30936,7 +30948,7 @@ function addFeature(bucket, feature, shapedTextOrientations, shapedIcon, imageMa
 			textPadding,
 			textPadding,
 			textPadding
-		], textAlongLine, textOffset, iconBoxScale, iconPadding, iconAlongLine, iconOffset, feature, sizes, isSDFIcon, canonical, layoutTextSize, layoutIconSize, hasPromoteId);
+		], textAlongLine, textOffset, iconBoxScale, iconPadding, iconAlongLine, iconOffset, feature, sizes, isSDFIcon, canonical, layoutTextSize, layoutIconSize, hasPromoteId, runs);
 	};
 	if (symbolPlacement === "line") for (const line of clipLine(feature.geometry, 0, 0, EXTENT, EXTENT)) {
 		const subdividedLine = subdivideVertexLine(line, granularity);
@@ -30991,13 +31003,16 @@ function getDefaultHorizontalShaping(horizontalShaping) {
 	for (const justification in horizontalShaping) return horizontalShaping[justification];
 	return null;
 }
+/** How far from a profile's path, in tile units, a symbol's anchor may lie and still take its height. */
+const PROFILE_REACH = 16;
 /**
 * Add a single label & icon placement.
 */
-function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, imageMap, verticallyShapedIcon, layer, collisionBoxArray, featureIndex, sourceLayerIndex, bucketIndex, textBoxScale, textPadding, textAlongLine, textOffset, iconBoxScale, iconPadding, iconAlongLine, iconOffset, feature, sizes, isSDFIcon, canonical, layoutTextSize, layoutIconSize, hasPromoteId) {
+function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, imageMap, verticallyShapedIcon, layer, collisionBoxArray, featureIndex, sourceLayerIndex, bucketIndex, textBoxScale, textPadding, textAlongLine, textOffset, iconBoxScale, iconPadding, iconAlongLine, iconOffset, feature, sizes, isSDFIcon, canonical, layoutTextSize, layoutIconSize, hasPromoteId, runs) {
 	const lineArray = bucket.addToLineVertexArray(anchor, line);
-	const elevation = layer.layout.get("symbol-height-offset").evaluate(feature, {}, canonical);
-	const ground = layer.layout.get("symbol-height-anchor").evaluate(feature, {}, canonical) === "ground" ? 1 : 0;
+	const onRun = runs.length ? nearestOnRun(runs, anchor, PROFILE_REACH) : null;
+	const elevation = onRun ? onRun.height : layer.layout.get("symbol-height-offset").evaluate(feature, {}, canonical);
+	const ground = onRun ? runs[onRun.run].relative ? 1 : 0 : layer.layout.get("symbol-height-anchor").evaluate(feature, {}, canonical) === "ground" ? 1 : 0;
 	if (elevation > bucket.maxHeightOffset) bucket.maxHeightOffset = elevation;
 	let textCollisionFeature, iconCollisionFeature, verticalTextCollisionFeature, verticalIconCollisionFeature;
 	let numIconVertices = 0;
@@ -31733,6 +31748,7 @@ const getLayout = () => layout$3 = layout$3 || new Properties({
 	"text-optional": new DataConstantProperty(latest["layout_symbol"]["text-optional"], "text-optional"),
 	"symbol-height-offset": new DataDrivenProperty(latest["layout_symbol"]["symbol-height-offset"], "symbol-height-offset"),
 	"symbol-height-anchor": new DataDrivenProperty(latest["layout_symbol"]["symbol-height-anchor"], "symbol-height-anchor"),
+	"symbol-elevation-profile": new DataDrivenProperty(latest["layout_symbol"]["symbol-elevation-profile"], "symbol-elevation-profile"),
 	"symbol-anchor-offset": new DataDrivenProperty(latest["layout_symbol"]["symbol-anchor-offset"], "symbol-anchor-offset"),
 	"symbol-anchor-offset-alignment": new DataConstantProperty(latest["layout_symbol"]["symbol-anchor-offset-alignment"], "symbol-anchor-offset-alignment")
 });
@@ -44906,20 +44922,6 @@ var Placement = class {
 		this.placedOrientations = {};
 	}
 	/** Whether a symbol lies in the clip: the line it is placed along, or its anchor where it has none. */
-	_isClipped(bucket, symbolInstance, clipped) {
-		const textIndex = [
-			symbolInstance.centerJustifiedTextSymbolIndex,
-			symbolInstance.leftJustifiedTextSymbolIndex,
-			symbolInstance.rightJustifiedTextSymbolIndex,
-			symbolInstance.verticalPlacedTextSymbolIndex
-		].find((i) => i >= 0);
-		const placedSymbol = textIndex !== void 0 ? bucket.text.placedSymbolArray.get(textIndex) : symbolInstance.placedIconSymbolIndex >= 0 ? bucket.icon.placedSymbolArray.get(symbolInstance.placedIconSymbolIndex) : null;
-		if (!placedSymbol || placedSymbol.lineLength < 2) return clipped([symbolInstance.anchorX, symbolInstance.anchorY]);
-		const line = bucket.lineVertexArray;
-		const points = [];
-		for (let i = placedSymbol.lineStartIndex; i < placedSymbol.lineStartIndex + placedSymbol.lineLength; i++) points.push(line.getx(i), line.gety(i));
-		return clipped(points);
-	}
 	_getTerrainElevationFunc(tileID) {
 		const terrain = this.terrain;
 		if (!terrain) return void 0;
@@ -45025,7 +45027,7 @@ var Placement = class {
 		const clipped = this.symbolClip ? symbolClipTester(this.symbolClip, bucket.layerIds, tileID.canonical) : null;
 		const placeSymbol = (symbolInstance, collisionArrays, symbolIndex) => {
 			if (seenCrossTileIDs[symbolInstance.crossTileID]) return;
-			if (clipped && this._isClipped(bucket, symbolInstance, clipped)) {
+			if (clipped && clipped([symbolInstance.anchorX, symbolInstance.anchorY])) {
 				this.placements[symbolInstance.crossTileID] = new JointPlacement(false, false, false);
 				return;
 			}

@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.5/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.7/LICENSE.txt
 */
 // \0rolldown/runtime.js
 var __create = Object.create;
@@ -9808,6 +9808,16 @@ if (!layoutLine["line-elevation-profile"]) {
 		"property-type": "data-constant"
 	};
 }
+if (!layoutSymbol["symbol-elevation-profile"]) layoutSymbol["symbol-elevation-profile"] = {
+	"type": "string",
+	"default": "",
+	"doc": "Heights along the feature, in the format of `line-elevation-profile`. Each symbol placed within reach of a run takes the run's height under its anchor, measured from sea level or, for a `~` run, from the terrain, in place of `symbol-height-offset` and `symbol-height-anchor`. A symbol off every run keeps those.",
+	"expression": {
+		"interpolated": false,
+		"parameters": ["zoom", "feature"]
+	},
+	"property-type": "data-driven"
+};
 if (layoutSymbol["symbol-height-anchor"]?.["property-type"] === "data-constant") layoutSymbol["symbol-height-anchor"] = {
 	...layoutSymbol["symbol-height-anchor"],
 	"expression": {
@@ -29500,6 +29510,8 @@ function addFeature(bucket, feature, shapedTextOrientations, shapedIcon, imageMa
 		if (defaultHorizontalShaping) shapedIcon = fitIconToText(shapedIcon, defaultHorizontalShaping, iconTextFit, layout.get("icon-text-fit-padding"), iconOffset, fontScale, layoutIconSize);
 	}
 	const granularity = canonical ? subdivisionGranularity.line.getGranularityForZoomLevel(canonical.z) : 1;
+	const profile = canonical ? layout.get("symbol-elevation-profile").evaluate(feature, {}, canonical) : "";
+	const runs = profile ? parseElevationProfile(profile, canonical) : [];
 	const addSymbolAtAnchor = (line, anchor) => {
 		if (isOutsideTile(anchor)) return;
 		addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, imageMap, verticallyShapedIcon, bucket.layers[0], bucket.collisionBoxArray, feature.index, feature.sourceLayerIndex, bucket.index, textBoxScale, [
@@ -29507,7 +29519,7 @@ function addFeature(bucket, feature, shapedTextOrientations, shapedIcon, imageMa
 			textPadding,
 			textPadding,
 			textPadding
-		], textAlongLine, textOffset, iconBoxScale, iconPadding, iconAlongLine, iconOffset, feature, sizes, isSDFIcon, canonical, layoutTextSize, layoutIconSize, hasPromoteId);
+		], textAlongLine, textOffset, iconBoxScale, iconPadding, iconAlongLine, iconOffset, feature, sizes, isSDFIcon, canonical, layoutTextSize, layoutIconSize, hasPromoteId, runs);
 	};
 	if (symbolPlacement === "line") for (const line of clipLine(feature.geometry, 0, 0, EXTENT, EXTENT)) {
 		const subdividedLine = subdivideVertexLine(line, granularity);
@@ -29562,13 +29574,16 @@ function getDefaultHorizontalShaping(horizontalShaping) {
 	for (const justification in horizontalShaping) return horizontalShaping[justification];
 	return null;
 }
+/** How far from a profile's path, in tile units, a symbol's anchor may lie and still take its height. */
+const PROFILE_REACH = 16;
 /**
 * Add a single label & icon placement.
 */
-function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, imageMap, verticallyShapedIcon, layer, collisionBoxArray, featureIndex, sourceLayerIndex, bucketIndex, textBoxScale, textPadding, textAlongLine, textOffset, iconBoxScale, iconPadding, iconAlongLine, iconOffset, feature, sizes, isSDFIcon, canonical, layoutTextSize, layoutIconSize, hasPromoteId) {
+function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, imageMap, verticallyShapedIcon, layer, collisionBoxArray, featureIndex, sourceLayerIndex, bucketIndex, textBoxScale, textPadding, textAlongLine, textOffset, iconBoxScale, iconPadding, iconAlongLine, iconOffset, feature, sizes, isSDFIcon, canonical, layoutTextSize, layoutIconSize, hasPromoteId, runs) {
 	const lineArray = bucket.addToLineVertexArray(anchor, line);
-	const elevation = layer.layout.get("symbol-height-offset").evaluate(feature, {}, canonical);
-	const ground = layer.layout.get("symbol-height-anchor").evaluate(feature, {}, canonical) === "ground" ? 1 : 0;
+	const onRun = runs.length ? nearestOnRun(runs, anchor, PROFILE_REACH) : null;
+	const elevation = onRun ? onRun.height : layer.layout.get("symbol-height-offset").evaluate(feature, {}, canonical);
+	const ground = onRun ? runs[onRun.run].relative ? 1 : 0 : layer.layout.get("symbol-height-anchor").evaluate(feature, {}, canonical) === "ground" ? 1 : 0;
 	if (elevation > bucket.maxHeightOffset) bucket.maxHeightOffset = elevation;
 	let textCollisionFeature, iconCollisionFeature, verticalTextCollisionFeature, verticalIconCollisionFeature;
 	let numIconVertices = 0;
@@ -30304,6 +30319,7 @@ const getLayout = () => layout = layout || new Properties({
 	"text-optional": new DataConstantProperty(latest["layout_symbol"]["text-optional"], "text-optional"),
 	"symbol-height-offset": new DataDrivenProperty(latest["layout_symbol"]["symbol-height-offset"], "symbol-height-offset"),
 	"symbol-height-anchor": new DataDrivenProperty(latest["layout_symbol"]["symbol-height-anchor"], "symbol-height-anchor"),
+	"symbol-elevation-profile": new DataDrivenProperty(latest["layout_symbol"]["symbol-elevation-profile"], "symbol-elevation-profile"),
 	"symbol-anchor-offset": new DataDrivenProperty(latest["layout_symbol"]["symbol-anchor-offset"], "symbol-anchor-offset"),
 	"symbol-anchor-offset-alignment": new DataConstantProperty(latest["layout_symbol"]["symbol-anchor-offset-alignment"], "symbol-anchor-offset-alignment")
 });

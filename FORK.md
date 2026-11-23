@@ -39,7 +39,7 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Elevated line draw order / underground pass | none (internal `FrameRenderContext.elevatedPass`) | `cd7a8cfeb`, `331f48e06` |
 | Profile point snapping and run paths | none | `331f48e06`, `c72c06fd7` |
 | `symbol-height-anchor` per feature | `symbol-height-anchor` made data-driven; `a_height_offset` becomes vec2 | `7ccc7e5a2` |
-| Symbol elevation profiles | layout `symbol-elevation-profile` (string, data-driven) | `terrain.8` |
+| Symbol elevation profiles | layout `symbol-elevation-profile` (string, data-driven) | `6b5a779e1` |
 | Distant label gamma precision | GLSL `highp` only | `c2c4a76cd` |
 | Decal icons | layer metadata `parchment:decal` | `bd140a8a2` |
 | Horizon fade (lines, symbols, circles) | on by default; metadata `parchment:horizon-fade: false` opts out | `78b35b1d6` |
@@ -57,7 +57,7 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Parse a tile's layers as read | none | `6278321dc` (part) |
 | Labels placed half as often while panning | none (`MOVING_PLACEMENT_STRETCH = 2`) | `f6bb4474e` (part) |
 | Muted layers | `Map#setLayerMuted(layerId, muted)`, runtime only | `d8ea3c430` |
-| Symbol clip | `Map#setSymbolClip(layerIds, Polygon \| MultiPolygon \| null)` | `d8ea3c430` |
+| Symbol clip | `Map#setSymbolClip(layerIds, Polygon \| MultiPolygon \| null)` | `d8ea3c430`, `e3cc0358d` (anchor only) |
 | Negative extrusion height hides | `fill-extrusion-height < 0` not drawn | `d8ea3c430` |
 | Sun shadows and ground occlusion | `Map#setShading(options \| null)`, `Map#getShading()`; types `Shading`, `ShadingOptions`, `ShadingCaster`, `SunFrame`, `OcclusionFrame`, `WallShader`; paint `fill-extrusion-cast-shadows`, `-roof-color`, `-facade-style`, `-facade-seed` | `f6bb4474e`, `f9e301cdc` |
 | Ground occlusion for casters | `ShadingCaster.receiveOcclusion`, `GroundOcclusion` | `f9e301cdc` |

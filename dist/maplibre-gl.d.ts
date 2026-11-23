@@ -4508,6 +4508,7 @@ type SymbolLayoutProps = {
   "text-optional": DataConstantProperty<boolean>;
   "symbol-height-offset": DataDrivenProperty<number>;
   "symbol-height-anchor": DataDrivenProperty<"ground" | "absolute">;
+  "symbol-elevation-profile": DataDrivenProperty<string>;
   "symbol-anchor-offset": DataDrivenProperty<[number, number]>;
   "symbol-anchor-offset-alignment": DataConstantProperty<"map" | "viewport">;
 };
@@ -4558,6 +4559,7 @@ type SymbolLayoutPropsPossiblyEvaluated = {
   "text-optional": boolean;
   "symbol-height-offset": PossiblyEvaluatedPropertyValue<number>;
   "symbol-height-anchor": PossiblyEvaluatedPropertyValue<"ground" | "absolute">;
+  "symbol-elevation-profile": PossiblyEvaluatedPropertyValue<string>;
   "symbol-anchor-offset": PossiblyEvaluatedPropertyValue<[number, number]>;
   "symbol-anchor-offset-alignment": "map" | "viewport";
 };
@@ -5302,7 +5304,6 @@ declare class Placement {
   symbolClip: SymbolClip | null;
   constructor(projectedCamera: ProjectedCamera, terrain: Terrain, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement, isolatedCollisionLayers?: ReadonlySet<string>);
   /** Whether a symbol lies in the clip: the line it is placed along, or its anchor where it has none. */
-  private _isClipped;
   private _getTerrainElevationFunc;
   getBucketParts(results: BucketPart[], styleLayer: StyleLayer, tile: Tile, sortAcrossTiles: boolean): void;
   attemptAnchorPlacement(textAnchorOffset: TextAnchorOffset, textBox: SingleCollisionBox, width: number, height: number, textBoxScale: number, rotateWithMap: boolean, pitchWithMap: boolean, textPixelRatio: number, tileID: OverscaledTileID, unwrappedTileID: UnwrappedTileID, collisionGroup: CollisionGroup, textOverlapMode: OverlapMode, symbolInstance: SymbolInstance, bucket: SymbolBucket, orientation: number, translationText: [number, number], translationIcon: [number, number], iconBox?: SingleCollisionBox | null, getElevation?: GetElevation, simpleProjectionMatrix?: mat4, heightOffset?: number, heightAnchorGround?: boolean): {

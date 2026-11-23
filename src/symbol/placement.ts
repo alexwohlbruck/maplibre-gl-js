@@ -266,19 +266,6 @@ export class Placement {
     }
 
     /** Whether a symbol lies in the clip: the line it is placed along, or its anchor where it has none. */
-    private _isClipped(bucket: SymbolBucket, symbolInstance: SymbolInstance, clipped: (points: number[]) => boolean): boolean {
-        const textIndex = [symbolInstance.centerJustifiedTextSymbolIndex, symbolInstance.leftJustifiedTextSymbolIndex, symbolInstance.rightJustifiedTextSymbolIndex, symbolInstance.verticalPlacedTextSymbolIndex].find(i => i >= 0);
-        const placedSymbol = textIndex !== undefined ? bucket.text.placedSymbolArray.get(textIndex) :
-            symbolInstance.placedIconSymbolIndex >= 0 ? bucket.icon.placedSymbolArray.get(symbolInstance.placedIconSymbolIndex) : null;
-        if (!placedSymbol || placedSymbol.lineLength < 2) return clipped([symbolInstance.anchorX, symbolInstance.anchorY]);
-        const line = bucket.lineVertexArray;
-        const points: number[] = [];
-        for (let i = placedSymbol.lineStartIndex; i < placedSymbol.lineStartIndex + placedSymbol.lineLength; i++) {
-            points.push(line.getx(i), line.gety(i));
-        }
-        return clipped(points);
-    }
-
     private _getTerrainElevationFunc(tileID: OverscaledTileID): GetElevation | undefined {
         const terrain = this.terrain;
         if (!terrain) return undefined;
@@ -521,7 +508,7 @@ export class Placement {
 
         const placeSymbol = (symbolInstance: SymbolInstance, collisionArrays: CollisionArrays, symbolIndex: number) => {
             if (seenCrossTileIDs[symbolInstance.crossTileID]) return;
-            if (clipped && this._isClipped(bucket, symbolInstance, clipped)) {
+            if (clipped && clipped([symbolInstance.anchorX, symbolInstance.anchorY])) {
                 this.placements[symbolInstance.crossTileID] = new JointPlacement(false, false, false);
                 return;
             }

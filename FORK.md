@@ -1474,7 +1474,7 @@ In upstream, three of the usual ways to hide features make tiles reload or get r
 
 ### Symbol clip at placement
 
-**Purpose.** For a set of symbol layers, this leaves unplaced every symbol that lies wholly inside an area. The test is the same one a `within` filter applies: the line a symbol is placed along, or its anchor point if it has no line. Changing the area triggers only a new placement, never a tile reload. In Parchment it hides road names and arrows on flat bridge lines that a 3D bridge deck now covers.
+**Purpose.** For a set of symbol layers, this leaves unplaced every symbol whose anchor lies inside an area. A road's name repeats along a line that runs far past the bridge it crosses, so each placement is judged where it stands, not by its whole line. Changing the area triggers only a new placement, never a tile reload. In Parchment it hides road names and arrows on flat bridge lines that a 3D bridge deck now covers.
 
 **API / style-spec surface.**
 - `Map#setSymbolClip(layerIds: string[], area: GeoJSON.Polygon | GeoJSON.MultiPolygon | null): this`. It forwards to the style and then calls `triggerRepaint()`.
@@ -1495,13 +1495,10 @@ In upstream, three of the usual ways to hide features make tiles reload or get r
    - It keeps the polygons whose bbox overlaps that square, and returns `null` if none do.
    - The test converts each tile-unit point to mercator with `x0 + v * size/EXTENT` (and `y0` for y). The symbol counts as clipped when **any** nearby polygon "holds" the points.
 
-3. **The points tested for each symbol** (`Placement._isClipped`):
-   - Take the first placed text symbol index that is `>= 0`, in this order: center, left, right, vertical justified. Failing that, take `placedIconSymbolIndex`.
-   - If there is no placed symbol, or its `lineLength < 2` (a point placement), test the anchor alone: `[anchorX, anchorY]`.
-   - Otherwise test every vertex of the symbol's line, from `bucket.lineVertexArray[lineStartIndex .. lineStartIndex + lineLength)`. This is the whole line feature the label is placed along, not just the stretch under the glyphs.
+3. **The point tested for each symbol.** Its anchor, `[anchorX, anchorY]`, in `placeSymbol`. Before `terrain.8` the fork tested the whole line a label is placed along, which left every name whose line ran on past the area unclipped.
 
 4. **What "holds" means** (`holds`). This is the rule of the `within` expression:
-   - **Every point is inside the polygon.** `contains` is an even-odd ray-casting test across all rings, so holes count. It starts with a quick bbox reject. A point exactly on an edge follows the usual half-open rule `(yi > y) !== (yj > y)`.
+   - **Every point is inside the polygon** (for the anchor, the one point). `contains` is an even-odd ray-casting test across all rings, so holes count. It starts with a quick bbox reject. A point exactly on an edge follows the usual half-open rule `(yi > y) !== (yj > y)`.
    - **No segment of the line properly crosses any ring edge.** `crosses` needs strict two-sided orientation tests both ways, so touching or collinear contact does not count as crossing.
    - In effect, a line whose two ends sit inside the outer ring but which passes over a hole is not held.
    - A line spanning two polygons of a MultiPolygon is not held either, even if they share an edge. The whole line must lie in one polygon.
@@ -1516,7 +1513,7 @@ In upstream, three of the usual ways to hide features make tiles reload or get r
 
 **Implementation in GL JS.**
 - `src/symbol/symbol_clip.ts` (new): `createSymbolClip`, `contains`, `twoSided`, `crosses`, `holds`, `symbolClipTester`.
-- `src/symbol/placement.ts`: the `symbolClip` field, `_isClipped`, and the early-out in `placeSymbol`.
+- `src/symbol/placement.ts`: the `symbolClip` field and the early-out on the anchor in `placeSymbol`.
 - `src/style/style.ts`: the `_symbolClip` field, `setSymbolClip`, and the copy into new placements.
 - `src/ui/map.ts`: the public method.
 - Everything runs on the main thread, where placement happens.
@@ -1576,7 +1573,7 @@ In upstream, three of the usual ways to hide features make tiles reload or get r
 ### How Parchment uses these
 
 - **Muted layers.** `setLayerMuted` hides the flat bridge layers while a 3D deck layer stands in for them (`services/map/providers/maplibre.strategy.ts`). The flat layers' source keeps loading, so the deck layer can still read the bridges with `querySourceFeatures`.
-- **Symbol clip.** `setSymbolClip` is called on the flat bridge-label layers with the deck footprints as a MultiPolygon, or with `null` when the decks are not covering them. This keeps road names and arrows off ground that a deck now hides.
+- **Symbol clip.** `setSymbolClip` is called on the flat bridge-label layers with the deck footprints as a MultiPolygon, or with `null` when the decks are not covering them. Parchment adds the ground under each road name it raises onto a deck (see symbol elevation profiles), so the flat copy is left out wherever the raised one stands.
 - **Negative extrusion height.** Buildings replaced by a landmark model, or shown inside by a floor plan, get `fill-extrusion-height: -1` through `['feature-state', 'replaced' | 'inside']` (`lib/map-objects/landmarks.ts`). The same commit pattern uses `fill-opacity: 0` and `line-width: 0` for the flat layer types.
 
 ## Shading

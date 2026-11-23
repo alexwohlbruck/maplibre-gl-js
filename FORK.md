@@ -39,6 +39,7 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Elevated line draw order / underground pass | none (internal `FrameRenderContext.elevatedPass`) | `cd7a8cfeb`, `331f48e06` |
 | Profile point snapping and run paths | none | `331f48e06`, `c72c06fd7` |
 | `symbol-height-anchor` per feature | `symbol-height-anchor` made data-driven; `a_height_offset` becomes vec2 | `7ccc7e5a2` |
+| Symbol elevation profiles | layout `symbol-elevation-profile` (string, data-driven) | `terrain.8` |
 | Distant label gamma precision | GLSL `highp` only | `c2c4a76cd` |
 | Decal icons | layer metadata `parchment:decal` | `bd140a8a2` |
 | Horizon fade (lines, symbols, circles) | on by default; metadata `parchment:horizon-fade: false` opts out | `78b35b1d6` |
@@ -726,6 +727,36 @@ the cost: `nearestOnRun` is O(vertices × run segments) per feature for unassign
   Stations then sit exactly on their elevated or underground line.
 
 **Commits.** `7ccc7e5a2`
+
+### Symbol elevation profiles (`symbol-elevation-profile`)
+
+**Purpose.** `symbol-height-offset` gives every symbol of a feature one height. A line label repeats along its line, so a road's name placed along a bridge needs a height per placement: the deck climbs from the ground at each end. The profile gives each placement the height of the line under its own anchor.
+
+**API / style-spec surface.** Added in `src/style-spec/fork_extensions.ts`:
+
+| Property | Kind | Type | Default | Expression | Notes |
+|---|---|---|---|---|---|
+| `symbol-elevation-profile` | layout | string | `""` | `zoom`, `feature`; not interpolated | `property-type: data-driven` |
+
+The string has the format of `line-elevation-profile` (runs separated by `;`, 1e-7 degree deltas, decimetres, `~` for heights over the terrain).
+
+**Behaviour.**
+- In `performSymbolLayout` → `addFeature`, on the worker, the profile is evaluated once per feature and parsed with `parseElevationProfile` against the tile's `canonical`. No canonical, or an empty string, gives no runs.
+- In `addSymbol`, for each anchor, `nearestOnRun(runs, anchor, PROFILE_REACH)` (`PROFILE_REACH = 16` tile units) finds the run passing nearest the anchor and interpolates its height there along the run's segment.
+  - On a run: `heightOffset` is that height and `heightGround` is `1` for a `~` run, `0` otherwise. `symbol-height-offset` and `symbol-height-anchor` are not read.
+  - Off every run: both are evaluated as before.
+- `bucket.maxHeightOffset` takes the profile's height like any other, so tiles under raised labels stay loaded.
+- No shader, buffer or placement change: the result goes through the same `[heightOffset, ground]` pair as the per-feature anchor above.
+
+**Files.** `src/style-spec/fork_extensions.ts`, `src/symbol/symbol_layout.ts` (`addFeature`, `addSymbol`), `src/data/bucket/line_elevation.ts` (`nearestOnRun` exported), generated `symbol_style_layer_properties.g.ts`.
+
+**Tests.** `src/data/bucket/symbol_bucket.test.ts`: "SymbolBucket stands each symbol at the height of the profile run under it". Four point features at the z0 tile's corner: no profile, an absolute run through the point at 30 m, a `~` run at 5 m, and a run far away. Asserts `[heightOffset, heightGround]` is `[[0,1],[30,0],[5,1],[0,1]]`.
+
+**Native porting notes.**
+- Port `symbol-height-anchor` per feature first; this rides on its per-instance datum flag.
+- In `SymbolLayout`, parse the profile per feature (reuse the line-elevation parser) and, per anchor, take the nearest run within 16 tile units. Set the instance's height offset and datum from it; fall back to the layer's properties otherwise.
+
+**Parchment usage.** Road names and one-way arrows over 3D bridge decks. Parchment copies the basemap's `transportation` and `transportation_name` features that cross a deck into a GeoJSON source, cut to the stretch over the deck, with an `elevation` profile sampled from the deck surface. Copies of the road label layers read that source with `symbol-elevation-profile: ["get", "elevation"]`. The originals stay clipped out of the deck footprints with `setSymbolClip`.
 
 ## Symbols and fading
 

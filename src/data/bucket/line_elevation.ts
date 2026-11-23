@@ -127,7 +127,7 @@ export function elevateLine(vertices: Point[], runs: ElevationRun[], reach: numb
 }
 
 /** The height of the nearest run whose path passes within `reach` of a point, interpolated along it there. */
-function nearestOnRun(runs: ElevationRun[], p: Point, reach: number): {height: number; run: number} | null {
+export function nearestOnRun(runs: ElevationRun[], p: Point, reach: number): {height: number; run: number} | null {
     let best: {height: number; run: number; distance: number} | null = null;
     for (const [r, {points, heights}] of runs.entries()) {
         for (let i = 1; i < points.length; i++) {

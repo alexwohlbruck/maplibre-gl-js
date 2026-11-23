@@ -17,6 +17,7 @@ import {getIconPadding, type SymbolPadding} from '../style/style_layer/symbol_st
 import {getTextVariableAnchorOffset, evaluateVariableOffset, INVALID_TEXT_OFFSET, type TextAnchor, TextAnchorEnum} from '../style/style_layer/variable_text_anchor.ts';
 import {type VariableAnchorOffsetCollection, classifyRings} from '@maplibre/maplibre-gl-style-spec';
 import {subdivideVertexLine} from '../render/subdivision.ts';
+import {nearestOnRun, parseElevationProfile, type ElevationRun} from '../data/bucket/line_elevation.ts';
 
 import type Point from '@mapbox/point-geometry';
 import type {SymbolBucket} from '../data/bucket/symbol_bucket.ts';
@@ -331,6 +332,8 @@ function addFeature(bucket: SymbolBucket,
     }
 
     const granularity = (canonical) ? subdivisionGranularity.line.getGranularityForZoomLevel(canonical.z) : 1;
+    const profile = canonical ? layout.get('symbol-elevation-profile').evaluate(feature, {}, canonical) : '';
+    const runs = profile ? parseElevationProfile(profile, canonical) : [];
 
     const addSymbolAtAnchor = (line, anchor) => {
         if (isOutsideTile(anchor)) {
@@ -343,7 +346,7 @@ function addFeature(bucket: SymbolBucket,
             bucket.collisionBoxArray, feature.index, feature.sourceLayerIndex, bucket.index,
             textBoxScale, [textPadding, textPadding, textPadding, textPadding], textAlongLine, textOffset,
             iconBoxScale, iconPadding, iconAlongLine, iconOffset,
-            feature, sizes, isSDFIcon, canonical, layoutTextSize, layoutIconSize, hasPromoteId);
+            feature, sizes, isSDFIcon, canonical, layoutTextSize, layoutIconSize, hasPromoteId, runs);
     };
 
     if (symbolPlacement === 'line') {
@@ -501,6 +504,9 @@ function getDefaultHorizontalShaping(
     return null;
 }
 
+/** How far from a profile's path, in tile units, a symbol's anchor may lie and still take its height. */
+const PROFILE_REACH = 16;
+
 /**
  * Add a single label & icon placement.
  */
@@ -530,11 +536,14 @@ function addSymbol(bucket: SymbolBucket,
     canonical: CanonicalTileID,
     layoutTextSize: number,
     layoutIconSize: number,
-    hasPromoteId: boolean) {
+    hasPromoteId: boolean,
+    runs: ElevationRun[]) {
 
     const lineArray = bucket.addToLineVertexArray(anchor, line);
-    const elevation = layer.layout.get('symbol-height-offset').evaluate(feature, {}, canonical);
-    const ground = layer.layout.get('symbol-height-anchor').evaluate(feature, {}, canonical) === 'ground' ? 1 : 0;
+    const onRun = runs.length ? nearestOnRun(runs, anchor, PROFILE_REACH) : null;
+    const elevation = onRun ? onRun.height : layer.layout.get('symbol-height-offset').evaluate(feature, {}, canonical);
+    const ground = onRun ? (runs[onRun.run].relative ? 1 : 0) :
+        layer.layout.get('symbol-height-anchor').evaluate(feature, {}, canonical) === 'ground' ? 1 : 0;
     if (elevation > bucket.maxHeightOffset) {
         bucket.maxHeightOffset = elevation;
     }

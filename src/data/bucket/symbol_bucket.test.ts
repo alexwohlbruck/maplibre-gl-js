@@ -220,6 +220,38 @@ describe('SymbolBucket', () => {
         expect([at(0), at(4)]).toEqual([24, 0]);
     });
 
+    test('SymbolBucket stands each symbol at the height of the profile run under it', () => {
+        const layer = new SymbolStyleLayer({
+            id: 'profiles',
+            type: 'symbol',
+            layout: {
+                'icon-image': ['get', 'icon'],
+                'symbol-elevation-profile': ['coalesce', ['get', 'elevation'], '']
+            },
+            filter: featureFilter(undefined, 'filter')
+        } as any as LayerSpecification, {});
+        layer.recalculate({zoom: 0, zoomHistory: {}} as EvaluationParameters, undefined);
+        const bucket = new SymbolBucket({overscaling: 1, zoom: 0, collisionBoxArray, layers: [layer]} as BucketParameters<SymbolStyleLayer>);
+        // The tile's corner, (-180°, 85.0511°), where every feature's point stands.
+        const corner = '-1800000000,850511288';
+        const features = ['', `${corner},300,10000000,0,300`, `~${corner},50,10000000,0,50`, '0,0,300,10000000,0,300'].map((elevation, i) => {
+            const f = createIndexedFeature(i, i, 'a');
+            if (elevation) f.feature.properties.elevation = elevation;
+            return f;
+        });
+        bucket.populate(features, createPopulateOptions([]), new CanonicalTileID(0, 0, 0));
+        performSymbolLayout({
+            bucket,
+            imageMap: {a: {data: new RGBAImage({width: 10, height: 10})}} as any as {[_: string]: StyleImage},
+            imagePositions: {a: new ImagePosition({x: 0, y: 0, w: 10, h: 10}, 1 as any as StyleImage)},
+            canonical: new CanonicalTileID(0, 0, 0),
+            subdivisionGranularity: SubdivisionGranularitySetting.noSubdivision
+        } as any);
+
+        const instances = [0, 1, 2, 3].map(i => bucket.symbolInstances.get(i));
+        expect(instances.map(s => [s.heightOffset, s.heightGround])).toEqual([[0, 1], [30, 0], [5, 1], [0, 1]]);
+    });
+
     test('SymbolBucket image mismatched sdf', () => {
         const originalWarn = console.warn;
         console.warn = vi.fn();

@@ -89,6 +89,21 @@ if (!layoutLine['line-elevation-profile']) {
     };
 }
 
+if (!layoutSymbol['symbol-elevation-profile']) {
+    // A line label's height wherever it is placed along the line, so a road's name repeated along a bridge stands on
+    // the deck at each of its places.
+    layoutSymbol['symbol-elevation-profile'] = {
+        'type': 'string',
+        'default': '',
+        'doc': 'Heights along the feature, in the format of `line-elevation-profile`. Each symbol placed within reach of a run takes the run\'s height under its anchor, measured from sea level or, for a `~` run, from the terrain, in place of `symbol-height-offset` and `symbol-height-anchor`. A symbol off every run keeps those.',
+        'expression': {
+            'interpolated': false,
+            'parameters': ['zoom', 'feature']
+        },
+        'property-type': 'data-driven'
+    };
+}
+
 if (layoutSymbol['symbol-height-anchor']?.['property-type'] === 'data-constant') {
     // Per feature, so a layer can hold symbols over the terrain and symbols at heights of their own: a station on
     // a viaduct at the height its line is drawn at, beside one standing on the street.

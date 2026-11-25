@@ -20,10 +20,14 @@ Upstream replaced the per-render `RenderContext` object (`src/render/render_cont
 - `FrameRenderContext` carries the map's `Shading`; `Shading.prepare(style, frameRenderContext)` and `Shading.drawGround(frameRenderContext)` read the frame's camera instead of `painter.transform` / `painter.style`.
 - `ProgramCache` and `FrameRenderContext.useProgram` take the extra shader source the shading's wall shader needs.
 - The per-frame elevation-range cache is upstream's `_minMaxElevationCache` (upstream #9050), cleared by the fork's `Terrain.beginFrame()`; `DEM_CELL_CENTER_OFFSET` is exported from `terrain_coverage.ts` for the anchor elevation reader.
-- Lines take upstream's join offset vectors (#8570, #9092) at attribute location 2; the variable-offset shader's `a_line_offset` moved to location 3. Elevated lines draw through upstream's layer composite (which replaced layer opacity).
+- Lines take upstream's join offset vectors (#8570) at attribute location 2; the variable-offset shader's `a_line_offset` moved to location 3. Elevated lines draw through upstream's layer composite (which replaced layer opacity).
 - The terrain worker is created, restarted and terminated with upstream's worker lifecycle (#8491).
 
 Render tests that differ from upstream's expected images because of fork behaviour (terrain haze, horizon fade, building ground elevation, negative extrusion height) still differ; they are not regressions.
+
+## Upstream status
+
+Checked against upstream `main` on 2026-11-24 (no release after v6.19.0): no fork feature has an upstream equivalent. The nearest is `CameraViewState.nearFarZOverride`, which upstream keeps internal; `Map#setNearFarZ` is the public setter for it. Unreleased upstream line fixes will touch the variable-offset code at the next sync: #9092 (offset lines folding back at sharp corners) changes the corner vertices in `line_bucket.ts`, and #9094 spaces dashes along offset lines. Check both against `line-progress` offsets.
 
 ## Summary
 
@@ -49,9 +53,9 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Per-frame elevation-range cache | internal `Terrain.beginFrame` | `6278321dc` (part) |
 | Building ground elevation buffer, tile-agreed anchor | internal attribute `a_anchor_elevation` replaces `a_centroid` | `43e498a61` |
 | Anchors kept on the GPU | `FillExtrusionBucket.centroidVertexBuffer` | `75f89a5c9` |
-| 3D depth range for custom layers | `CustomRenderMethodInput.depthRangeFor3D: [number, number]` | sync to v6.19.0 |
-| Terrain relief shading | terrain property `shading` (number 0–4, default 0) | after the v6.19.0 sync |
-| Clip distances override | `Map#setNearFarZ({nearZ, farZ} \| null)`, `Map#getNearFarZ()` | after the v6.19.0 sync |
+| 3D depth range for custom layers | `CustomRenderMethodInput.depthRangeFor3D: [number, number]` | `df0e8151f` |
+| Terrain relief shading | terrain property `shading` (number 0–4, default 0) | `070a357a2`, `eb5d7a4fd` |
+| Clip distances override | `Map#setNearFarZ({nearZ, farZ} \| null)`, `Map#getNearFarZ()` | `ddcd26626` |
 | Clipping-mask reuse | none | `f3cddca7d`, `5d70660cc` |
 | Tile cache kept through a layer change | internal `TileManager.relayout` | `a91513a81` |
 | Parse a tile's layers as read | none | `6278321dc` (part) |
@@ -758,6 +762,8 @@ The string has the format of `line-elevation-profile` (runs separated by `;`, 1e
 
 **Parchment usage.** Road names and one-way arrows over 3D bridge decks. Parchment copies the basemap's `transportation` and `transportation_name` features that cross a deck into a GeoJSON source, cut to the stretch over the deck, with an `elevation` profile sampled from the deck surface. Copies of the road label layers read that source with `symbol-elevation-profile: ["get", "elevation"]`. The originals stay clipped out of the deck footprints with `setSymbolClip`.
 
+**Commits.** `6b5a779e1`.
+
 ## Symbols and fading
 
 Four small changes to how symbols, lines and circles look as they get far from the camera. One is a precision fix in the SDF label shaders. One is a layer metadata key that turns a symbol layer into "paint on the ground" (`parchment:decal`). One fades lines, symbols and circles out toward the horizon at steep pitch (on by default, with `parchment:horizon-fade: false` to opt a layer out). The last hazes the draped terrain surface into the fog colour over the same distance band. Neither metadata key changes the style spec: both are read from the layer's free-form `metadata` object at draw time, so nothing needs a reload when they are toggled.
@@ -1247,6 +1253,8 @@ Shading), so this commit exists for compatibility.
 
 **Native porting notes.** Native custom layers receive `CustomLayerRenderParameters`; add the 3D depth range there (Native's `PaintParameters::depthRangeFor3D`, likely).
 
+**Commits.** `df0e8151f`.
+
 ### Clip distances (`setNearFarZ`)
 
 **Purpose.** Parchment draws its flat top-down view with a 0.5° field of view so it reads as orthographic. That puts the camera roughly a hundred times further away, and with the computed near plane (`height / 50` pixels) the depth buffer has about 2 m of precision left at the map: landmark roofs, lower floors and the ground fight. The camera has to be clipped close around the map instead. Before v6.19.0 the app called `transform.overrideNearFarZ`; that transform is gone.
@@ -1258,6 +1266,8 @@ Shading), so this commit exists for compatibility.
 **How Parchment uses it.** In the top-down view (pitch under 0.001°, not globe) it sets `nearZ = 0.5 × d` and `farZ = 2 × d`, with `d` the camera-to-centre distance at the narrowed field of view, and clears it once the map tilts.
 
 **Native porting notes.** Native's `TransformState` computes near and far in `getProjMatrix`; give it an optional override with the same units, cleared by passing nothing.
+
+**Commits.** `ddcd26626`.
 
 ## Performance
 
@@ -1908,6 +1918,8 @@ Faces turned away from the light (`facing ≤ 0`) take no shadow test; they are 
 **Implementation.** `terrainRelief()` in `src/webgl/program/terrain_program.ts` computes `u_relief` (light xyz, strength) and `u_relief_scale` (metres per unit, intensity) per tile; `draw_terrain.ts` passes them; `terrain.vertex.glsl` computes `v_relief` (four extra DEM reads per vertex, only when the strength is above 0); `terrain.fragment.glsl` multiplies by it. Test: `terrain_program.test.ts`.
 
 **Native porting notes.** Native's terrain is drawn by its own terrain/hillshade programs; add the same per-vertex normal from the DEM and the same formula, fed by the style light (`EvaluatedLight`, likely). Per-vertex lighting relies on the 128-cell terrain mesh; a coarser mesh wants it per fragment.
+
+**Commits.** `070a357a2`, `eb5d7a4fd` (strength range past 1).
 
 ## Porting order
 

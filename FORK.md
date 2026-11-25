@@ -1445,8 +1445,9 @@ the whole frame.
 - `ProgramCache` defers only the programs that draw a style layer straight to the screen: `background`,
   `backgroundPattern`, `circle`, `fill`, `fillOutline`, `fillOutlinePattern`, `fillPattern`, `fillExtrusion`,
   `fillExtrusionPattern`, `line`, `lineVariableOffset`, `lineGradient`, `linePattern`, `lineSDF`,
-  `lineGradientSDF`, `raster`, `hillshade`, `colorRelief`, `symbolIcon`, `symbolSDF`, `symbolTextAndIcon`.
-  Everything else (clipping masks, depth, prepare passes, heatmap, terrain, sky, shading, collision debug) links
+  `lineGradientSDF`, `raster`, `hillshade`, `colorRelief`, `symbolIcon`, `symbolSDF`, `symbolTextAndIcon`, `sky`
+  (a missing sky for a frame shows the clear colour and nothing is cached from it).
+  Everything else (clipping masks, depth, prepare passes, heatmap, terrain, shading, collision debug) links
   at once, because a frame drawn without it would be kept: a missing mask, a prepared texture or a shadow map.
 - A deferred program compiles both shaders, binds nothing, and calls `linkProgram`. It then stores the rest of
   the upstream constructor (link status check, UBO bindings, attribute and uniform locations, uniform bindings)

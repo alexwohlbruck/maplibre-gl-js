@@ -26,7 +26,7 @@ type ProgramVariant = {
 const DEFERRED_PROGRAMS = new Set([
     'background', 'backgroundPattern', 'circle', 'fill', 'fillOutline', 'fillOutlinePattern', 'fillPattern',
     'fillExtrusion', 'fillExtrusionPattern', 'line', 'lineVariableOffset', 'lineGradient', 'linePattern', 'lineSDF',
-    'lineGradientSDF', 'raster', 'hillshade', 'colorRelief', 'symbolIcon', 'symbolSDF', 'symbolTextAndIcon'
+    'lineGradientSDF', 'raster', 'hillshade', 'colorRelief', 'symbolIcon', 'symbolSDF', 'symbolTextAndIcon', 'sky'
 ]);
 
 const chunkIds = new Map<string, number>();

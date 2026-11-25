@@ -7674,7 +7674,14 @@ declare class Program<Us extends UniformBindings> {
   terrainUniforms: TerrainPreludeUniformsType;
   binderUniforms: BinderUniform[];
   failedToCreate: boolean;
-  constructor(context: Context, source: PreparedShader, configuration: ProgramConfiguration, fixedUniforms: (b: Context, a: UniformLocations) => Us, showOverdrawInspector: boolean, useTerrain: boolean, projectionPrelude: PreparedShader, projectionDefine: string, extraDefines?: string[], fragmentChunk?: string);
+  private readonly context;
+  private finishLink;
+  constructor(context: Context, source: PreparedShader, configuration: ProgramConfiguration, fixedUniforms: (b: Context, a: UniformLocations) => Us, showOverdrawInspector: boolean, useTerrain: boolean, projectionPrelude: PreparedShader, projectionDefine: string, extraDefines?: string[], fragmentChunk?: string, deferLink?: boolean);
+  /**
+   * Whether the program has linked and can draw. A deferred program that is still linking flags the context
+   * so the map renders again, and is finished here the first time the driver reports it complete.
+   */
+  isReady(): boolean;
   draw(context: Context, drawMode: DrawMode, depthMode: Readonly<DepthMode>, stencilMode: Readonly<StencilMode>, colorMode: Readonly<ColorMode>, cullFaceMode: Readonly<CullFaceMode>, uniformValues: UniformValues<Us>, terrain: TerrainData, projectionData: ProjectionData, layerID: string, layoutVertexBuffer: VertexBuffer, indexBuffer: IndexBuffer, segments: SegmentVector, currentProperties?: any, zoom?: number | null, configuration?: ProgramConfiguration | null, dynamicLayoutBuffer?: VertexBuffer | null, dynamicLayoutBuffer2?: VertexBuffer | null, dynamicLayoutBuffer3?: VertexBuffer | null): void;
 }
 /**
@@ -7748,6 +7755,9 @@ declare class Context {
   gl: WebGL2RenderingContext;
   currentNumAttributes: number;
   maxTextureSize: number;
+  parallelShaderCompile: KHR_parallel_shader_compile | null;
+  /** Set when a draw was skipped because its program is still linking; the map renders again until it clears. */
+  programsPending: boolean;
   clearColor: ClearColor;
   clearDepth: ClearDepth;
   clearStencil: ClearStencil;

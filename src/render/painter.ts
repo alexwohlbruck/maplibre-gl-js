@@ -325,7 +325,8 @@ export class Painter {
         // draw sky first to not overwrite symbols
         if (data.sky) this.drawFunctions.sky(this.skyMesh, frameRenderContext);
 
-        frameRenderContext.setDepthRangeFor3D(style._order.length);
+        // Under terrain the 2D layers are drawn into its textures and there is no opaque pass, so nothing else writes depth.
+        frameRenderContext.setDepthRangeFor3D(this.renderToTexture ? null : style._order.length);
 
         // Opaque pass ===============================================
         // Draw opaque layers top-to-bottom first.

@@ -83,6 +83,44 @@ describe('render', () => {
         expect(frameRenderContext.data).toBe(data);
     });
 
+    /** A style of `count` hidden layers, which the frame counts but draws none of. */
+    function withHiddenLayers(count: number) {
+        style._order = Array.from({length: count}, (_, i) => `layer-${i}`);
+        for (const id of style._order) {
+            style._layers[id] = {id, type: 'background', paint: {get: () => 0}, is3D: () => false, isHidden: () => true, hasOffscreenPass: () => false} as any;
+        }
+    }
+
+    test('3D layers take the whole depth range under terrain, however many layers the style has', ({onTestFinished}) => {
+        const setRange = vi.spyOn(FrameRenderContext.prototype, 'setDepthRangeFor3D');
+        onTestFinished(() => setRange.mockRestore());
+        vi.spyOn(painter.drawFunctions, 'terrainDepth').mockImplementation(() => {});
+        map.terrain = {tileManager: {anyTilesAfterTime: () => false}};
+        painter.renderToTexture = {prepareForRender: vi.fn(), renderLayer: vi.fn(() => false)} as any;
+        vi.spyOn(painter, 'clearRTTPool').mockImplementation(() => {});
+
+        for (const layerCount of [0, 20]) {
+            withHiddenLayers(layerCount);
+            painter.render(style, projectedCamera, worldCoordinateHelper, renderOptions);
+            const frameRenderContext = setRange.mock.contexts.at(-1) as FrameRenderContext;
+            expect(frameRenderContext.depthRangeFor3D).toEqual([0, 1]);
+        }
+    });
+
+    test('3D layers draw beneath every layer\'s sublayers without terrain', ({onTestFinished}) => {
+        const setRange = vi.spyOn(FrameRenderContext.prototype, 'setDepthRangeFor3D');
+        onTestFinished(() => setRange.mockRestore());
+
+        painter.render(style, projectedCamera, worldCoordinateHelper, renderOptions);
+        const few = (setRange.mock.contexts.at(-1) as FrameRenderContext).depthRangeFor3D[1];
+        withHiddenLayers(20);
+        painter.render(style, projectedCamera, worldCoordinateHelper, renderOptions);
+        const many = (setRange.mock.contexts.at(-1) as FrameRenderContext).depthRangeFor3D[1];
+
+        expect(few).toBeLessThan(1);
+        expect(many).toBeLessThan(few);
+    });
+
     test('uses frame render context for depth and blending when drawing a custom layer', () => {
         const frameRenderContext = new FrameRenderContext({projectedCamera, worldCoordinateHelper, terrain: null, data: renderOptions, context: painter.context, programCache: painter.programCache, currentPass: 'translucent', projection: style.projection});
         frameRenderContext.depthRangeFor3D = [0.1, 0.8];

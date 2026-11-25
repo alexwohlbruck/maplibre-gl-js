@@ -211,9 +211,13 @@ export class FrameRenderContext {
         return new DepthMode(this.context.gl.LEQUAL, DepthMode.ReadWrite, this.depthRangeFor3D);
     }
 
-    /** Sets the depth range that 3D layers draw into, which lies below the depth values of every sublayer of the `layerCount` layers. */
-    setDepthRangeFor3D(layerCount: number): void {
-        this.depthRangeFor3D = [0, 1 - ((layerCount + 2) * NUM_SUBLAYERS * DEPTH_EPSILON)];
+    /**
+     * Sets the depth range that 3D layers draw into, which lies below the depth values of every sublayer of the `layerCount` layers.
+     * `null` takes the whole range, for a frame whose 2D layers write no depth: the 3D layers' depths then no longer move with
+     * the number of layers in the style.
+     */
+    setDepthRangeFor3D(layerCount: number | null): void {
+        this.depthRangeFor3D = layerCount === null ? [0, 1] : [0, 1 - ((layerCount + 2) * NUM_SUBLAYERS * DEPTH_EPSILON)];
     }
 
     /**

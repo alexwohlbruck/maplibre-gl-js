@@ -50,6 +50,7 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Building ground elevation buffer, tile-agreed anchor | internal attribute `a_anchor_elevation` replaces `a_centroid` | `43e498a61` |
 | Anchors kept on the GPU | `FillExtrusionBucket.centroidVertexBuffer` | `75f89a5c9` |
 | 3D depth range for custom layers | `CustomRenderMethodInput.depthRangeFor3D: [number, number]` | sync to v6.19.0 |
+| Whole depth range under terrain | none public; `FrameRenderContext.setDepthRangeFor3D(null)` | this release |
 | Terrain relief shading | terrain property `shading` (number 0–4, default 0) | after the v6.19.0 sync |
 | Clip distances override | `Map#setNearFarZ({nearZ, farZ} \| null)`, `Map#getNearFarZ()` | after the v6.19.0 sync |
 | Clipping-mask reuse | none | `f3cddca7d`, `5d70660cc` |
@@ -1238,11 +1239,21 @@ Shading), so this commit exists for compatibility.
 
 **Commits.** `75f89a5c9`.
 
+### Whole depth range under terrain
+
+**Purpose.** Upstream draws 3D layers into `[0, 1 - (layerCount + 2) * NUM_SUBLAYERS * DEPTH_EPSILON]`, below the depth slices the opaque pass gives each 2D layer, so the range shrinks by about 0.02% with every layer the style holds. Under terrain there is no opaque pass: the 2D layers are drawn into the terrain's textures, and nothing but the terrain, the 3D layers and the custom layers writes the main depth buffer. The shrinking range then only rescaled their depths, and that was enough to change which of two nearly level surfaces won. Adding or removing 20 hidden layers in Parchment's style turned the shading on about 0.2% of a z14 plan view's building roofs on or off; pinning the range removed the change.
+
+**Behaviour.** `FrameRenderContext.setDepthRangeFor3D(layerCount: number | null)`: `null` sets `[0, 1]`. `Painter.render` passes `null` when `renderToTexture` is set (terrain on), and `style._order.length` otherwise, unchanged from upstream. With terrain on, the 3D layers' depths therefore no longer depend on how many layers the style has. Custom layers get the same range through `depthRangeFor3D`.
+
+**Implementation.** `src/render/frame_render_context.ts` (`setDepthRangeFor3D`), `src/render/painter.ts` (the call). Tests: `src/render/painter.test.ts` checks `[0, 1]` under terrain at 0 and 20 layers, and a range that narrows with the layer count without terrain.
+
+**Native porting notes.** Native sets the 3D depth range in `PaintParameters` from the layer count. Under terrain (once Native drapes 2D layers), use `[0, 1]` there too.
+
 ### 3D depth range for custom layers
 
 **Purpose.** Custom layers that draw 3D objects (models, landmarks) share the depth buffer with the map's extrusions, so they need the depth range the map draws its 3D layers in. Upstream used to expose it on `painter.renderContext`; since v6.19.0 the frame state is internal to `FrameRenderContext`.
 
-**API.** `CustomRenderMethodInput.depthRangeFor3D: [number, number]`, a copy of `FrameRenderContext.depthRangeFor3D` for the frame: `[0, 1 - (layerCount + 2) * NUM_SUBLAYERS * DEPTH_EPSILON]` once the frame has been prepared. Pass it to `gl.depthRange` before drawing 3D geometry.
+**API.** `CustomRenderMethodInput.depthRangeFor3D: [number, number]`, a copy of `FrameRenderContext.depthRangeFor3D` for the frame, once the frame has been prepared: `[0, 1]` under terrain, otherwise `[0, 1 - (layerCount + 2) * NUM_SUBLAYERS * DEPTH_EPSILON]` (see "Whole depth range under terrain"). Pass it to `gl.depthRange` before drawing 3D geometry.
 
 **Implementation.** `src/webgl/draw/draw_custom.ts` adds it to the render input; the type is in `src/style/style_layer/custom_style_layer.ts`. Test: `draw_custom.test.ts`.
 

@@ -5768,8 +5768,12 @@ declare class FrameRenderContext {
   colorModeForRenderPass(): Readonly<ColorMode>;
   getDepthModeForSublayer(n: number, mask: DepthMaskType, func?: DepthFuncType | null): Readonly<DepthMode>;
   getDepthModeFor3D(): Readonly<DepthMode>;
-  /** Sets the depth range that 3D layers draw into, which lies below the depth values of every sublayer of the `layerCount` layers. */
-  setDepthRangeFor3D(layerCount: number): void;
+  /**
+   * Sets the depth range that 3D layers draw into, which lies below the depth values of every sublayer of the `layerCount` layers.
+   * `null` takes the whole range, for a frame whose 2D layers write no depth: the 3D layers' depths then no longer move with
+   * the number of layers in the style.
+   */
+  setDepthRangeFor3D(layerCount: number | null): void;
   /**
    * Returns whether the current layer can be drawn in the opaque pass. The opaque pass and 3D layers both use the depth buffer,
    * so layers drawn above 3D layers use the painter's algorithm to appear above 3D features.

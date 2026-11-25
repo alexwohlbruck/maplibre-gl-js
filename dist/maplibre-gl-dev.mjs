@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.8/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.9/LICENSE.txt
 */
 // \0rolldown/runtime.js
 var __create = Object.create;
@@ -10239,7 +10239,7 @@ if (!paintFillExtrusion["fill-extrusion-cast-shadows"]) {
 	};
 }
 // package.json
-var version$2 = "6.19.0-transit.1-terrain.8";
+var version$2 = "6.19.0-transit.1-terrain.9";
 // node_modules/@mapbox/point-geometry/index.js
 /**
 * A standalone point geometry with useful accessor, comparison, and
@@ -52109,9 +52109,13 @@ var FrameRenderContext = class {
 	getDepthModeFor3D() {
 		return new DepthMode(this.context.gl.LEQUAL, DepthMode.ReadWrite, this.depthRangeFor3D);
 	}
-	/** Sets the depth range that 3D layers draw into, which lies below the depth values of every sublayer of the `layerCount` layers. */
+	/**
+	* Sets the depth range that 3D layers draw into, which lies below the depth values of every sublayer of the `layerCount` layers.
+	* `null` takes the whole range, for a frame whose 2D layers write no depth: the 3D layers' depths then no longer move with
+	* the number of layers in the style.
+	*/
 	setDepthRangeFor3D(layerCount) {
-		this.depthRangeFor3D = [0, 1 - (layerCount + 2) * NUM_SUBLAYERS * DEPTH_EPSILON];
+		this.depthRangeFor3D = layerCount === null ? [0, 1] : [0, 1 - (layerCount + 2) * NUM_SUBLAYERS * DEPTH_EPSILON];
 	}
 	/**
 	* Returns whether the current layer can be drawn in the opaque pass. The opaque pass and 3D layers both use the depth buffer,
@@ -52459,7 +52463,7 @@ var Painter = class Painter {
 		});
 		frameRenderContext.clearStencil();
 		if (data.sky) this.drawFunctions.sky(this.skyMesh, frameRenderContext);
-		frameRenderContext.setDepthRangeFor3D(style._order.length);
+		frameRenderContext.setDepthRangeFor3D(this.renderToTexture ? null : style._order.length);
 		if (!this.renderToTexture) {
 			frameRenderContext.currentPass = "opaque";
 			for (frameRenderContext.currentLayer = layerIds.length - 1; frameRenderContext.currentLayer >= 0; frameRenderContext.currentLayer--) {

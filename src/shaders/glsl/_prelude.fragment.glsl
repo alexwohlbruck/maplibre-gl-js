@@ -62,7 +62,7 @@ float horizon_fade(highp float depth) {
 #ifdef SHADING
 // The map's shading (render/shading.ts): the sun's shadow map and the ground occlusion, read alike by every receiver.
 uniform highp sampler2DShadow u_sun_shadow;
-// How much of the sun's shadow shows (0 with no sun), a texel of its map in uv, and the depth of a metre.
+// How much of the sun's shadow shows (0 with no sun), a texel of its map in uv, and the depth a texel spans.
 uniform highp vec3 u_sun;
 uniform sampler2D u_occlusion;
 // The ground occlusion's strength (0 with none) and the power that narrows its reach.
@@ -82,7 +82,7 @@ float sun_shade(highp vec4 p, highp float slope) {
     highp vec2 edge = abs(c.xy * 2.0 - 1.0);
     highp float reach = max(edge.x, edge.y);
     if (reach >= 1.0 || c.z > 1.0) return 0.0;
-    highp float z = c.z - (0.4 + 1.2 * min(slope, 4.0)) * u_sun.z;
+    highp float z = c.z - (0.5 + 1.0 * min(slope, 4.0)) * u_sun.z;
     highp float d = 0.75 * u_sun.y;
     // Four filtered taps: a soft edge about three texels wide. Lod, as receivers sample inside a branch.
     float lit = textureLod(u_sun_shadow, vec3(c.xy + vec2(-d, -d), z), 0.0)

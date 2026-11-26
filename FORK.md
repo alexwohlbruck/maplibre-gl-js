@@ -1780,7 +1780,7 @@ type WallShader = {source: string; uniforms?: {[name: string]: number | number[]
 - `pitchFade = topDownOpacity + (1 − topDownOpacity) · smooth(clamp01(pitch / max(topDownPitch, 0.001)))`.
 
 *Receivers' uniforms* (`receive()`), also binding textures. Sun depth goes on unit 5 (`SUN_SHADOW_UNIT`), occlusion on unit 6 (`OCCLUSION_UNIT`) and lights on unit 7 (`LIGHTS_UNIT`). A missing map is replaced by a 1×1 depth texture on unit 5, or a 1×1 transparent RGBA texture on units 6 and 7, so a shadow sampler never sits on a colour texture and vice versa. Unit 0 is re-activated afterwards.
-- `u_sun = (frame.strength or 0, 1/size, depthPerMetre)`
+- `u_sun = (frame.strength or 0, 1/size, depthPerMetre · texelMetres)`: the last is the depth one texel spans.
 - `u_occlusion_strength = (strength, power)`
 - `u_ground = (heightScale · |shadowOffset|, shadowAlpha · groundOpacity · opacity)`, i.e. the ground's slope to the light and the shadow darkness.
 - `u_shadow_color`, plus `u_lights` / `u_light` (Lamplight).
@@ -1792,7 +1792,7 @@ float sun_shade(highp vec4 p, highp float slope) {   // 0 lit .. 1 shadowed
   vec3 c = p.xyz / p.w * 0.5 + 0.5;
   float reach = max(abs(c.x*2-1), abs(c.y*2-1));
   if (reach >= 1.0 || c.z > 1.0) return 0.0;
-  float z = c.z - (0.4 + 1.2 * min(slope, 4.0)) * u_sun.z;   // slope-scaled bias, in metres → depth
+  float z = c.z - (0.5 + 1.0 * min(slope, 4.0)) * u_sun.z;   // slope-scaled bias, in texels → depth
   float d = 0.75 * u_sun.y;                                   // 4 PCF taps at ±0.75 texel
   float lit = sum of textureLod(u_sun_shadow, vec3(c.xy ± d, z), 0.0) over 4 taps;
   return u_sun.x * (1.0 - lit * 0.25) * (1.0 - smoothstep(0.9, 1.0, reach));
@@ -1812,6 +1812,8 @@ vec4 ground_shade(vec4 sun, vec2 occlusion_uv) {   // premultiplied
 }
 ```
 `textureLod` is used everywhere because the samples sit inside branches.
+
+The bias is measured in texels of the sun's map, not metres. A fixed bias in metres is several texels at street zoom: under a low sun it detached each shadow from its caster by metres and dropped the whole shadow of anything under about 1 m tall (benches, tables, bins).
 
 *Flat ground* (`drawGround`): runs only when there is no render-to-texture, i.e. terrain is off. In the translucent pass loop of `Painter.render`, just before the layer whose id equals `groundLayer` (the bottom-most casting layer) is drawn, one quad covering the region is drawn. The region is the sun region if there is a sun frame, otherwise the occlusion or lights region. The quad uses program `shadingGround` with `#define SHADING`, depth off, stencil off, `ColorMode.alphaBlended` (premultiplied ONE, ONE_MINUS_SRC_ALPHA) and cull off. `u_matrix = customLayerMainMatrix(non-globe) × regionQuad(region)`, `u_sun_matrix = light × quad` and `u_occlusion_matrix = uv × quad`. `regionQuad` maps the 0–1 unit square to the region at z = 0. Everything drawn earlier in the style (fills, roads, lines below the buildings) is darkened by it.
 

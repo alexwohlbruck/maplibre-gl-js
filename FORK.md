@@ -8,7 +8,7 @@ This document lists every behaviour change the fork makes on top of upstream Map
 - **Versions and tags:** `v<upstream>-transit.N-terrain.M`. `transit.N` counted the first round of features (transit lines, line elevation, symbol work, horizon fade; `transit.1` to `transit.18`). `terrain.M` counts the second round, built on `transit.18` (terrain haze, hiding without reload, terrain and extrusion performance, shading; `terrain.1` to `terrain.8`). `package.json` `version` matches the tag.
 - **`dist/` is committed.** Consumers install from a git tag without a build toolchain, so most features are followed by a "Build dist" or version-bump commit. Those commits carry no source change and are left out below. `package.json` also drops upstream's `prepare: npm run codegen` script for the same reason.
 - **Spec additions** live in `src/style-spec/fork_extensions.ts`. It adds entries to the style-spec `v8` reference object at import time and is imported first by `src/index.ts`, `src/source/worker.ts` and `build/generate-style-code.ts`, so validation, expression parsing and generated property classes all see the new properties. In Native the equivalent is likely editing the spec JSON that drives `scripts/generate-style-code.js` and regenerating the `*_layer_properties` files.
-- **Layer metadata keys** (`parchment:decal`, `parchment:horizon-fade`) are read from the layer's `metadata` object, not from the spec.
+- **Layer metadata keys** (`parchment:decal`, `parchment:horizon-fade`, `parchment:tile-fade`) are read from the layer's `metadata` object, not from the spec.
 - **Pulled in early from upstream:** `ce10d2208` (bidi support, deprecating the RTL plugin, upstream PR #8343) and `2da49917e` (`font-faces` style property, upstream PR #8237) are upstream commits already contained in `v6.11.2`. They are not fork features and are not documented here.
 
 ## Synced to v6.19.0
@@ -44,6 +44,7 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Decal icons | layer metadata `parchment:decal` | `bd140a8a2` |
 | Horizon fade (lines, symbols, circles) | on by default; metadata `parchment:horizon-fade: false` opts out | `78b35b1d6` |
 | Terrain haze | none; uses sky `fog-color` | `0cb012c9c` |
+| Tile fade-in (fills, lines) | layer metadata `parchment:tile-fade: <milliseconds>` | `4fc422cc0` |
 | Drape beneath | `MapOptions.drapeBeneath` (bool, default false) | `763f20689`, `4a3ef5414` |
 | Terrain worker | none public (`WorkerPool.acquireTerrain`, `Dispatcher.getTerrainActor`) | `d77e044c2`, `ef22fff32` (`709b68c21`, `79f332311` superseded) |
 | Per-frame elevation-range cache | internal `Terrain.beginFrame` | `6278321dc` (part) |
@@ -873,6 +874,50 @@ Four small changes to how symbols, lines and circles look as they get far from t
 **Commits.** `78b35b1d6`.
 
 **Use in Parchment.** The app sets no `parchment:horizon-fade` key, so every line, symbol and circle layer fades.
+
+### Tile fade-in (`parchment:tile-fade`)
+
+**Purpose.** A vector tile's fills and lines appear whole the moment the tile is parsed. For layers that only exist at high zoom (Parchment's lane-level roads from z16), the tile often lands a second or more after the camera got there, so the whole street pops in at once. An opted-in layer fades in per tile instead, but only where nothing of that layer was drawn before.
+
+**API / style-spec surface.**
+- Layer metadata `parchment:tile-fade`: a positive number, the fade's length in milliseconds. Anything else (absent, 0, a string) leaves the layer as upstream draws it.
+- Only `fill` and `line` layers read it. No spec property, no map option.
+
+**Behaviour.**
+- The first time a tile draws an opted-in layer, it decides whether to fade:
+  - It looks for a **loaded parent** up to 4 zoom levels up (`TileManager.getLoadedTile(tileID.scaledTo(z))`), and for any **loaded child** among the in-view tiles (`tileID.isChildOf`), that has a bucket for the layer. Either one means that tile was standing in for this one, so the area was never empty: no fade (the fade counts as already done).
+  - Otherwise the fade starts now.
+- Fade factor: `t = (now - start) / duration`, eased with smoothstep `t * t * (3 - 2 * t)`, 1 once `t >= 1`. `now` is read once per frame (`time_control.now()`).
+- The factor multiplies the whole premultiplied fragment colour (`fragColor *= u_tile_fade`) as the last step before `OVERDRAW_INSPECTOR`, after horizon fade.
+- **Opaque pass.** A fill that would draw in the opaque pass (constant opacity 1, opaque colour, no pattern) draws its still-fading tiles in the translucent pass instead, with `ReadOnly` depth at sublayer 1, before the outline. Settled tiles stay in the opaque pass.
+- **Repaint.** While any tile drew mid-fade this frame (`TileFades.fading`), `Map._render` counts the frame as dirty and draws another.
+- **Terrain.** Draped layers are cached per terrain tile. Each render-to-texture fingerprint carries a fade stamp: the frame number while any source tile under that terrain tile is fading, 0 otherwise. A changed stamp counts as a `revision` difference, so those terrain tiles re-render every frame of the fade and once more when it ends. Other terrain tiles keep their textures.
+- **Memory.** A tile's record is dropped after it goes undrawn for 3 s (checked every 3 s), so one that comes back from the tile cache decides again whether to fade.
+- A tile reloaded in place (expired or refreshed data) keeps its key and its record, so it does not fade again.
+- Symbols are not affected; they already fade with placement (`fadeDuration`).
+
+**Implementation in GL JS.**
+- `src/webgl/draw/tile_fade.ts` (new): `tileFadeDuration(layer)`, `tileFadeDefines(layer)` (`['#define TILE_FADE']` when opted in), and `TileFades` with `beginFrame(now)`, `factor(layer, tileManager, tile)` and `stamp(sourceId, tileKeys)`.
+- `src/render/painter.ts`: `Painter.tileFades`, and `tileFades.beginFrame(now())` at the start of `render`.
+- `src/webgl/program.ts`: `Program.tileFadeLocation` (looked up at link time, null for programs without the uniform) and `Program.tileFade`. `draw()` sets `u_tile_fade` from `tileFade` after the binder uniforms.
+- `src/webgl/draw/draw_fill.ts`: the opaque/translucent split above. `drawFillTiles` passes `tileFadeDefines(layer)` to `useProgram` and sets `program.tileFade` per tile.
+- `src/webgl/draw/draw_line.ts`: `tileFadeDefines(layer)` joins the horizon-fade and elevation defines, and `program.tileFade` is set per tile.
+- `src/webgl/render_to_texture.ts` and `src/webgl/rtt_fingerprint.ts`: the fade stamp as a fifth fingerprint field.
+- `src/ui/map.ts`: `painter.tileFades.fading` in `somethingDirty`.
+- Shaders: `_prelude.fragment.glsl` declares `uniform lowp float u_tile_fade` under `#ifdef TILE_FADE`. `fill`, `fill_outline`, `fill_pattern`, `fill_outline_pattern`, `line`, `line_gradient`, `line_gradient_sdf`, `line_sdf` and `line_pattern` fragment shaders multiply by it.
+
+**Tests.** `src/webgl/draw/tile_fade.test.ts`: the define, the fade over time, no fade over a loaded parent or loaded children with the layer, a fade over a parent without it, and the stamp.
+
+**Native porting notes.**
+- Likely counterparts: `RenderFillLayer` and `RenderLineLayer` (or their tweakers and drawable builders) to choose the shader variant and set the per-tile value; `RenderTile` or `Tile` to hold the first-draw time; `TilePyramid`/`RenderSource` for the loaded-parent and loaded-child lookups.
+- Native keeps the ideal tiles' retained parents and children in the render source, much as GL JS's `TileManager` does. The parent/child test is what keeps a tile replacing its own parent from flashing out and back, so port it exactly.
+- A uniform per drawable is enough; it need not be a separate shader variant in Native. Keep the multiply as the fragment's last step.
+- Native's opaque pass works the same way: move fading tiles' fills out of it.
+- If terrain draping is ported, its texture cache key needs the fade stamp.
+
+**Commits.** `4fc422cc0`.
+
+**Use in Parchment.** Every `fill` and `line` layer on barrelman's detail source (lane-level road surfaces and markings, parking, sport pitches and tracks, golf, flower beds and solar arrays) sets `parchment:tile-fade: 300`, the same length as MapLibre's label fade.
 
 ### Terrain haze over the horizon-fade band
 
@@ -1978,7 +2023,7 @@ Faces turned away from the light (`facing ≤ 0`) take no shadow test; they are 
 1. **Spec plumbing first.** Add every property from `fork_extensions.ts` to Native's spec and regenerate the style code. Nothing else compiles without it.
 2. **Line ext buffer.** Variable `line-offset` (with the vector-tile easing and clipping) adds the line's second per-vertex buffer. Line elevation appends `a_elevation` to that buffer and reuses the metres-to-tile-units helper from `line-rounded-corner-distance`, so port offset, then rounded corners, then elevation. Datum heights, draw order, snapping and run paths build on elevation in that order.
 3. **Symbol attributes.** `symbol-anchor-offset` and per-feature `symbol-height-anchor` both widen the symbol layout vertex, and the height change moves the anchor-offset attribute. Do them together, after upstream's `symbol-height-offset` and `symbol-height-anchor` exist in Native. Isolated collision layers are independent.
-4. **Horizon fade before terrain haze.** The haze calls the fade function. Horizon fade shares `draw_line`'s define list with the line-elevation defines, so it is easiest after step 2. Decal icons and the gamma precision change stand alone.
+4. **Horizon fade before terrain haze.** The haze calls the fade function. Horizon fade shares `draw_line`'s define list with the line-elevation defines, so it is easiest after step 2. Decal icons and the gamma precision change stand alone. Tile fade-in stands alone too, but its terrain part needs the drape cache from step 5.
 5. **Terrain.** Drape beneath needs render-to-texture terrain, and must keep elevated lines (step 2) out of the drape. The terrain worker, the elevation-range cache and clipping-mask reuse are independent. The building ground-elevation buffer comes before "anchors on the GPU".
 6. **Hiding without reload** is independent, but its muted-layer and negative-height checks recur in the drape pass and the shadow pass, so land it before shading.
 7. **Shading last.** It depends on the building ground-elevation buffer (`43e498a61`), on muted layers and negative-height culling (`d8ea3c430`), and with terrain on on the terrain shader. The moving-placement change in the same commit is independent and belongs with performance. Lamplight builds on the shadow pipeline.

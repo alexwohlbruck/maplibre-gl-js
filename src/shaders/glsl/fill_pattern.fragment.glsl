@@ -45,6 +45,10 @@ void main() {
         fragColor = mix(color1, color2, u_fade) * opacity;
     }
 
+#ifdef TILE_FADE
+    fragColor *= u_tile_fade;
+#endif
+
 #ifdef OVERDRAW_INSPECTOR
     fragColor = vec4(1.0);
 #endif

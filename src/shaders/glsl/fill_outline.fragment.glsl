@@ -23,6 +23,10 @@ void main() {
     }
     #endif
 
+#ifdef TILE_FADE
+    fragColor *= u_tile_fade;
+#endif
+
 #ifdef OVERDRAW_INSPECTOR
     fragColor = vec4(1.0);
 #endif

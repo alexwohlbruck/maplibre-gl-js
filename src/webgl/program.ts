@@ -63,6 +63,10 @@ export class Program<Us extends UniformBindings> {
     numAttributes: number;
     fixedUniforms: Us;
     terrainUniforms: TerrainPreludeUniformsType;
+    /** Where a `TILE_FADE` program reads how far the tile being drawn has faded in; null for every other program. */
+    tileFadeLocation: WebGLUniformLocation | null = null;
+    /** How far the next tile drawn has faded in, 0-1, for a `TILE_FADE` program; the draw sets it before each tile. */
+    tileFade = 1;
     binderUniforms: BinderUniform[];
     failedToCreate: boolean;
     private readonly context: Context;
@@ -185,6 +189,7 @@ export class Program<Us extends UniformBindings> {
 
             this.fixedUniforms = fixedUniforms(context, uniformLocations);
             this.terrainUniforms = terrainPreludeUniforms(context, uniformLocations);
+            this.tileFadeLocation = gl.getUniformLocation(this.program, 'u_tile_fade');
             this.binderUniforms = configuration ? configuration.getUniforms(context, uniformLocations) : [];
         };
 
@@ -266,6 +271,8 @@ export class Program<Us extends UniformBindings> {
         if (configuration) {
             configuration.setUniforms(context, this.binderUniforms, currentProperties, {zoom});
         }
+
+        if (this.tileFadeLocation) gl.uniform1f(this.tileFadeLocation, this.tileFade);
 
         let primitiveSize = 0;
         switch (drawMode) {

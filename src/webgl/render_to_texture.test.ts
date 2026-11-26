@@ -1,4 +1,5 @@
 import {afterEach, beforeEach, describe, test, expect, vi} from 'vitest';
+import {TileFades} from './draw/tile_fade.ts';
 import {RenderToTexture} from './render_to_texture.ts';
 import {RTTFingerprint} from './rtt_fingerprint.ts';
 import {FrameRenderContext} from '../render/frame_render_context.ts';
@@ -82,7 +83,8 @@ describe('render to texture', () => {
         releaseRTT: vi.fn(),
         drawFunctions: {
             terrainDepth: vi.fn(),
-        }
+        },
+        tileFades: new TileFades(),
     } as any as Painter;
     const map = {painter} as Map;
 

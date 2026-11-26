@@ -1,7 +1,7 @@
 {
   "name": "maplibre-gl",
   "description": "BSD licensed community fork of mapbox-gl, a WebGL interactive maps library",
-  "version": "6.19.0-transit.1-terrain.11",
+  "version": "6.19.0-transit.1-terrain.12",
   "module": "dist/maplibre-gl.mjs",
   "style": "dist/maplibre-gl.css",
   "license": "BSD-3-Clause",

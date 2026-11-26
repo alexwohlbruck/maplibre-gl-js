@@ -185,7 +185,7 @@ export class RenderToTexture {
             const fingerprints = this._rttFingerprints[sourceId];
             const revision = tileManager.getState().revision;
             for (const key in coordsAscending)
-                fingerprints[key] = new RTTFingerprint(coordsAscending[key], revision, zoom, visibleLayerIds);
+                fingerprints[key] = new RTTFingerprint(coordsAscending[key], revision, zoom, visibleLayerIds, this.painter.tileFades.stamp(sourceId, coordsAscending[key].map(c => c.key)));
         }
 
         for (const layerId of this._renderableLayerIds) {

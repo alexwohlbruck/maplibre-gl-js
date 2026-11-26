@@ -52,6 +52,11 @@ void elevated_line_fragment(highp vec2 tile_pos, float lift) {
 }
 #endif
 
+#ifdef TILE_FADE
+// How far a tile's content has faded in since it first drew, 0-1; see tile_fade.ts.
+uniform lowp float u_tile_fade;
+#endif
+
 #ifdef HORIZON_FADE
 // 1 near the camera, easing to 0 between 2.5 and 5 times the map centre's distance, which only steep pitches reach.
 float horizon_fade(highp float depth) {

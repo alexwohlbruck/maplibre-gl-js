@@ -23,12 +23,15 @@ export class RTTFingerprint {
     private readonly _revision: number;
     private readonly _zoom: number;
     private readonly _visibleLayerIds: string;
+    private readonly _fade: number;
 
-    constructor(coords: OverscaledTileID[], revision: number, zoom: number, visibleLayerIds: string) {
+    /** `fade` changes every frame while a source tile under it fades in, and is 0 once none does; see `TileFades.stamp`. */
+    constructor(coords: OverscaledTileID[], revision: number, zoom: number, visibleLayerIds: string, fade = 0) {
         this._tileKeys = coords.map(c => c.key).sort().join();
         this._revision = revision;
         this._zoom = zoom;
         this._visibleLayerIds = visibleLayerIds;
+        this._fade = fade;
     }
 
     /**
@@ -36,7 +39,7 @@ export class RTTFingerprint {
      * `none` when they match. A missing fingerprint counts as a revision difference.
      */
     difference(other: RTTFingerprint | undefined): RTTDifference {
-        if (this._revision !== other?._revision) return 'revision';
+        if (this._revision !== other?._revision || this._fade !== other._fade) return 'revision';
         if (this._visibleLayerIds !== other._visibleLayerIds) return 'visibleLayers';
         if (this._tileKeys !== other._tileKeys) return 'sourceTiles';
         return this._zoom === other._zoom ? 'none' : 'zoom';

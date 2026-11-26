@@ -15,6 +15,7 @@ import {EXTENT} from '../../data/extent.ts';
 import {drawLayerComposite, prepareDrawLayerComposite} from './draw_layer_composite.ts';
 import {getCameraMath} from '../../camera/camera_math_factory.ts';
 import {horizonFadeDefines} from './horizon_fade.ts';
+import {tileFadeDefines} from './tile_fade.ts';
 
 import type {FrameRenderContext} from '../../render/frame_render_context.ts';
 import type {Painter} from '../../render/painter.ts';
@@ -192,7 +193,7 @@ function drawLineTiles(
     const depthMode = pass === 'flat' ? frameRenderContext.getDepthModeForSublayer(0, DepthMode.ReadOnly) :
         pass === 'overground' ? new DepthMode(frameRenderContext.context.gl.LEQUAL, DepthMode.ReadOnly, frameRenderContext.depthRangeFor3D) :
             DepthMode.disabled;
-    const defines = [...horizonFadeDefines(layer), ...(!elevated ? [] : [
+    const defines = [...horizonFadeDefines(layer), ...tileFadeDefines(layer), ...(!elevated ? [] : [
         '#define LINE_ELEVATION',
         ...(layer.paint.get('line-pitch-alignment') === 'viewport' ? ['#define LINE_VIEWPORT'] : []),
         ...(pass === 'underground' ? ['#define LINE_UNDERGROUND'] : pass === 'overground' ? ['#define LINE_OVERGROUND'] : []),
@@ -239,6 +240,7 @@ function drawLineTiles(
         const programConfiguration = bucket.programConfigurations.get(layer.id);
         const prevProgram = context.program.get();
         const program = frameRenderContext.useProgram(programId, programConfiguration, false, defines);
+        program.tileFade = painter.tileFades.factor(layer, tileManager, tile);
         const programChanged = firstTile || program.program !== prevProgram;
         const terrainData = frameRenderContext.getTerrainDataForTile(coord);
 

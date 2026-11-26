@@ -7,6 +7,7 @@ import {FrameRenderContext} from '../../render/frame_render_context.ts';
 import {Program} from '../program.ts';
 import {FillStyleLayer} from '../../style/style_layer/fill_style_layer.ts';
 import {drawFill} from './draw_fill.ts';
+import {TileFades} from './tile_fade.ts';
 import {FillBucket} from '../../data/bucket/fill_bucket.ts';
 import {createIdentityMat4f32} from '../../util/util.ts';
 import {createFrameRenderData, createTestCamera} from '../../util/test/util.ts';
@@ -90,6 +91,7 @@ describe('drawFill', () => {
                 set: () => {}
             }
         } as any;
+        painterMock.tileFades = new TileFades();
 
         return painterMock;
     }

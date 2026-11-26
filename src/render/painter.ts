@@ -30,6 +30,7 @@ import {isColorReliefStyleLayer} from '../style/style_layer/color_relief_style_l
 import {isRasterStyleLayer} from '../style/style_layer/raster_style_layer.ts';
 import {isBackgroundStyleLayer} from '../style/style_layer/background_style_layer.ts';
 import {isCustomStyleLayer} from '../style/style_layer/custom_style_layer.ts';
+import {TileFades} from '../webgl/draw/tile_fade.ts';
 
 import type {Shading} from './shading/shading.ts';
 import type {OverscaledTileID} from '../tile/tile_id.ts';
@@ -67,6 +68,8 @@ export class Painter {
     renderToTexture: IRenderToTexture;
     /** The map's shading, while it is on: see {@link Shading}. */
     shading: Shading | null = null;
+    /** When each tile first drew each layer that fades in by tile; see `parchment:tile-fade`. */
+    tileFades: TileFades = new TileFades();
     _tileTextures: {
         [_: number]: Texture[];
     };
@@ -241,6 +244,7 @@ export class Painter {
 
     render(style: Style, projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, data: FrameRenderData): void {
         if (this.context.gl.isContextLost()) return;
+        this.tileFades.beginFrame(now());
 
         const frameRenderContext = new FrameRenderContext({
             projectedCamera,

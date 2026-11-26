@@ -10,6 +10,7 @@ import {
 import {updatePatternPositionsInProgram} from '../../render/update_pattern_positions_in_program.ts';
 import {translatePosition} from '../../util/util.ts';
 import {drawLayerComposite, prepareDrawLayerComposite} from './draw_layer_composite.ts';
+import {tileFadeDefines, tileFadeDuration, type TileFades} from './tile_fade.ts';
 
 import type {FrameRenderContext} from '../../render/frame_render_context.ts';
 import type {ColorMode} from '../color_mode.ts';
@@ -29,7 +30,7 @@ export function drawFill(painter: Painter, tileManager: TileManager, layer: Fill
     if (layerOpacity < 1 || layerBlend !== 'normal') {
         if (frameRenderContext.currentPass !== 'translucent') return;
         const results = prepareDrawLayerComposite(painter, tileManager, layer, coords, frameRenderContext);
-        drawFillAndOutline(tileManager, layer, coords, frameRenderContext);
+        drawFillAndOutline(painter.tileFades, tileManager, layer, coords, frameRenderContext);
         drawLayerComposite(painter, layerOpacity, layerBlend, results, layer, frameRenderContext);
         return;
     }
@@ -40,21 +41,30 @@ export function drawFill(painter: Painter, tileManager: TileManager, layer: Fill
         color.constantOr(Color.transparent).a === 1 &&
         opacity.constantOr(0) === 1;
 
+    // A tile still fading in is see-through, so its fill leaves the opaque pass for the translucent one.
+    const fades = painter.tileFades;
+    const fading = fillEligibleForOpaque && tileFadeDuration(layer) ? coords.filter(coord => fades.factor(layer, tileManager, tileManager.getTile(coord)) < 1) : [];
+    const settled = fading.length ? coords.filter(coord => !fading.includes(coord)) : coords;
+
     if (fillEligibleForOpaque && frameRenderContext.currentPass === 'opaque') {
         // Opaque-eligible fill draws standalone in the opaque pass with ReadWrite depth;
         // its outline (always translucent) runs in the translucent pass below.
         const colorMode = frameRenderContext.colorModeForRenderPass();
         const depthMode = frameRenderContext.getDepthModeForSublayer(1, DepthMode.ReadWrite);
-        drawFillTiles(tileManager, layer, coords, depthMode, colorMode, false, frameRenderContext);
+        drawFillTiles(fades, tileManager, layer, settled, depthMode, colorMode, false, frameRenderContext);
         return;
     }
     if (fillEligibleForOpaque && frameRenderContext.currentPass === 'translucent') {
         // Fill already drew in the opaque pass; just draw the outline here.
-        drawOutline(tileManager, layer, coords, frameRenderContext);
+        if (fading.length) {
+            const depthMode = frameRenderContext.getDepthModeForSublayer(1, DepthMode.ReadOnly);
+            drawFillTiles(fades, tileManager, layer, fading, depthMode, frameRenderContext.colorModeForRenderPass(), false, frameRenderContext);
+        }
+        drawOutline(fades, tileManager, layer, coords, frameRenderContext);
         return;
     }
     if (frameRenderContext.currentPass === 'translucent') {
-        drawFillAndOutline(tileManager, layer, coords, frameRenderContext);
+        drawFillAndOutline(fades, tileManager, layer, coords, frameRenderContext);
     }
 }
 
@@ -64,6 +74,7 @@ export function drawFill(painter: Painter, tileManager: TileManager, layer: Fill
  * (when the fill is not opaque-pass-eligible).
  */
 function drawFillAndOutline(
+    fades: TileFades,
     tileManager: TileManager,
     layer: FillStyleLayer,
     coords: OverscaledTileID[],
@@ -72,12 +83,13 @@ function drawFillAndOutline(
     const colorMode = frameRenderContext.colorModeForRenderPass();
 
     const fillDepthMode = frameRenderContext.getDepthModeForSublayer(1, DepthMode.ReadOnly);
-    drawFillTiles(tileManager, layer, coords, fillDepthMode, colorMode, false, frameRenderContext);
+    drawFillTiles(fades, tileManager, layer, coords, fillDepthMode, colorMode, false, frameRenderContext);
 
-    drawOutline(tileManager, layer, coords, frameRenderContext);
+    drawOutline(fades, tileManager, layer, coords, frameRenderContext);
 }
 
 function drawOutline(
+    fades: TileFades,
     tileManager: TileManager,
     layer: FillStyleLayer,
     coords: OverscaledTileID[],
@@ -96,10 +108,11 @@ function drawOutline(
     const colorMode = frameRenderContext.colorModeForRenderPass();
     const depthMode = frameRenderContext.getDepthModeForSublayer(
         layer.getPaintProperty('fill-outline-color') ? 2 : 0, DepthMode.ReadOnly);
-    drawFillTiles(tileManager, layer, coords, depthMode, colorMode, true, frameRenderContext);
+    drawFillTiles(fades, tileManager, layer, coords, depthMode, colorMode, true, frameRenderContext);
 }
 
 function drawFillTiles(
+    fades: TileFades,
     tileManager: TileManager,
     layer: FillStyleLayer,
     coords: OverscaledTileID[],
@@ -139,7 +152,8 @@ function drawFillTiles(
 
         const isSdfPattern = bucket.sdfPatterns[layer.id] ?? false;
         const programConfiguration = bucket.programConfigurations.get(layer.id);
-        const program = frameRenderContext.useProgram(programName, programConfiguration);
+        const program = frameRenderContext.useProgram(programName, programConfiguration, false, tileFadeDefines(layer));
+        program.tileFade = fades.factor(layer, tileManager, tile);
         const terrainData = frameRenderContext.getTerrainDataForTile(coord);
 
         if (image) {

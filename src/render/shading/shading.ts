@@ -642,7 +642,7 @@ export class Shading {
         const light = this.lightStrength();
         return {
             'u_sun_shadow': SUN_SHADOW_UNIT,
-            'u_sun': [frame ? frame.strength : 0, frame ? 1 / frame.size : 0, frame ? frame.depthPerMetre : 0],
+            'u_sun': [frame ? frame.strength : 0, frame ? 1 / frame.size : 0, frame ? frame.depthPerMetre * frame.texelMetres : 0],
             'u_occlusion': OCCLUSION_UNIT,
             'u_occlusion_strength': this.occlusionStrength(),
             'u_ground': [this.heightScale * Math.hypot(this.shadowOffset[0], this.shadowOffset[1]), this.shadowAlpha * ground],

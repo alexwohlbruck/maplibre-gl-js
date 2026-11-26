@@ -6619,6 +6619,25 @@ type DrawFunctions = {
   terrainDepth: typeof drawDepth;
 };
 /**
+ * When each tile first drew each fading layer, so its content eases in rather than appearing whole. A tile that
+ * takes over from a loaded parent or child already drawing the layer does not fade: that area was never empty.
+ */
+declare class TileFades {
+  private fades;
+  /** When each source tile is done fading, by `source/tile key`, for the drape's fingerprints. */
+  private ends;
+  private now;
+  private frame;
+  private prunedAt;
+  /** Whether any tile drew mid-fade this frame, so the map draws another. */
+  fading: boolean;
+  beginFrame(now: number): void;
+  /** How far the tile's content for the layer has faded in, 0-1; 1 for a layer that does not fade. */
+  factor(layer: StyleLayer, tileManager: TileManager, tile: Tile): number;
+  /** A stamp that changes every frame while any of the source tiles is fading, and is 0 once none is. */
+  stamp(sourceId: string, tileKeys: Iterable<string>): number;
+}
+/**
  * A texture atlas of the pattern images that are drawn without a tile's own {@link ImageAtlas},
  * i.e. `background-pattern`. Entries are packed on demand and re-packed whenever one of them is
  * added or changes, which is rare enough for the repacking cost not to matter.
@@ -6685,6 +6704,8 @@ declare class Painter {
   renderToTexture: IRenderToTexture;
   /** The map's shading, while it is on: see {@link Shading}. */
   shading: Shading | null;
+  /** When each tile first drew each layer that fades in by tile; see `parchment:tile-fade`. */
+  tileFades: TileFades;
   _tileTextures: {
     [_: number]: Texture[];
   };
@@ -7045,7 +7066,9 @@ declare class RTTFingerprint {
   private readonly _revision;
   private readonly _zoom;
   private readonly _visibleLayerIds;
-  constructor(coords: OverscaledTileID[], revision: number, zoom: number, visibleLayerIds: string);
+  private readonly _fade;
+  /** `fade` changes every frame while a source tile under it fades in, and is 0 once none does; see `TileFades.stamp`. */
+  constructor(coords: OverscaledTileID[], revision: number, zoom: number, visibleLayerIds: string, fade?: number);
   /**
    * The most severe difference between this fingerprint and the one the textures were rendered from,
    * `none` when they match. A missing fingerprint counts as a revision difference.
@@ -7676,6 +7699,10 @@ declare class Program<Us extends UniformBindings> {
   numAttributes: number;
   fixedUniforms: Us;
   terrainUniforms: TerrainPreludeUniformsType;
+  /** Where a `TILE_FADE` program reads how far the tile being drawn has faded in; null for every other program. */
+  tileFadeLocation: WebGLUniformLocation | null;
+  /** How far the next tile drawn has faded in, 0-1, for a `TILE_FADE` program; the draw sets it before each tile. */
+  tileFade: number;
   binderUniforms: BinderUniform[];
   failedToCreate: boolean;
   private readonly context;

@@ -756,6 +756,28 @@ describe('TileManager.update', () => {
         expect(tileManager.getIds()).toEqual([new OverscaledTileID(0, 0, 0, 0, 0).key]);
     });
 
+    test('shares a frame\'s covering tiles between sources that ask for the same ones', async () => {
+        const context = createCameraContext();
+        let view = createCameraViewState();
+        view = resize(view, context, 511, 511);
+        view = setZoom(view, context, 1);
+        const camera = projectCamera(view, context);
+
+        const covers: Record<string, OverscaledTileID[]> = {};
+        const managers = [createTileManager({}), createTileManager({}), createTileManager({maxzoom: 0})];
+        for (const tileManager of managers) {
+            const dataPromise = waitForEvent(tileManager, 'data', e => e.sourceDataType === 'metadata');
+            tileManager.onAdd(undefined);
+            await dataPromise;
+            tileManager.update(camera, context.worldCoordinateHelper, undefined, covers);
+        }
+
+        expect(Object.keys(covers)).toHaveLength(2);
+        expect(managers[1].getIds()).toEqual(managers[0].getIds());
+        expect(managers[0].getIds()).toHaveLength(4);
+        expect(managers[2].getIds()).toEqual([new OverscaledTileID(0, 0, 0, 0, 0).key]);
+    });
+
     test('does not load tiles again when the center of a registered projection crosses 180°', async () => {
         const context = createCameraContext({worldCoordinateHelper: new CRSWorldCoordinateHelper(createPolarStereographicCrs())});
         let view = createCameraViewState();

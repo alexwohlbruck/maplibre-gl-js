@@ -1941,8 +1941,9 @@ export class Style extends Evented<MapEventType> {
     }
 
     _updateSources(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper): void {
+        const covers: Record<string, OverscaledTileID[]> = {};
         for (const id in this.tileManagers) {
-            this.tileManagers[id].update(projectedCamera, worldCoordinateHelper, this.map.terrain);
+            this.tileManagers[id].update(projectedCamera, worldCoordinateHelper, this.map.terrain, covers);
         }
     }
 

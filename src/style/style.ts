@@ -77,6 +77,8 @@ import type {WorldCoordinateHelper} from '../geo/world_types.ts';
 const empty = emptyStyle();
 /** How many times longer a placement is kept while the camera pans or turns than at rest. */
 const MOVING_PLACEMENT_STRETCH = 2;
+/** Milliseconds between placements while the camera moves, at the least: the default fade duration. */
+const MOVING_PLACEMENT_INTERVAL = 300;
 
 /**
  * A feature identifier that is bound to a source
@@ -2014,7 +2016,10 @@ export class Style extends Evented<MapEventType> {
         const placementInputsChanged = symbolBucketsChanged || this._placementInputsChanged(projectedCamera, showCollisionBoxes, crossSourceCollisions);
 
         // Panning or turning, labels ride the map they were placed on: placing them half as often is not seen, and halves its cost.
-        const stretch = this.map.isMoving() && !this.map.isZooming() ? MOVING_PLACEMENT_STRETCH : 1;
+        // A short fade is no reason to place more often mid-gesture than a map with the default one does.
+        const stretch = !this.map.isMoving() ? 1 : Math.max(
+            this.map.isZooming() ? 1 : MOVING_PLACEMENT_STRETCH,
+            fadeDuration > 0 ? MOVING_PLACEMENT_INTERVAL / fadeDuration : 1);
         const placementSettled = this.pauseablePlacement?.isDone() && !this.placement.stillRecent(now(), projectedCamera.zoom, stretch);
 
         if (forceFullPlacement || !this.pauseablePlacement || (placementSettled && (placementInputsChanged || this.placement.stale))) {

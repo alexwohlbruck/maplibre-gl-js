@@ -5,7 +5,6 @@ import {CullFaceMode} from '../../webgl/cull_face_mode.ts';
 import {Color} from '@maplibre/maplibre-gl-style-spec';
 import {MercatorCoordinate} from '../../geo/mercator_coordinate.ts';
 import Point from '@mapbox/point-geometry';
-import {extend} from '../../util/util.ts';
 import {
     CLIP_TO_UV, multiply, overheadMatrix, perMetreAt, regionQuad, steadyRegion, sunLightMatrix, tileToMercator,
     type Mat4, type Region,
@@ -134,7 +133,7 @@ const clamp01 = (t: number) => Math.min(Math.max(t, 0), 1);
 /** A matrix as a tile's projection, for programs that take theirs from the projection block. */
 function projectionOf(matrix: ArrayLike<number>): RendererProjectionData {
     const main = Float32Array.from(matrix);
-    return {mainMatrix: main, fallbackMatrix: main, tileMercatorCoords: [0, 0, 1, 1], clippingPlane: [0, 0, 0, 0], projectionTransition: 0, clipAntimeridian: false};
+    return {mainMatrix: main, fallbackMatrix: main, tileMercatorCoords: [0, 0, 1, 1], clippingPlane: [0, 0, 0, 0], projectionTransition: 0, clipAntimeridian: false, tileOrigin: [0, 0, 0, 0], tileOriginPosition: [0, 0]};
 }
 
 /**
@@ -230,7 +229,7 @@ export class Shading {
 
     constructor(painter: Painter, options: ShadingOptions = {}) {
         this.painter = painter;
-        extend(this, options);
+        for (const key in options) (this as any)[key] = options[key as keyof ShadingOptions];
     }
 
     /** The camera of the frame being drawn. */
@@ -297,7 +296,7 @@ export class Shading {
 
         const tiles: CastTile[] = [];
         for (const layer of layers) {
-            if (layer.paint.get('fill-extrusion-opacity') === 0) continue;
+            if (layer.paint.get('fill-extrusion-opacity').constantOr(1) === 0) continue;
             const manager = style.tileManagers[layer.source];
             if (!manager) continue;
             for (const coord of manager.getVisibleCoordinates()) {

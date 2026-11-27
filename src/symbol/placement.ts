@@ -1122,7 +1122,7 @@ export class Placement {
 
     /** Writes the opacity buffers of `styleLayer`, skipping buckets a rewrite would leave as they are. */
     updateLayerOpacities(styleLayer: StyleLayer, tiles: Tile[]): void {
-        const seenCrossTileIDs = {};
+        const seenCrossTileIDs = new Set<number>();
         for (const tile of tiles) {
             const symbolBucket = tile.getBucket(styleLayer) as SymbolBucket;
             if (!symbolBucket || !tile.latestFeatureIndex || styleLayer.id !== symbolBucket.layerIds[0]) continue;
@@ -1145,7 +1145,7 @@ export class Placement {
      * Marks the bucket's symbols whose label an earlier bucket already draws, and claims the rest in `seenCrossTileIDs`.
      * `changed` is false when the marks match the last call, which means the buffers are already up to date.
      */
-    _markDuplicates(bucket: SymbolBucket, seenCrossTileIDs: {[k in string | number]: boolean}): {duplicates: boolean[]; changed: boolean} {
+    _markDuplicates(bucket: SymbolBucket, seenCrossTileIDs: Set<number>): {duplicates: boolean[]; changed: boolean} {
         const length = bucket.symbolInstances.length;
         let inputs = this.lastOpacityInputs.get(bucket);
         let changed = false;
@@ -1161,8 +1161,8 @@ export class Placement {
         const stride = bucket.symbolInstances.bytesPerElement / 4;
         for (let s = 0; s < length; s++) {
             const crossTileID = uint32[s * stride + CROSS_TILE_ID_UINT32_OFFSET];
-            const duplicate = Boolean(seenCrossTileIDs[crossTileID]);
-            seenCrossTileIDs[crossTileID] = true;
+            const duplicate = seenCrossTileIDs.has(crossTileID);
+            if (!duplicate) seenCrossTileIDs.add(crossTileID);
             if (crossTileIDs[s] !== crossTileID || duplicates[s] !== duplicate) {
                 crossTileIDs[s] = crossTileID;
                 duplicates[s] = duplicate;

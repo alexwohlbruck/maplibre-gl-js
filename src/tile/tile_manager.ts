@@ -50,6 +50,27 @@ type TileResult = {
 };
 
 /**
+ * What the sources of one frame share while they update: the covering tiles already worked out, and what is left
+ * of the frame's budget for the first uploads of newly loaded tiles.
+ */
+export type SourcesFrame = {
+    covers: Record<string, OverscaledTileID[]>;
+    /** Milliseconds of first uploads the frame still takes. */
+    uploadMs: number;
+    /** New tiles admitted so far; the first is taken whatever it costs. */
+    uploads: number;
+};
+
+/** Milliseconds of a frame given to the first uploads of newly loaded tiles: while the camera moves, and at rest. */
+export const TILE_UPLOAD_BUDGET_MS = 4;
+export const RESTING_TILE_UPLOAD_BUDGET_MS = 12;
+
+function tileBucketsAwaitUpload(tile: Tile): boolean {
+    for (const id in tile.buckets) if (tile.buckets[id].uploadPending()) return true;
+    return false;
+}
+
+/**
  * @internal
  * `TileManager` is responsible for
  *
@@ -243,6 +264,41 @@ export class TileManager extends Evented<SourceEventType> {
         return this._source.serialize();
     }
 
+    /** Whether the source's updates come with a frame budget, so its new tiles wait for admission. */
+    _budgetsUploads: boolean = false;
+    /** A running average of what a new tile of this source costs to upload, in milliseconds. */
+    _firstUploadMs: number = 1;
+
+    /**
+     * Lets newly loaded tiles through to be uploaded and drawn this frame, as many as the frame's budget takes at
+     * this source's usual cost. The rest stay as if still loading, their stand-ins kept, until a later frame.
+     * Decided here, at the start of the frame, so placement and the painter agree on which tiles there are.
+     */
+    _admitUploads(frame?: SourcesFrame): void {
+        this._budgetsUploads = !!frame;
+        let waiting = false;
+        for (const tile of this._inViewTiles.getAllTiles()) {
+            if (!tile.awaitingUpload) continue;
+            if (frame && frame.uploads > 0 && frame.uploadMs <= 0) {
+                tile.uploadPassedOver = true;
+                waiting = true;
+                continue;
+            }
+            if (frame) {
+                frame.uploads++;
+                frame.uploadMs -= this._firstUploadMs;
+            }
+            tile.awaitingUpload = false;
+            tile.firstUpload = true;
+            if (tile.uploadPassedOver) {
+                tile.uploadPassedOver = false;
+                // Its listeners heard it load while it could not yet be read or drawn.
+                this._source.fire(new MapSourceDataEvent('data', {tile, coord: tile.tileID}));
+            }
+        }
+        if (waiting) this.map._update();
+    }
+
     prepare(context: Context): void {
         if  (this._source.prepare) {
             this._source.prepare();
@@ -250,6 +306,15 @@ export class TileManager extends Evented<SourceEventType> {
 
         this._state.coalesceChanges(this._inViewTiles, this.style);
         for (const tile of this._inViewTiles.getAllTiles()) {
+            if (tile.firstUpload) {
+                // What this tile cost tells the next frame how many like it to admit.
+                tile.firstUpload = false;
+                const started = now();
+                tile.upload(context);
+                this._firstUploadMs += (now() - started - this._firstUploadMs) * 0.3;
+                tile.prepare(this.map.style.imageManager);
+                continue;
+            }
             tile.upload(context);
             tile.prepare(this.map.style.imageManager);
         }
@@ -364,6 +429,8 @@ export class TileManager extends Evented<SourceEventType> {
         // feature state to the tile's new bucket data after a reload.
         tile.featureStateRevision = -1;
         this._state.initializeTileState(tile, this.style);
+        // Only a tile about to be drawn has an upload to wait for; see `_admitUploads`.
+        if (!hadData && this._budgetsUploads && this.used && tileBucketsAwaitUpload(tile)) tile.awaitingUpload = true;
 
         if (!tile.aborted) {
             this._source.fire(new MapSourceDataEvent('data', {tile, coord: tile.tileID}));
@@ -573,10 +640,12 @@ export class TileManager extends Evented<SourceEventType> {
      * Removes tiles that are outside the viewport and adds new tiles that
      * are inside the viewport.
      */
-    update(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, terrain?: Terrain, covers?: Record<string, OverscaledTileID[]>): void {
+    update(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, terrain?: Terrain, frame?: SourcesFrame): void {
         if (!this._sourceLoaded || this._paused) {
             return;
         }
+        const covers = frame?.covers;
+        this._admitUploads(frame);
         this.projectedCamera = projectedCamera;
         this.worldCoordinateHelper = worldCoordinateHelper;
         this.terrain = terrain;
@@ -733,7 +802,7 @@ export class TileManager extends Evented<SourceEventType> {
         for (const idealID of idealTileIDs) {
             const idealTile = this._addTile(idealID);
 
-            if (!idealTile.hasData()) {
+            if (!idealTile.hasData() || idealTile.awaitingUpload) {
                 idealTilesWithoutData.add(idealID);
             }
         }
@@ -751,7 +820,8 @@ export class TileManager extends Evented<SourceEventType> {
             // As we ascend up the tile pyramid of the ideal tile, we check whether the parent
             // tile has been previously requested (and errored because we only loop over tiles with no data)
             // in order to determine if we need to request its parent.
-            let parentWasRequested = tile?.wasRequested();
+            // A tile waiting for its upload has loaded: nothing failed, so no parent is fetched to stand in for it.
+            let parentWasRequested = tile?.wasRequested() && !tile.awaitingUpload;
 
             for (let overscaledZ = tileID.overscaledZ - 1; overscaledZ >= minCoveringZoom; --overscaledZ) {
                 const parentId = tileID.scaledTo(overscaledZ);
@@ -765,7 +835,7 @@ export class TileManager extends Evented<SourceEventType> {
                     tile = this._addTile(parentId);
                 }
                 if (tile) {
-                    const hasData = tile.hasData();
+                    const hasData = tile.hasData() && !tile.awaitingUpload;
                     if (hasData || !this.map?.cancelPendingTileRequestsWhileZooming || parentWasRequested) {
                         retainTileMap[parentId.key] = parentId;
                     }

@@ -105,6 +105,15 @@ export class Tile {
     dem: DEMData;
     demMatrix: mat4;
     aborted: boolean;
+    /**
+     * Set while a newly loaded tile waits for a frame to admit it (`TileManager._admitUploads`): it has its data, and is neither drawn
+     * nor taken to cover for another tile until they have.
+     */
+    awaitingUpload: boolean = false;
+    /** Set once a frame has passed the tile over, so its listeners hear when it is drawable after all. */
+    uploadPassedOver: boolean = false;
+    /** Set from the tile's admission until its buffers go up, later in the same frame. */
+    firstUpload: boolean = false;
     needsHillshadePrepare: boolean;
     needsTerrainPrepare: boolean;
     /** Counts the times this tile's DEM was handed to the GPU afresh, so what was derived from it can tell it has changed. */
@@ -173,7 +182,7 @@ export class Tile {
      */
     isRenderable(symbolLayer: boolean): boolean {
         return (
-            this.hasData() &&
+            this.hasData() && !this.awaitingUpload &&
             (!this.fadeEndTime || this.fadingDirection !== FadingDirections.Departing || this.fadeOpacity > 0) &&
             (symbolLayer || !this.holdingForSymbolFade())   // symbol fading
         );

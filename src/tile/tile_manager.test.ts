@@ -763,19 +763,59 @@ describe('TileManager.update', () => {
         view = setZoom(view, context, 1);
         const camera = projectCamera(view, context);
 
-        const covers: Record<string, OverscaledTileID[]> = {};
+        const frame = {covers: {} as Record<string, OverscaledTileID[]>, uploadMs: Infinity, uploads: 0};
         const managers = [createTileManager({}), createTileManager({}), createTileManager({maxzoom: 0})];
         for (const tileManager of managers) {
             const dataPromise = waitForEvent(tileManager, 'data', e => e.sourceDataType === 'metadata');
             tileManager.onAdd(undefined);
             await dataPromise;
-            tileManager.update(camera, context.worldCoordinateHelper, undefined, covers);
+            tileManager.update(camera, context.worldCoordinateHelper, undefined, frame);
         }
 
-        expect(Object.keys(covers)).toHaveLength(2);
+        expect(Object.keys(frame.covers)).toHaveLength(2);
         expect(managers[1].getIds()).toEqual(managers[0].getIds());
         expect(managers[0].getIds()).toHaveLength(4);
         expect(managers[2].getIds()).toEqual([new OverscaledTileID(0, 0, 0, 0, 0).key]);
+    });
+
+    test('admits newly loaded tiles as the frame\'s upload budget allows, and keeps the rest as if loading', async () => {
+        const context = createCameraContext();
+        let view = createCameraViewState();
+        view = resize(view, context, 511, 511);
+        view = setZoom(view, context, 1);
+        const camera = projectCamera(view, context);
+        const budget = (uploadMs: number) => ({covers: {}, uploadMs, uploads: 0});
+
+        const tileManager = createTileManager({
+            loadTile: async (tile: Tile) => {
+                await sleep(0);
+                tile.state = 'loaded';
+                tile.buckets = {layer: {uploadPending: () => true} as any};
+            }
+        });
+        const dataPromise = waitForEvent(tileManager, 'data', e => e.sourceDataType === 'metadata');
+        tileManager.onAdd(undefined);
+        await dataPromise;
+        tileManager.map = {_update: vi.fn()} as any as Map;
+        tileManager.update(camera, context.worldCoordinateHelper, undefined, budget(0));
+        await sleep(10);
+
+        const tiles = tileManager.getIds().map(id => tileManager.getTileByID(id));
+        expect(tiles).toHaveLength(4);
+        expect(tiles.every(tile => tile.hasData() && tile.awaitingUpload)).toBe(true);
+        expect(tileManager.getRenderableIds()).toEqual([]);
+
+        const heard = vi.fn();
+        tileManager.on('data', e => { if (e.tile) heard(e.tile); });
+        tileManager.update(camera, context.worldCoordinateHelper, undefined, budget(0));
+        expect(tileManager.getRenderableIds()).toHaveLength(1);
+        expect(tileManager.map._update).toHaveBeenCalled();
+        expect(heard).not.toHaveBeenCalled();
+
+        tileManager.update(camera, context.worldCoordinateHelper, undefined, budget(Infinity));
+        expect(tileManager.getRenderableIds()).toHaveLength(4);
+        expect(heard).toHaveBeenCalledTimes(3);
+        expect(tileManager.getIds()).toHaveLength(4);
     });
 
     test('does not load tiles again when the center of a registered projection crosses 180°', async () => {

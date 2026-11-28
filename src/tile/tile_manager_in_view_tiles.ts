@@ -55,7 +55,7 @@ export class InViewTiles {
      */
     public getLoadedTile(tileID: OverscaledTileID): Tile | null {
         const tile = this.getTileById(tileID.key);
-        if (tile?.hasData()) {
+        if (tile?.hasData() && !tile.awaitingUpload) {
             return tile;
         }
         return null;

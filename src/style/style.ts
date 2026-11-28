@@ -20,7 +20,7 @@ import {now} from '../util/time_control.ts';
 import {Dispatcher} from '../util/dispatcher.ts';
 import {validateStyle, validateStyleAndEmit, validateAndEmit, emitValidationErrors, SPEC_SOURCE_TYPES} from './validate_style.ts';
 import {type QueryRenderedFeaturesOptions, type QueryRenderedFeaturesOptionsStrict, type QueryRenderedFeaturesResults, type QueryRenderedFeaturesResultsItem, type QuerySourceFeatureOptions, queryRenderedFeatures, queryRenderedSymbols, querySourceFeatures} from '../source/query_features.ts';
-import {TileManager} from '../tile/tile_manager.ts';
+import {RESTING_TILE_UPLOAD_BUDGET_MS, TILE_UPLOAD_BUDGET_MS, TileManager, type SourcesFrame} from '../tile/tile_manager.ts';
 import {derefLayers, emptyStyle, diff as diffStyles, type DiffCommand} from '@maplibre/maplibre-gl-style-spec';
 import {getGlobalWorkerPool} from '../util/global_worker_pool.ts';
 import {rtlMainThreadPluginFactory} from '../source/rtl_text_plugin_main_thread.ts';
@@ -1943,9 +1943,9 @@ export class Style extends Evented<MapEventType> {
     }
 
     _updateSources(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper): void {
-        const covers: Record<string, OverscaledTileID[]> = {};
+        const frame: SourcesFrame = {covers: {}, uploadMs: this.map.isMoving() ? TILE_UPLOAD_BUDGET_MS : RESTING_TILE_UPLOAD_BUDGET_MS, uploads: 0};
         for (const id in this.tileManagers) {
-            this.tileManagers[id].update(projectedCamera, worldCoordinateHelper, this.map.terrain, covers);
+            this.tileManagers[id].update(projectedCamera, worldCoordinateHelper, this.map.terrain, frame);
         }
     }
 

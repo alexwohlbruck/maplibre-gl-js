@@ -82,7 +82,7 @@ function alreadyDrawn(layer: StyleLayer, tileManager: TileManager, tile: Tile): 
     }
     for (const key of tileManager.getIds()) {
         const other = tileManager.getTileByID(key);
-        if (other !== tile && other?.hasData() && other.tileID.isChildOf(id) && other.getBucket(layer)) return true;
+        if (other !== tile && other?.hasData() && !other.awaitingUpload && other.tileID.isChildOf(id) && other.getBucket(layer)) return true;
     }
     return false;
 }

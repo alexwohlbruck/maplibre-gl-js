@@ -435,27 +435,35 @@ export class Tile {
         }, layers, serializedLayers, sourceFeatureState);
     }
 
-    querySourceFeatures(result: GeoJSONFeature[], params: QuerySourceFeatureOptionsStrict): void {
+    /**
+     * Appends the tile's features in a source layer to `result`, and returns how many the layer holds.
+     * With `params.range` only the features from its first index up to its second are read,
+     * so a caller can spread a large layer over several frames.
+     */
+    querySourceFeatures(result: GeoJSONFeature[], params: QuerySourceFeatureOptionsStrict): number {
         const featureIndex = this.latestFeatureIndex;
-        if (!featureIndex?.rawTileData) return;
+        if (!featureIndex?.rawTileData) return 0;
 
         const vtLayers = featureIndex.loadVTLayers();
 
         const sourceLayer = params.sourceLayer ? params.sourceLayer : '';
         const layer = vtLayers[GEOJSON_TILE_LAYER_NAME] || vtLayers[sourceLayer];
 
-        if (!layer) return;
+        if (!layer) return 0;
 
         const filter = featureFilter(params.filter, `querySourceFeatures[${sourceLayer}].filter`, params.globalState);
         const {z, x, y} = this.tileID.canonical;
         const coord = {z, x, y};
+        const parameters = new EvaluationParameters(this.tileID.overscaledZ);
+        const start = params.range ? Math.max(0, params.range[0]) : 0;
+        const end = params.range ? Math.min(layer.length, params.range[1]) : layer.length;
 
-        for (let i = 0; i < layer.length; i++) {
+        for (let i = start; i < end; i++) {
             const feature = layer.feature(i);
             if (filter.needGeometry) {
                 const evaluationFeature = toEvaluationFeature(feature, true);
-                if (!filter.filter(new EvaluationParameters(this.tileID.overscaledZ), evaluationFeature, this.tileID.canonical)) continue;
-            } else if (!filter.filter(new EvaluationParameters(this.tileID.overscaledZ), feature)) {
+                if (!filter.filter(parameters, evaluationFeature, this.tileID.canonical)) continue;
+            } else if (!filter.filter(parameters, feature)) {
                 continue;
             }
             const id = featureIndex.getId(feature, sourceLayer);
@@ -463,6 +471,7 @@ export class Tile {
             (geojsonFeature as any).tile = coord;
             result.push(geojsonFeature);
         }
+        return layer.length;
     }
 
     hasData(): boolean {

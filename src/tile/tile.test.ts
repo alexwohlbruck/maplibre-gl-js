@@ -88,6 +88,15 @@ describe('querySourceFeatures', () => {
             expect(result[0].properties).toEqual(features[0].tags);
         });
 
+        test('reads a range of the layer and reports its length', () => {
+            const result = [];
+            expect(tile.querySourceFeatures(result, {range: [0, 0]})).toBe(1);
+            expect(result).toHaveLength(0);
+            expect(tile.querySourceFeatures(result, {range: [0, 512]})).toBe(1);
+            expect(result).toHaveLength(1);
+            expect(result[0].geometry.coordinates[0]).toEqual([-90, 0]);
+        });
+
         test('filter source features', () => {
             let result = [];
             tile.querySourceFeatures(result, {worldCoordinateHelper: mercatorWorldCoordinateHelper, sourceLayer: undefined, filter: ['==', 'oneway', true]});

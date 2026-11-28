@@ -50,13 +50,13 @@ export class GeoJSONFeature {
 
     _vectorTileFeature: VectorTileFeatureLike;
 
-    constructor(vectorTileFeature: VectorTileFeatureLike, z: number, x: number, y: number, id: string | number | undefined, worldCoordinateHelper: WorldCoordinateHelper) {
+    constructor(vectorTileFeature: VectorTileFeatureLike, z: number, x: number, y: number, id: string | number | undefined, worldCoordinateHelper?: WorldCoordinateHelper) {
         this.type = 'Feature';
         this._vectorTileFeature = vectorTileFeature;
         this._x = x;
         this._y = y;
         this._z = z;
-        if (worldCoordinateHelper !== mercatorWorldCoordinateHelper) {
+        if (worldCoordinateHelper && worldCoordinateHelper !== mercatorWorldCoordinateHelper) {
             GeoJSONFeature.worldCoordinateHelpers.set(this, worldCoordinateHelper);
         }
 

@@ -78,7 +78,11 @@ export type QuerySourceFeatureOptionsStrict = QuerySourceFeatureOptions & {
     /**
      * The map projection's world-to-lng/lat mapping for the returned geometry.
      */
-    worldCoordinateHelper: WorldCoordinateHelper;
+    worldCoordinateHelper?: WorldCoordinateHelper;
+    /**
+     * The first feature of the layer to read and the one to stop before. Per tile; the whole layer when unset.
+     */
+    range?: [number, number];
 };
 
 export type QueryRenderedFeaturesResults = {

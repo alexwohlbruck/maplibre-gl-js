@@ -1,7 +1,7 @@
-import Point, { default as Point$1 } from "@mapbox/point-geometry";
 import { mat2, mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { GeoJSONVTOptions } from "@maplibre/geojson-vt";
 import { AllLayoutProperties, AllPaintProperties, Color, ColorArray, CompositeExpression, DiffCommand, Feature, FeatureFilter, FeatureState, FilterSpecification, FontFacesSpecification, Formatted, FormattedSection, GeoJSONSourceSpecification, GlobalProperties, ICanonicalTileID, IMercatorCoordinate, ImageSourceSpecification, InterpolationType, LayerSpecification, LightSpecification, MLFontFace, NumberArray, Padding, ProjectionSpecification, PromoteIdSpecification, PropertyValueSpecification, RasterDEMSourceSpecification, RasterSourceSpecification, ResolvedImage, SkySpecification, SourceExpression, SourceSpecification, SpriteSpecification, StateSpecification, StylePropertyExpression, StylePropertySpecification, StyleSpecification, TerrainSpecification, TransitionSpecification, ValidationError, VariableAnchorOffsetCollection, VectorSourceSpecification, VideoSourceSpecification, VisibilityExpression, VisibilitySpecification } from "@maplibre/maplibre-gl-style-spec";
+import Point, { default as Point$1 } from "@mapbox/point-geometry";
 import { VectorTileFeatureLike, VectorTileLayerLike } from "@maplibre/vt-pbf";
 import TinySDF, { TinySDFOptions } from "@mapbox/tiny-sdf";
 import KDBush from "kdbush";
@@ -461,6 +461,19 @@ declare class StructArrayLayout7f28 extends StructArray {
 /**
  * @internal
  * Implementation of the StructArray layout:
+ * [0] - Float32[1]
+ *
+ */
+declare class StructArrayLayout1f4 extends StructArray {
+  uint8: Uint8Array;
+  float32: Float32Array;
+  _refreshViews(): void;
+  emplaceBack(v0: number): number;
+  emplace(i: number, v0: number): number;
+}
+/**
+ * @internal
+ * Implementation of the StructArray layout:
  * [0] - Int16[4]
  * [8] - Uint16[4]
  * [16] - Int16[4]
@@ -553,22 +566,23 @@ declare class StructArrayLayout3ui6 extends StructArray {
  * @internal
  * Implementation of the StructArray layout:
  * [0] - Int16[2]
- * [4] - Uint16[2]
- * [8] - Uint32[3]
- * [20] - Uint16[3]
- * [28] - Float32[2]
- * [36] - Uint8[3]
- * [40] - Uint32[1]
- * [44] - Int16[1]
- * [48] - Float32[1]
- * [52] - Uint8[1]
+ * [4] - Uint32[1]
+ * [8] - Uint16[1]
+ * [12] - Uint32[3]
+ * [24] - Uint16[3]
+ * [32] - Float32[2]
+ * [40] - Uint8[3]
+ * [44] - Uint32[1]
+ * [48] - Int16[1]
+ * [52] - Float32[1]
+ * [56] - Uint8[1]
  *
  */
-declare class StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 extends StructArray {
+declare class StructArrayLayout2i1ul1ui3ul3ui2f3ub1ul1i1f1ub60 extends StructArray {
   uint8: Uint8Array;
   int16: Int16Array;
-  uint16: Uint16Array;
   uint32: Uint32Array;
+  uint16: Uint16Array;
   float32: Float32Array;
   _refreshViews(): void;
   emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number): number;
@@ -595,19 +609,6 @@ declare class StructArrayLayout8i15ui1ul2f2ui3f1ub80 extends StructArray {
   _refreshViews(): void;
   emplaceBack(v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number, v19: number, v20: number, v21: number, v22: number, v23: number, v24: number, v25: number, v26: number, v27: number, v28: number, v29: number, v30: number, v31: number): number;
   emplace(i: number, v0: number, v1: number, v2: number, v3: number, v4: number, v5: number, v6: number, v7: number, v8: number, v9: number, v10: number, v11: number, v12: number, v13: number, v14: number, v15: number, v16: number, v17: number, v18: number, v19: number, v20: number, v21: number, v22: number, v23: number, v24: number, v25: number, v26: number, v27: number, v28: number, v29: number, v30: number, v31: number): number;
-}
-/**
- * @internal
- * Implementation of the StructArray layout:
- * [0] - Float32[1]
- *
- */
-declare class StructArrayLayout1f4 extends StructArray {
-  uint8: Uint8Array;
-  float32: Float32Array;
-  _refreshViews(): void;
-  emplaceBack(v0: number): number;
-  emplace(i: number, v0: number): number;
 }
 /**
  * @internal
@@ -715,7 +716,7 @@ declare class PlacedSymbolStruct extends Struct {
 }
 type PlacedSymbol = PlacedSymbolStruct;
 /** @internal */
-declare class PlacedSymbolArray extends StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 {
+declare class PlacedSymbolArray extends StructArrayLayout2i1ul1ui3ul3ui2f3ub1ul1i1f1ub60 {
   /**
    * Return the PlacedSymbolStruct at the given location in the array.
    * @param index - The index of the element.
@@ -816,6 +817,7 @@ declare class FillLayoutArray extends StructArrayLayout2i4 {}
 declare class FillExtrusionLayoutArray extends StructArrayLayout2i4i12 {}
 declare class LineLayoutArray extends StructArrayLayout2i4ub2b10 {}
 declare class LineExtLayoutArray extends StructArrayLayout7f28 {}
+declare class LineOffsetLayoutArray extends StructArrayLayout1f4 {}
 declare class SymbolLayoutArray extends StructArrayLayout4i4ui4i2f2i36 {}
 declare class SymbolDynamicLayoutArray extends StructArrayLayout3f12 {}
 declare class SymbolOpacityArray extends StructArrayLayout1ul4 {}
@@ -1232,7 +1234,7 @@ declare class GeoJSONFeature {
   _y: number;
   _z: number;
   _vectorTileFeature: VectorTileFeatureLike;
-  constructor(vectorTileFeature: VectorTileFeatureLike, z: number, x: number, y: number, id: string | number | undefined, worldCoordinateHelper: WorldCoordinateHelper);
+  constructor(vectorTileFeature: VectorTileFeatureLike, z: number, x: number, y: number, id: string | number | undefined, worldCoordinateHelper?: WorldCoordinateHelper);
   private projectPoint;
   private projectLine;
   get geometry(): GeoJSON.Geometry;
@@ -3317,7 +3319,7 @@ declare class Dispatcher extends Evented<ErrorEventType> {
 }
 type RasterPaintProps = {
   "raster-opacity": DataConstantProperty<number>;
-  "raster-layer-blend": DataConstantProperty<"normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay">;
+  "raster-layer-blend": DataConstantProperty<"normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay" | "difference" | "exclusion" | "soft-light" | "hard-light" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hue" | "saturation">;
   "raster-hue-rotate": DataConstantProperty<number>;
   "raster-brightness-min": DataConstantProperty<number>;
   "raster-brightness-max": DataConstantProperty<number>;
@@ -3329,7 +3331,7 @@ type RasterPaintProps = {
 };
 type RasterPaintPropsPossiblyEvaluated = {
   "raster-opacity": number;
-  "raster-layer-blend": "normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay";
+  "raster-layer-blend": "normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay" | "difference" | "exclusion" | "soft-light" | "hard-light" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hue" | "saturation";
   "raster-hue-rotate": number;
   "raster-brightness-min": number;
   "raster-brightness-max": number;
@@ -3686,6 +3688,47 @@ export declare class CanvasSource extends ImageSource {
   hasTransition(): boolean;
   _hasInvalidDimensions(): boolean;
 }
+/**
+ * A type of MapLibre resource.
+ */
+declare const enum ResourceType {
+  Glyphs = "Glyphs",
+  Image = "Image",
+  Source = "Source",
+  SpriteImage = "SpriteImage",
+  SpriteJSON = "SpriteJSON",
+  Style = "Style",
+  Tile = "Tile",
+  Unknown = "Unknown"
+}
+/**
+ * This function is used to transform a request.
+ * It is used just before executing the relevant request.
+ */
+type RequestTransformFunction = (url: string, resourceType?: ResourceType) => RequestParameters | Promise<RequestParameters> | undefined;
+declare class RequestManager {
+  _transformRequestFn: RequestTransformFunction | null;
+  constructor(transformRequestFn?: RequestTransformFunction | null);
+  transformRequest(url: string, type: ResourceType): RequestParameters | Promise<RequestParameters>;
+  setTransformRequest(transformRequest: RequestTransformFunction | null): void;
+  getTransformRequest(): RequestTransformFunction | null;
+}
+/**
+ * What a tiled source learns from its TileJSON. A field is undefined where neither the source options nor the
+ * TileJSON set it, so that the source keeps its own default.
+ */
+type LoadTileJsonResponse = {
+  tiles?: string[];
+  minzoom?: number;
+  maxzoom?: number;
+  attribution?: string;
+  bounds?: RasterSourceSpecification["bounds"];
+  scheme?: RasterSourceSpecification["scheme"];
+  tileSize?: number;
+  encoding?: RasterDEMSourceSpecification["encoding"] | VectorSourceSpecification["encoding"];
+  sparse?: boolean;
+  vectorLayerIds?: string[];
+};
 declare class TileBounds {
   bounds: LngLatBounds;
   minzoom: number;
@@ -3767,6 +3810,8 @@ export declare class VectorTileSource extends Evented<SourceEventType> implement
   map: Map$1;
   bounds: [number, number, number, number];
   tiles: string[];
+  attribution?: string;
+  vectorLayerIds?: string[];
   tileBounds: TileBounds;
   reparseOverscaled: boolean;
   isTileClipped: boolean;
@@ -3774,6 +3819,11 @@ export declare class VectorTileSource extends Evented<SourceEventType> implement
   _loaded: boolean;
   constructor(id: string, options: VectorTileSourceOptions, dispatcher: Dispatcher, eventedParent: Evented);
   load(sourceDataChanged?: boolean): Promise<void>;
+  /**
+   * @internal
+   * Takes on the fields the TileJSON sets, keeping the current value of any it leaves out.
+   */
+  _applyTileJSON(tileJSON: LoadTileJsonResponse): void;
   loaded(): boolean;
   hasTile(tileID: OverscaledTileID): boolean;
   onAdd(map: Map$1): void;
@@ -4361,7 +4411,7 @@ declare class TileManager extends Evented<SourceEventType> {
    * Removes tiles that are outside the viewport and adds new tiles that
    * are inside the viewport.
    */
-  update(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, terrain?: Terrain): void;
+  update(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, terrain?: Terrain, covers?: Record<string, OverscaledTileID[]>): void;
   /**
    * Remove raster tiles that are no longer retained
    */
@@ -4735,6 +4785,18 @@ type ProjectionData<MainMatrix extends mat4 = mat4, FallbackMatrix extends mat4 
    * Uniform name: `u_projection_clipping_plane`.
    */
   clippingPlane: [number, number, number, number];
+  /**
+   * The point on the unit sphere that `mainMatrix` projects positions relative to, as the sine and cosine
+   * of its longitude, `tan(PI / 4 + latitude / 2)` and 1. All zeros when positions are relative to the planet center.
+   * Used by globe projection, to keep float32 precision at high zoom.
+   * Uniform name: `u_projection_tile_origin`.
+   */
+  tileOrigin: [number, number, number, number];
+  /**
+   * Where `tileOrigin` lies in the tile, in tile units. It is the tile's point nearest the camera's center.
+   * Uniform name: `u_projection_tile_origin_position`.
+   */
+  tileOriginPosition: [number, number];
   /**
    * A value in range 0..1 indicating interpolation between mercator (0) and globe (1) projections.
    * Used by globe projection to hide projection transition at high zooms.
@@ -5303,7 +5365,6 @@ declare class Placement {
   /** Where symbols are left unplaced; see {@link SymbolClip}. */
   symbolClip: SymbolClip | null;
   constructor(projectedCamera: ProjectedCamera, terrain: Terrain, fadeDuration: number, crossSourceCollisions: boolean, prevPlacement?: Placement, isolatedCollisionLayers?: ReadonlySet<string>);
-  /** Whether a symbol lies in the clip: the line it is placed along, or its anchor where it has none. */
   private _getTerrainElevationFunc;
   getBucketParts(results: BucketPart[], styleLayer: StyleLayer, tile: Tile, sortAcrossTiles: boolean): void;
   attemptAnchorPlacement(textAnchorOffset: TextAnchorOffset, textBox: SingleCollisionBox, width: number, height: number, textBoxScale: number, rotateWithMap: boolean, pitchWithMap: boolean, textPixelRatio: number, tileID: OverscaledTileID, unwrappedTileID: UnwrappedTileID, collisionGroup: CollisionGroup, textOverlapMode: OverlapMode, symbolInstance: SymbolInstance, bucket: SymbolBucket, orientation: number, translationText: [number, number], translationIcon: [number, number], iconBox?: SingleCollisionBox | null, getElevation?: GetElevation, simpleProjectionMatrix?: mat4, heightOffset?: number, heightAnchorGround?: boolean): {
@@ -5311,6 +5372,30 @@ declare class Placement {
     placedGlyphBoxes: PlacedBox;
   };
   placeLayerBucketPart(bucketPart: BucketPart, seenCrossTileIDs: { [k in string | number]: boolean; }, showCollisionBoxes: boolean): void;
+  /**
+   * Places one symbol of a bucket part: finds where its text and icon fit, records them in the collision index and
+   * stores the outcome in {@link Placement.placements}.
+   */
+  private _placeSymbol;
+  /**
+   * Places a symbol's text in one orientation at its single anchor, and records the orientation when it fits.
+   */
+  private _placeTextBox;
+  /**
+   * Places a symbol's text in one orientation at the first of its `text-variable-anchor` anchors that fits.
+   *
+   * The anchor the symbol had in the previous placement is tried first, in an extra pass, so that a label does not
+   * jump between anchors while the map moves. That preference is used up once it fails: the returned `prevAnchor` is
+   * what the next orientation's attempt has to start from. When no anchor fits but the box has to be shown anyway,
+   * for the collision debug view or because the text always overlaps, a centred box stands in for it, which still
+   * lets the globe hide the text.
+   */
+  private _placeTextAtVariableAnchors;
+  /**
+   * When a symbol that can be set vertically was not placed, keeps the orientation it had in the previous
+   * placement so that it fades out the way it was drawn, and returns that orientation.
+   */
+  private _restorePreviousOrientation;
   storeCollisionData(bucketInstanceId: number, symbolIndex: number, collisionArrays: CollisionArrays, placedGlyphBoxes: PlacedBox, placedIconBoxes: PlacedBox, placedGlyphCircles: PlacedCircles): void;
   markUsedJustification(bucket: SymbolBucket, placedAnchor: TextAnchor, symbolInstance: SymbolInstance, orientation: number): void;
   markUsedOrientation(bucket: SymbolBucket, orientation: number, symbolInstance: SymbolInstance): void;
@@ -5321,7 +5406,7 @@ declare class Placement {
    * Marks the bucket's symbols whose label an earlier bucket already draws, and claims the rest in `seenCrossTileIDs`.
    * `changed` is false when the marks match the last call, which means the buffers are already up to date.
    */
-  _markDuplicates(bucket: SymbolBucket, seenCrossTileIDs: { [k in string | number]: boolean; }): {
+  _markDuplicates(bucket: SymbolBucket, seenCrossTileIDs: Set<number>): {
     duplicates: boolean[];
     changed: boolean;
   };
@@ -5398,7 +5483,8 @@ type FillExtrusionLayoutPropsPossiblyEvaluated = {
   "fill-extrusion-rounded-corner-distance": number;
 };
 type FillExtrusionPaintProps = {
-  "fill-extrusion-opacity": DataConstantProperty<number>;
+  "fill-extrusion-opacity": DataDrivenProperty<number>;
+  "fill-extrusion-layer-opacity": DataConstantProperty<number>;
   "fill-extrusion-color": DataDrivenProperty<Color>;
   "fill-extrusion-translate": DataConstantProperty<[number, number]>;
   "fill-extrusion-translate-anchor": DataConstantProperty<"map" | "viewport">;
@@ -5412,7 +5498,8 @@ type FillExtrusionPaintProps = {
   "fill-extrusion-facade-seed": DataDrivenProperty<number>;
 };
 type FillExtrusionPaintPropsPossiblyEvaluated = {
-  "fill-extrusion-opacity": number;
+  "fill-extrusion-opacity": PossiblyEvaluatedPropertyValue<number>;
+  "fill-extrusion-layer-opacity": number;
   "fill-extrusion-color": PossiblyEvaluatedPropertyValue<Color>;
   "fill-extrusion-translate": [number, number];
   "fill-extrusion-translate-anchor": "map" | "viewport";
@@ -5830,10 +5917,14 @@ type ProgramVariant = {
  */
 declare class ProgramCache {
   private readonly context;
+  /** Every compiled program, in the order they were compiled. */
+  private compiled;
+  /** The compiled programs by shader name, defines and fragment chunk, then by configuration key, then by projection variant, then by {@link variantFlags}. */
   private programs;
   constructor(context: Context);
   /**
    * Returns the program for a shader variant, compiling it if the cache doesn't hold it yet.
+   * A lookup builds no string unless the variant has defines or a fragment chunk, since it runs for every draw.
    */
   getProgram(variant: ProgramVariant): Program<UniformBindings>;
   destroy(): void;
@@ -5923,6 +6014,13 @@ declare class LineBucket implements Bucket {
   layoutVertexBuffer: VertexBuffer;
   layoutVertexArray2: LineExtLayoutArray;
   layoutVertexBuffer2: VertexBuffer;
+  /**
+   * Per vertex, how much longer the `line-offset` line is than the line itself up to that vertex, per unit of
+   * offset. An offset line is shorter on the inside of a turn and longer on the outside, so dashes measured along
+   * the line itself would be squeezed or stretched there. Filled only when a layer draws dashes with an offset.
+   */
+  offsetDistanceArray?: LineOffsetLayoutArray;
+  offsetDistanceBuffer?: VertexBuffer;
   indexArray: TriangleIndexArray;
   indexBuffer: IndexBuffer;
   hasDependencies: boolean;
@@ -5993,6 +6091,17 @@ declare class LineBucket implements Bucket {
   setTangent(normal: Point$1): void;
   updateScaledDistance(): void;
   updateDistance(prev: Point$1, next: Point$1): void;
+  /**
+   * Fills {@link offsetDistanceArray} for the vertices of the line that {@link addLine} added from `start` on.
+   *
+   * It reads the vertices back rather than tracking the offset line while they are added, so lines without
+   * dashes along an offset pay nothing for it. Between two vertices of one segment, the offset line is longer than
+   * the segment by the offset times the change in how far their offset vectors reach along it. The vertices of a
+   * join share one position and are offset to the same corner, so the offset line gains nothing there.
+   *
+   * @param start - the index of the first vertex of the line in {@link layoutVertexArray}
+   */
+  addOffsetDistances(start: number): void;
   private hasLineDasharray;
   private addLineDashDependencies;
 }
@@ -6017,7 +6126,7 @@ type LineLayoutPropsPossiblyEvaluated = {
 type LinePaintProps = {
   "line-opacity": DataDrivenProperty<number>;
   "line-layer-opacity": DataConstantProperty<number>;
-  "line-layer-blend": DataConstantProperty<"normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay">;
+  "line-layer-blend": DataConstantProperty<"normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay" | "difference" | "exclusion" | "soft-light" | "hard-light" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hue" | "saturation">;
   "line-color": DataDrivenProperty<Color>;
   "line-translate": DataConstantProperty<[number, number]>;
   "line-translate-anchor": DataConstantProperty<"map" | "viewport">;
@@ -6034,7 +6143,7 @@ type LinePaintProps = {
 type LinePaintPropsPossiblyEvaluated = {
   "line-opacity": PossiblyEvaluatedPropertyValue<number>;
   "line-layer-opacity": number;
-  "line-layer-blend": "normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay";
+  "line-layer-blend": "normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay" | "difference" | "exclusion" | "soft-light" | "hard-light" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hue" | "saturation";
   "line-color": PossiblyEvaluatedPropertyValue<Color>;
   "line-translate": [number, number];
   "line-translate-anchor": "map" | "viewport";
@@ -6123,23 +6232,25 @@ type FillPaintProps = {
   "fill-antialias": DataConstantProperty<boolean>;
   "fill-opacity": DataDrivenProperty<number>;
   "fill-layer-opacity": DataConstantProperty<number>;
-  "fill-layer-blend": DataConstantProperty<"normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay">;
+  "fill-layer-blend": DataConstantProperty<"normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay" | "difference" | "exclusion" | "soft-light" | "hard-light" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hue" | "saturation">;
   "fill-color": DataDrivenProperty<Color>;
   "fill-outline-color": DataDrivenProperty<Color>;
   "fill-translate": DataConstantProperty<[number, number]>;
   "fill-translate-anchor": DataConstantProperty<"map" | "viewport">;
   "fill-pattern": CrossFadedDataDrivenProperty<ResolvedImage>;
+  "fill-rounded-corner-distance": DataConstantProperty<number>;
 };
 type FillPaintPropsPossiblyEvaluated = {
   "fill-antialias": boolean;
   "fill-opacity": PossiblyEvaluatedPropertyValue<number>;
   "fill-layer-opacity": number;
-  "fill-layer-blend": "normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay";
+  "fill-layer-blend": "normal" | "multiply" | "color" | "luminosity" | "plus-lighter" | "screen" | "overlay" | "difference" | "exclusion" | "soft-light" | "hard-light" | "darken" | "lighten" | "color-dodge" | "color-burn" | "hue" | "saturation";
   "fill-color": PossiblyEvaluatedPropertyValue<Color>;
   "fill-outline-color": PossiblyEvaluatedPropertyValue<Color>;
   "fill-translate": [number, number];
   "fill-translate-anchor": "map" | "viewport";
   "fill-pattern": PossiblyEvaluatedPropertyValue<CrossFaded<ResolvedImage>>;
+  "fill-rounded-corner-distance": number;
 };
 declare class FillStyleLayer extends StyleLayer {
   _unevaluatedLayout: Layout<FillLayoutProps>;
@@ -6155,6 +6266,12 @@ declare class FillStyleLayer extends StyleLayer {
   isTileClipped(): boolean;
 }
 declare function drawFill(painter: Painter, tileManager: TileManager, layer: FillStyleLayer, coords: OverscaledTileID[], frameRenderContext: FrameRenderContext): void;
+/**
+ * Draws a fill-extrusion layer.
+ * Extrusions at a constant opacity of 1 without a pattern are drawn in one pass. Otherwise they are drawn in two passes, so that only the closest surface is drawn.
+ * The first pass writes only the depth buffer. The second colors the fragments with the same depth as the closest one,
+ * and uses the stencil buffer to skip coincident polygons.
+ */
 declare function drawFillExtrusion(tileManager: TileManager, layer: FillExtrusionStyleLayer, coords: OverscaledTileID[], frameRenderContext: FrameRenderContext): void;
 type HillshadePaintProps = {
   "hillshade-illumination-direction": DataConstantProperty<NumberArray>;
@@ -6403,6 +6520,8 @@ type CustomRenderMethodInput = {
   /**
    * Generates a {@link ProjectionData} instance to be used while rendering a given tile.
    * In custom layers, this function is only needed when rendering tiles in a completely custom way and with shaders that are compatible with both projections.
+   * Pass all of its uniforms to the shader for every tile, including `u_projection_tile_origin` and `u_projection_tile_origin_position`,
+   * since the `vertical-perspective` projection gives positions relative to a point of the tile at high zoom.
    *
    * @see [Add a custom layer with tiles to a globe](https://maplibre.org/maplibre-gl-js/docs/examples/add-a-custom-layer-with-tiles-to-a-globe)
    * @param params - Parameters for the projection data generation.
@@ -7036,7 +7155,11 @@ type QuerySourceFeatureOptionsStrict = QuerySourceFeatureOptions & {
   /**
    * The map projection's world-to-lng/lat mapping for the returned geometry.
    */
-  worldCoordinateHelper: WorldCoordinateHelper;
+  worldCoordinateHelper?: WorldCoordinateHelper;
+  /**
+   * The first feature of the layer to read and the one to stop before. Per tile; the whole layer when unset.
+   */
+  range?: [number, number];
 };
 type QueryRenderedFeaturesResults = {
   [key: string]: QueryRenderedFeaturesResultsItem[];
@@ -7248,7 +7371,12 @@ declare class Tile {
   }, serializedLayers: {
     [_: string]: any;
   }, sourceFeatureState: SourceFeatureState, queryGeometry: Point$1[], cameraQueryGeometry: Point$1[], scale: number, params: Pick<QueryRenderedFeaturesOptionsStrict, "filter" | "layers" | "availableImages"> | undefined, projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, maxPitchScaleFactor: number, getElevation: GetElevation | undefined): QueryResults;
-  querySourceFeatures(result: GeoJSONFeature[], params: QuerySourceFeatureOptionsStrict): void;
+  /**
+   * Appends the tile's features in a source layer to `result`, and returns how many the layer holds.
+   * With `params.range` only the features from its first index up to its second are read,
+   * so a caller can spread a large layer over several frames.
+   */
+  querySourceFeatures(result: GeoJSONFeature[], params: QuerySourceFeatureOptionsStrict): number;
   hasData(): boolean;
   patternsLoaded(): boolean;
   setExpiryData(data: ExpiryData): void;
@@ -9726,31 +9854,6 @@ export declare class MapStyleImageMissingEvent extends MapLibreEvent {
   constructor(data?: any);
 }
 /**
- * A type of MapLibre resource.
- */
-declare const enum ResourceType {
-  Glyphs = "Glyphs",
-  Image = "Image",
-  Source = "Source",
-  SpriteImage = "SpriteImage",
-  SpriteJSON = "SpriteJSON",
-  Style = "Style",
-  Tile = "Tile",
-  Unknown = "Unknown"
-}
-/**
- * This function is used to transform a request.
- * It is used just before executing the relevant request.
- */
-type RequestTransformFunction = (url: string, resourceType?: ResourceType) => RequestParameters | Promise<RequestParameters> | undefined;
-declare class RequestManager {
-  _transformRequestFn: RequestTransformFunction | null;
-  constructor(transformRequestFn?: RequestTransformFunction | null);
-  transformRequest(url: string, type: ResourceType): RequestParameters | Promise<RequestParameters>;
-  setTransformRequest(transformRequest: RequestTransformFunction | null): void;
-  getTransformRequest(): RequestTransformFunction | null;
-}
-/**
  * An inclusive range of Unicode codepoints, parsed out of a `unicode-range` entry.
  */
 type UnicodeRange = {
@@ -9977,7 +10080,8 @@ declare class GlyphManager {
    * for the clusters drawn from it, which need a wider canvas.
    *
    * A font file carries its own weight and style, so neither is sniffed out of the family name.
-   * Where no file covers the grapheme, `localIdeographFontFamily` beats the last resort fontstack.
+   * Without a matching font file, qualifying CJK text tries the layer's fonts, then
+   * `localIdeographFontFamily`, then `sans-serif`.
    */
   _getTinySDF(entry: Entry, stack: string, id: string, fontFaceFamily?: string): Promise<Rasterizer>;
   /**
@@ -10165,11 +10269,11 @@ type StyleOptions = {
    */
   validate?: boolean;
   /**
-   * Defines a CSS
-   * font-family for locally overriding generation of Chinese, Japanese, and Korean characters.
-   * For these characters, font settings from the map's style will be ignored, except for font-weight keywords (light/regular/medium/bold).
-   * Set to `false`, to enable font settings from the map's style for these glyph ranges.
-   * Forces a full update.
+   * Defines a CSS font-family fallback used only for locally generated CJK (Chinese, Japanese and Korean) characters.
+   * The layer's `text-font` families are tried first, then this family, then `sans-serif`.
+   * Set to `false` or an empty string to disable this fallback. Clusters and styles without a `glyphs` URL
+   * can still render locally.
+   * Changing this option forces a full style update.
    */
   localIdeographFontFamily?: string | false;
   /**
@@ -10292,9 +10396,12 @@ export declare class Style extends Evented<MapEventType> {
     [_: string]: LayerSpecification;
   };
   _order: string[];
-  tileManagers: {
-    [_: string]: TileManager;
-  };
+  /**
+   * @internal
+   * The tile manager of each source, keyed by source id. A null-prototype object, since a layer names its source with
+   * an id from the style, and a `__proto__` id would otherwise resolve to `Object.prototype`.
+   */
+  tileManagers: Record<string, TileManager>;
   zoomHistory: ZoomHistory;
   _loaded: boolean;
   _changed: boolean;
@@ -10722,11 +10829,12 @@ type LayerConfigs = {
   [_: string]: LayerSpecification;
 };
 declare class StyleLayerIndex {
-  familiesBySource: {
-    [source: string]: {
-      [sourceLayer: string]: StyleLayer[][];
-    };
-  };
+  /**
+   * The layer families each source layer of each source draws, keyed by source id and source layer id. Both levels
+   * are null-prototype objects, since the ids come from the style and a `__proto__` id would otherwise resolve to
+   * `Object.prototype` and have the families written onto it.
+   */
+  familiesBySource: Record<string, Record<string, StyleLayer[][]>>;
   keyCache: {
     [source: string]: string;
   };
@@ -12293,7 +12401,7 @@ declare class TouchPanHandler implements Handler {
   }, cooperativeGestures: CooperativeGesturesHandler);
   reset(): void;
   _shouldBePrevented(touchesCount: number): boolean;
-  touchstart(e: TouchEvent, points: Point$1[], mapTouches: Touch[]): {
+  touchstart(_e: TouchEvent, points: Point$1[], mapTouches: Touch[]): {
     around: Point$1;
     panDelta: Point$1;
   } | void;
@@ -12301,9 +12409,9 @@ declare class TouchPanHandler implements Handler {
     around: Point$1;
     panDelta: Point$1;
   } | void;
-  touchend(e: TouchEvent, points: Point$1[], mapTouches: Touch[]): void;
+  touchend(_e: TouchEvent, points: Point$1[], mapTouches: Touch[]): void;
   touchcancel(): void;
-  _calculateTransform(e: TouchEvent, points: Point$1[], mapTouches: Touch[]): {
+  _calculateTransform(points: Point$1[], mapTouches: Touch[]): {
     around: Point$1;
     panDelta: Point$1;
   } | void;
@@ -13524,10 +13632,10 @@ type MapOptions = {
    */
   fitBoundsOptions?: FitBoundsOptions;
   /**
-   * Defines a CSS
-   * font-family for locally overriding generation of Chinese, Japanese, and Korean characters.
-   * For these characters, font settings from the map's style will be ignored, except for font-weight keywords (light/regular/medium/bold).
-   * Set to `false`, to enable font settings from the map's style for these glyph ranges.
+   * Defines a CSS font-family fallback used only for locally generated CJK (Chinese, Japanese and Korean) characters.
+   * The layer's `text-font` families are tried first, then this family, then `sans-serif`.
+   * Set to `false` or an empty string to disable this fallback. Clusters and styles without a `glyphs` URL
+   * can still render locally.
    * The purpose of this option is to avoid bandwidth-intensive glyph server requests.
    * @see [Use locally generated ideographs](https://maplibre.org/maplibre-gl-js/docs/examples/use-locally-generated-ideographs/)
    * @defaultValue 'sans-serif'
@@ -18109,12 +18217,18 @@ export declare class RasterTileSource extends Evented<SourceEventType> implement
   dispatcher: Dispatcher;
   map: Map$1;
   tiles: string[];
+  attribution?: string;
   _loaded: boolean;
   _options: RasterSourceSpecification | RasterDEMSourceSpecification;
   _premultiplyAlpha: boolean;
   _tileJSONRequest: AbortController;
   constructor(id: string, options: RasterSourceSpecification | RasterDEMSourceSpecification, dispatcher: Dispatcher, eventedParent: Evented);
   load(sourceDataChanged?: boolean): Promise<void>;
+  /**
+   * @internal
+   * Takes on the fields the TileJSON sets, keeping the current value of any it leaves out.
+   */
+  _applyTileJSON(tileJSON: LoadTileJsonResponse): void;
   loaded(): boolean;
   onAdd(map: Map$1): void;
   onRemove(): void;
@@ -18173,6 +18287,11 @@ export declare class RasterDEMTileSource extends RasterTileSource implements Sou
   baseShift?: number;
   constructor(id: string, options: RasterDEMSourceSpecification, dispatcher: Dispatcher, eventedParent: Evented);
   override onAdd(map: Map$1): void;
+  /**
+   * @internal
+   * Takes on the encoding the TileJSON sets, as well as the fields a raster source does.
+   */
+  override _applyTileJSON(tileJSON: LoadTileJsonResponse): void;
   override loadTile(tile: Tile): Promise<void>;
   readImageNow(img: ImageBitmap | HTMLImageElement): Promise<RGBAImage | ImageData>;
   _getNeighboringTiles(tileID: OverscaledTileID): Record<string, {

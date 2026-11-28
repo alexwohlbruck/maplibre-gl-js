@@ -11,7 +11,7 @@ import {GlyphManager} from '../render/glyph_manager.ts';
 import {Light} from './light.ts';
 import {Sky} from './sky.ts';
 import {LineAtlas} from '../render/line_atlas.ts';
-import {clone, ensureError, extend, deepEqual, filterObject, mapObject} from '../util/util.ts';
+import {clone, ensureError, deepEqual, filterObject} from '../util/util.ts';
 import {coerceSpriteToArray} from '../util/style.ts';
 import {getJSON, getReferrer} from '../util/ajax.ts';
 import {ResourceType} from '../util/request_manager.ts';
@@ -77,6 +77,8 @@ import type {WorldCoordinateHelper} from '../geo/world_types.ts';
 const empty = emptyStyle();
 /** How many times longer a placement is kept while the camera pans or turns than at rest. */
 const MOVING_PLACEMENT_STRETCH = 2;
+/** Milliseconds between placements while the camera moves, at the least: the default fade duration. */
+const MOVING_PLACEMENT_INTERVAL = 300;
 
 /**
  * A feature identifier that is bound to a source
@@ -106,11 +108,11 @@ export type StyleOptions = {
      */
     validate?: boolean;
     /**
-     * Defines a CSS
-     * font-family for locally overriding generation of Chinese, Japanese, and Korean characters.
-     * For these characters, font settings from the map's style will be ignored, except for font-weight keywords (light/regular/medium/bold).
-     * Set to `false`, to enable font settings from the map's style for these glyph ranges.
-     * Forces a full update.
+     * Defines a CSS font-family fallback used only for locally generated CJK (Chinese, Japanese and Korean) characters.
+     * The layer's `text-font` families are tried first, then this family, then `sans-serif`.
+     * Set to `false` or an empty string to disable this fallback. Clusters and styles without a `glyphs` URL
+     * can still render locally.
+     * Changing this option forces a full style update.
      */
     localIdeographFontFamily?: string | false;
     /**
@@ -233,7 +235,12 @@ export class Style extends Evented<MapEventType> {
     _layers: {[_: string]: StyleLayer};
     _serializedLayers: {[_: string]: LayerSpecification};
     _order: string[];
-    tileManagers: {[_: string]: TileManager};
+    /**
+     * @internal
+     * The tile manager of each source, keyed by source id. A null-prototype object, since a layer names its source with
+     * an id from the style, and a `__proto__` id would otherwise resolve to `Object.prototype`.
+     */
+    tileManagers: Record<string, TileManager>;
     zoomHistory: ZoomHistory;
     _loaded: boolean;
     _changed: boolean;
@@ -313,7 +320,7 @@ export class Style extends Evented<MapEventType> {
     private _setInitialValues() {
         this._layers = {};
         this._order = [];
-        this.tileManagers = {};
+        this.tileManagers = Object.create(null);
         this.zoomHistory = new ZoomHistory();
         this._imagesListDirty = false;
         this._initialGlobalState = {};
@@ -798,9 +805,10 @@ export class Style extends Evented<MapEventType> {
             const layer = this._layers[layerId];
 
             layer.recalculate(parameters, availableImages);
-            if (!layer.isHidden(parameters.zoom) && layer.source) {
-                this.tileManagers[layer.source].used = true;
-            }
+            if (layer.isHidden(parameters.zoom) || !layer.source) continue;
+
+            const tileManager = this.tileManagers[layer.source];
+            if (tileManager) tileManager.used = true;
         }
 
         // cross check managersUsedBefore against updated this.tileManagers dictionary
@@ -1571,7 +1579,7 @@ export class Style extends Evented<MapEventType> {
     }
 
     getTransition(): {duration: number; delay: number} & TransitionSpecification {
-        return extend({duration: 300, delay: 0}, this.stylesheet?.transition);
+        return {duration: 300, delay: 0, ...this.stylesheet?.transition};
     }
 
     serialize(): StyleSpecification | undefined {
@@ -1581,7 +1589,7 @@ export class Style extends Evented<MapEventType> {
         // calling Style._checkLoaded() first if their validation requires the style to be loaded.
         if (!this._loaded) return;
 
-        const sources = mapObject(this.tileManagers, (source) => source.serialize());
+        const sources = Object.fromEntries(Object.entries(this.tileManagers).map(([id, tileManager]) => [id, tileManager.serialize()]));
         const layers = this._serializeByIds(this._order, true);
         const terrain = this.map.getTerrain() || undefined;
         const myStyleSheet = this.stylesheet;
@@ -1798,10 +1806,11 @@ export class Style extends Evented<MapEventType> {
 
         const parameters = {
             now: now(),
-            transition: extend({
+            transition: {
                 duration: 300,
-                delay: 0
-            }, this.stylesheet.transition)
+                delay: 0,
+                ...this.stylesheet.transition,
+            }
         };
 
         this.light.setLight(lightOptions, options);
@@ -1854,10 +1863,11 @@ export class Style extends Evented<MapEventType> {
 
         const parameters = {
             now: now(),
-            transition: extend({
+            transition: {
                 duration: 300,
-                delay: 0
-            }, this.stylesheet.transition)
+                delay: 0,
+                ...this.stylesheet.transition,
+            }
         };
 
         if (!this.sky.setSky(skyOptions, options)) return;
@@ -1933,8 +1943,9 @@ export class Style extends Evented<MapEventType> {
     }
 
     _updateSources(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper): void {
+        const covers: Record<string, OverscaledTileID[]> = {};
         for (const id in this.tileManagers) {
-            this.tileManagers[id].update(projectedCamera, worldCoordinateHelper, this.map.terrain);
+            this.tileManagers[id].update(projectedCamera, worldCoordinateHelper, this.map.terrain, covers);
         }
     }
 
@@ -2005,7 +2016,10 @@ export class Style extends Evented<MapEventType> {
         const placementInputsChanged = symbolBucketsChanged || this._placementInputsChanged(projectedCamera, showCollisionBoxes, crossSourceCollisions);
 
         // Panning or turning, labels ride the map they were placed on: placing them half as often is not seen, and halves its cost.
-        const stretch = this.map.isMoving() && !this.map.isZooming() ? MOVING_PLACEMENT_STRETCH : 1;
+        // A short fade is no reason to place more often mid-gesture than a map with the default one does.
+        const stretch = !this.map.isMoving() ? 1 : Math.max(
+            this.map.isZooming() ? 1 : MOVING_PLACEMENT_STRETCH,
+            fadeDuration > 0 ? MOVING_PLACEMENT_INTERVAL / fadeDuration : 1);
         const placementSettled = this.pauseablePlacement?.isDone() && !this.placement.stillRecent(now(), projectedCamera.zoom, stretch);
 
         if (forceFullPlacement || !this.pauseablePlacement || (placementSettled && (placementInputsChanged || this.placement.stale))) {
@@ -2237,7 +2251,7 @@ export class Style extends Evented<MapEventType> {
             tileManager.setEventedParent(null);
             tileManager.onRemove(this.map);
         }
-        this.tileManagers = {};
+        this.tileManagers = Object.create(null);
 
         // Destroy imageManager and clear images
         if (this.imageManager) {

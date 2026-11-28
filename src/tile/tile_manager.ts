@@ -573,7 +573,7 @@ export class TileManager extends Evented<SourceEventType> {
      * Removes tiles that are outside the viewport and adds new tiles that
      * are inside the viewport.
      */
-    update(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, terrain?: Terrain): void {
+    update(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, terrain?: Terrain, covers?: Record<string, OverscaledTileID[]>): void {
         if (!this._sourceLoaded || this._paused) {
             return;
         }
@@ -594,18 +594,30 @@ export class TileManager extends Evented<SourceEventType> {
             idealTileIDs = getCameraMath(projectedCamera).getVisibleUnwrappedCoordinates(projectedCamera, worldCoordinateHelper, this._source.tileID)
                 .map((unwrapped) => new OverscaledTileID(unwrapped.canonical.z, unwrapped.wrap, unwrapped.canonical.z, unwrapped.canonical.x, unwrapped.canonical.y));
         } else {
-            idealTileIDs = coveringTiles(projectedCamera, worldCoordinateHelper, {
-                tileSize: this.usedForTerrain ? this.tileSize : this._source.tileSize,
-                minzoom: this._source.minzoom,
-                maxzoom: this._source.type === 'vector' && this.map._zoomLevelsToOverscale !== undefined
-                    ? Math.max(this._source.maxzoom, projectedCamera.maxZoom - this.map._zoomLevelsToOverscale)
-                    : this._source.maxzoom,
-                roundZoom: this.usedForTerrain ? false : this._source.roundZoom,
-                reparseOverscaled: this._source.reparseOverscaled,
-                terrain,
-                calculateTileZoom: this._source.calculateTileZoom,
-                maxContentElevation: this._updateMaxContentElevation(),
-            });
+            const tileSize = this.usedForTerrain ? this.tileSize : this._source.tileSize;
+            const maxzoom = this._source.type === 'vector' && this.map._zoomLevelsToOverscale !== undefined
+                ? Math.max(this._source.maxzoom, projectedCamera.maxZoom - this.map._zoomLevelsToOverscale)
+                : this._source.maxzoom;
+            const roundZoom = this.usedForTerrain ? false : this._source.roundZoom;
+            const maxContentElevation = this._updateMaxContentElevation();
+            // Sources that ask the same question of the same camera share one answer for the frame.
+            const coverKey = covers && !this._source.calculateTileZoom
+                ? `${tileSize}/${this._source.minzoom}/${maxzoom}/${+!!roundZoom}/${+!!this._source.reparseOverscaled}/${maxContentElevation}`
+                : null;
+            idealTileIDs = coverKey !== null ? covers[coverKey] : undefined;
+            if (!idealTileIDs) {
+                idealTileIDs = coveringTiles(projectedCamera, worldCoordinateHelper, {
+                    tileSize,
+                    minzoom: this._source.minzoom,
+                    maxzoom,
+                    roundZoom,
+                    reparseOverscaled: this._source.reparseOverscaled,
+                    terrain,
+                    calculateTileZoom: this._source.calculateTileZoom,
+                    maxContentElevation,
+                });
+                if (coverKey !== null) covers[coverKey] = idealTileIDs;
+            }
 
             if (this._source.hasTile) { // tile should be in bounds
                 idealTileIDs = idealTileIDs.filter((coord) => this._source.hasTile(coord));

@@ -12,7 +12,7 @@ function frameAt(zoom: number, layers: Array<{id: string; casts: boolean; hidden
     const styleLayers = Object.fromEntries(layers.map(l => [l.id, {
         id: l.id, type: 'fill-extrusion', source: 'buildings', muted: false,
         isHidden: () => !!l.hidden,
-        paint: {get: (name: string) => name === 'fill-extrusion-cast-shadows' ? l.casts : 1},
+        paint: {get: (name: string) => name === 'fill-extrusion-cast-shadows' ? l.casts : {constantOr: () => 1}},
     }]));
     return {
         painter: {} as Painter,

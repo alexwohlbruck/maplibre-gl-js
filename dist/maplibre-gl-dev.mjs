@@ -1,6 +1,6 @@
 /**
 * MapLibre GL JS
-* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.19.0-transit.1-terrain.11/LICENSE.txt
+* @license 3-Clause BSD. Full text of license: https://github.com/maplibre/maplibre-gl-js/blob/v6.20.0-transit.1-terrain.1/LICENSE.txt
 */
 // \0rolldown/runtime.js
 var __create = Object.create;
@@ -1225,7 +1225,12 @@ var v8_default = {
 		"type": "boolean",
 		"expression": {
 			"interpolated": false,
-			"parameters": ["zoom", "feature"]
+			"parameters": [
+				"zoom",
+				"feature",
+				"pitch",
+				"bearing"
+			]
 		},
 		"property-type": "data-driven"
 	},
@@ -1522,7 +1527,17 @@ var v8_default = {
 				"luminosity": {},
 				"plus-lighter": {},
 				"screen": {},
-				"overlay": {}
+				"overlay": {},
+				"difference": {},
+				"exclusion": {},
+				"soft-light": {},
+				"hard-light": {},
+				"darken": {},
+				"lighten": {},
+				"color-dodge": {},
+				"color-burn": {},
+				"hue": {},
+				"saturation": {}
 			},
 			"default": "normal",
 			"property-type": "constant",
@@ -1591,6 +1606,17 @@ var v8_default = {
 				"parameters": ["zoom", "feature"]
 			},
 			"property-type": "cross-faded-data-driven"
+		},
+		"fill-rounded-corner-distance": {
+			"type": "number",
+			"default": 0,
+			"minimum": 0,
+			"units": "meters",
+			"expression": {
+				"interpolated": true,
+				"parameters": ["zoom"]
+			},
+			"property-type": "data-constant"
 		}
 	},
 	"paint_fill-extrusion": {
@@ -1602,7 +1628,23 @@ var v8_default = {
 			"transition": true,
 			"expression": {
 				"interpolated": true,
-				"parameters": ["zoom"]
+				"parameters": [
+					"zoom",
+					"feature",
+					"feature-state"
+				]
+			},
+			"property-type": "data-driven"
+		},
+		"fill-extrusion-layer-opacity": {
+			"type": "number",
+			"default": 1,
+			"minimum": 0,
+			"maximum": 1,
+			"transition": true,
+			"expression": {
+				"interpolated": true,
+				"parameters": ["zoom", "global-state"]
 			},
 			"property-type": "data-constant"
 		},
@@ -1738,7 +1780,17 @@ var v8_default = {
 				"luminosity": {},
 				"plus-lighter": {},
 				"screen": {},
-				"overlay": {}
+				"overlay": {},
+				"difference": {},
+				"exclusion": {},
+				"soft-light": {},
+				"hard-light": {},
+				"darken": {},
+				"lighten": {},
+				"color-dodge": {},
+				"color-burn": {},
+				"hue": {},
+				"saturation": {}
 			},
 			"default": "normal",
 			"property-type": "constant",
@@ -2375,7 +2427,17 @@ var v8_default = {
 				"luminosity": {},
 				"plus-lighter": {},
 				"screen": {},
-				"overlay": {}
+				"overlay": {},
+				"difference": {},
+				"exclusion": {},
+				"soft-light": {},
+				"hard-light": {},
+				"darken": {},
+				"lighten": {},
+				"color-dodge": {},
+				"color-burn": {},
+				"hue": {},
+				"saturation": {}
 			},
 			"default": "normal",
 			"property-type": "constant",
@@ -3126,7 +3188,7 @@ var ValidationError = class {
 		this.message = (key ? `${key}: ` : "") + message;
 		if (identifier) this.identifier = identifier;
 		this.severity = severity;
-		if (value !== null && value !== void 0 && value.__line__) this.line = value.__line__;
+		if (typeof value?.__line__ === "number" && value.__line__) this.line = value.__line__;
 	}
 };
 // node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/parsing_error.mjs
@@ -3145,19 +3207,18 @@ var ExpressionParsingError = class extends Error {
 var Scope = class Scope {
 	constructor(parent, bindings = []) {
 		this.parent = parent;
-		this.bindings = {};
-		for (const [name, expression] of bindings) this.bindings[name] = expression;
+		this.bindings = new Map(bindings);
 	}
 	concat(bindings) {
 		return new Scope(this, bindings);
 	}
 	get(name) {
-		if (this.bindings[name]) return this.bindings[name];
+		if (this.bindings.has(name)) return this.bindings.get(name);
 		if (this.parent) return this.parent.get(name);
 		throw new Error(`${name} not found in scope.`);
 	}
 	has(name) {
-		if (this.bindings[name]) return true;
+		if (this.bindings.has(name)) return true;
 		return this.parent ? this.parent.has(name) : false;
 	}
 };
@@ -3364,7 +3425,7 @@ const linearSrgbToXyz = [
 	[
 		7918 / 409605,
 		87881 / 737289,
-		1001167 / 1053270
+		0xf46cf / 1053270
 	]
 ];
 const xyzToLinearSrgb = [
@@ -3549,7 +3610,7 @@ const linearDisplayP3ToXyz = [
 	[
 		608311 / 1250200,
 		189793 / 714400,
-		198249 / 1000160
+		198249 / 0xf42e0
 	],
 	[
 		35783 / 156275,
@@ -3709,7 +3770,7 @@ function parseCssColor(input) {
 						clamp$2(+b / maxValue, 0, 1),
 						a ? parseAlpha(+a, ap) : 1
 					];
-					if (validateNumbers(rgba)) return rgba;
+					if (validateNumbers$1(rgba)) return rgba;
 				}
 			}
 			return;
@@ -3730,7 +3791,7 @@ function parseCssColor(input) {
 				clamp$2(+l, 0, 100),
 				a ? parseAlpha(+a, ap) : 1
 			];
-			if (validateNumbers(hsla)) return hslToRgb(hsla);
+			if (validateNumbers$1(hsla)) return hslToRgb(hsla);
 		}
 	}
 	const oklchMatch = input.match(oklchRegExp);
@@ -3820,7 +3881,7 @@ function clamp$2(n, min, max) {
 * @param array Array of uncertain numbers.
 * @returns `true` if the specified array contains only valid numbers, `false` otherwise.
 */
-function validateNumbers(array) {
+function validateNumbers$1(array) {
 	return !array.some(Number.isNaN);
 }
 /**
@@ -5479,7 +5540,7 @@ var ParsingContext = class ParsingContext {
 				this.error(`Expression name must be a string, but found ${typeof op} instead. If you wanted a literal array, use ["literal", [...]].`, 0);
 				return null;
 			}
-			const Expr = this.registry[op];
+			const Expr = getOwn(this.registry, op);
 			if (Expr) {
 				let parsed = Expr.parse(expr, this);
 				if (!parsed) return null;
@@ -5992,6 +6053,47 @@ function unitBezier$1(p1x, p1y, p2x, p2y) {
 		return ((ay * t + by) * t + cy) * t;
 	};
 }
+// node_modules/@maplibre/maplibre-gl-style-spec/dist/util/unbundle_jsonlint.mjs
+/**
+* Checks whether a value is a boxed `Number`, `String` or `Boolean`, as created by jsonlint-lines-primitives.
+* `instanceof` on its own is not enough: given `{"__proto__": 1}` jsonlint creates an object that merely
+* inherits from a boxed primitive, on which e.g. `valueOf()` throws.
+* @param value - the value to check
+* @param constructor - the constructor of the boxed type to check for
+* @returns true if the value is a boxed primitive of the given type
+*/
+function isBoxed(value, constructor) {
+	if (!(value instanceof constructor)) return false;
+	try {
+		constructor.prototype.valueOf.call(value);
+		return true;
+	} catch {
+		return false;
+	}
+}
+function unbundle(value) {
+	if (isBoxed(value, Number) || isBoxed(value, String) || isBoxed(value, Boolean)) return value.valueOf();
+	else return value;
+}
+function deepUnbundle(value) {
+	if (Array.isArray(value)) return value.map(deepUnbundle);
+	const unbundled = unbundle(value);
+	if (unbundled instanceof Object) return Object.fromEntries(Object.entries(unbundled).map(([key, child]) => [key, deepUnbundle(child)]));
+	return unbundled;
+}
+// node_modules/@maplibre/maplibre-gl-style-spec/dist/util/to_display_string.mjs
+/**
+* Formats an untrusted style value for use in an error message.
+*
+* Unlike `String(value)` or a template literal, this doesn't throw when the value is an object without
+* a usable `toString`, e.g. `{"toString": null}` or an object with a null prototype.
+* @param value - the value to format
+* @returns the string representation of primitives, JSON for everything else
+*/
+function toDisplayString(value) {
+	const unbundled = unbundle(value);
+	return typeof unbundled === "object" && unbundled !== null ? JSON.stringify(unbundled) : String(unbundled);
+}
 // node_modules/@maplibre/maplibre-gl-style-spec/dist/expression/definitions/interpolate.mjs
 var Interpolate = class Interpolate {
 	constructor(type, operator, interpolation, input, stops, key) {
@@ -6035,7 +6137,7 @@ var Interpolate = class Interpolate {
 				name: "cubic-bezier",
 				controlPoints
 			};
-		} else return context.error(`Unknown interpolation type ${String(interpolation[0])}`, 1, 0);
+		} else return context.error(`Unknown interpolation type ${toDisplayString(interpolation[0])}`, 1, 0);
 		if (args.length - 1 < 4) return context.error(`Expected at least 4 arguments, but found only ${args.length - 1}.`);
 		if ((args.length - 1) % 2 !== 0) return context.error("Expected an even number of arguments.");
 		input = context.parse(input, 2, NumberType);
@@ -6338,7 +6440,7 @@ var CollatorExpression = class CollatorExpression {
 	static parse(args, context) {
 		if (args.length !== 2) return context.error("Expected one argument.");
 		const options = args[1];
-		if (typeof options !== "object" || Array.isArray(options)) return context.error("Collator options argument must be an object.");
+		if (typeof options !== "object" || options === null || Array.isArray(options)) return context.error("Collator options argument must be an object.");
 		const caseSensitive = context.parse(options["case-sensitive"] === void 0 ? false : options["case-sensitive"], 1, BooleanType);
 		if (!caseSensitive) return null;
 		const diacriticSensitive = context.parse(options["diacritic-sensitive"] === void 0 ? false : options["diacritic-sensitive"], 1, BooleanType);
@@ -6378,7 +6480,7 @@ var NumberFormat = class NumberFormat {
 		const number = context.parse(args[1], 1, NumberType);
 		if (!number) return null;
 		const options = args[2];
-		if (typeof options !== "object" || Array.isArray(options)) return context.error("NumberFormat options argument must be an object.");
+		if (typeof options !== "object" || options === null || Array.isArray(options)) return context.error("NumberFormat options argument must be an object.");
 		let locale = null;
 		if (options["locale"]) {
 			locale = context.parse(options["locale"], 1, StringType);
@@ -6442,7 +6544,7 @@ var FormatExpression = class FormatExpression {
 		let nextTokenMayBeObject = false;
 		for (let i = 1; i <= args.length - 1; ++i) {
 			const arg = args[i];
-			if (nextTokenMayBeObject && typeof arg === "object" && !Array.isArray(arg)) {
+			if (nextTokenMayBeObject && typeof arg === "object" && arg !== null && !Array.isArray(arg)) {
 				nextTokenMayBeObject = false;
 				let scale = null;
 				if (arg["font-scale"]) {
@@ -6560,6 +6662,57 @@ var Length = class Length {
 		return false;
 	}
 };
+// node_modules/@maplibre/maplibre-gl-style-spec/dist/util/geojson.mjs
+/**
+* How deep positions are nested in the `coordinates` of each geometry type.
+*/
+const COORDINATES_DEPTH = {
+	Point: 0,
+	MultiPoint: 1,
+	LineString: 1,
+	MultiLineString: 2,
+	Polygon: 2,
+	MultiPolygon: 3
+};
+function areValidCoordinates(coordinates, depth) {
+	if (!Array.isArray(coordinates)) return false;
+	if (depth === 0) return coordinates.length >= 2 && coordinates.every((c) => typeof c === "number");
+	return coordinates.every((c) => areValidCoordinates(c, depth - 1));
+}
+/**
+* Checks that an untrusted value is a geometry whose `coordinates` have the structure its `type` requires.
+* @param geometry - the value to check
+* @returns true if the value is a well-formed geometry. Geometry collections are not supported.
+*/
+function isSimpleGeometry(geometry) {
+	if (typeof geometry !== "object" || geometry === null) return false;
+	const { type, coordinates } = geometry;
+	return typeof type === "string" && Object.keys(COORDINATES_DEPTH).includes(type) && areValidCoordinates(coordinates, COORDINATES_DEPTH[type]);
+}
+/**
+* Extracts the geometries of an untrusted value that is expected to be GeoJSON.
+* Unlocated features (having a `null` geometry) and geometry collections are skipped.
+* @param geojson - the value to extract geometries from
+* @returns the geometries, or null if the value isn't well-formed GeoJSON
+*/
+function getSimpleGeometries(geojson) {
+	if (typeof geojson !== "object" || geojson === null) return null;
+	const { type, geometry, features } = geojson;
+	let candidates;
+	if (type === "FeatureCollection") {
+		if (!Array.isArray(features)) return null;
+		candidates = [];
+		for (const feature of features) {
+			if (typeof feature !== "object" || feature === null) return null;
+			if (feature.geometry !== null) candidates.push(feature.geometry);
+		}
+	} else if (type === "Feature") candidates = [geometry];
+	else return isSimpleGeometry(geojson) ? [geojson] : null;
+	const geometries = [];
+	for (const candidate of candidates) if (isSimpleGeometry(candidate)) geometries.push(candidate);
+	else if (candidate?.type !== "GeometryCollection") return null;
+	return geometries;
+}
 // node_modules/@maplibre/maplibre-gl-style-spec/dist/util/geometry_util.mjs
 const EXTENT$1 = 8192;
 function getTileCoordinates(p, canonical) {
@@ -6784,12 +6937,12 @@ var Within = class Within {
 	}
 	static parse(args, context) {
 		if (args.length !== 2) return context.error(`'within' expression requires exactly one argument, but found ${args.length - 1} instead.`);
-		if (isValue(args[1])) {
+		const geometries = isValue(args[1]) ? getSimpleGeometries(args[1]) : null;
+		if (geometries) {
 			const geojson = args[1];
 			if (geojson.type === "FeatureCollection") {
 				const polygonsCoords = [];
-				for (const polygon of geojson.features) {
-					const { type, coordinates } = polygon.geometry;
+				for (const { type, coordinates } of geometries) {
 					if (type === "Polygon") polygonsCoords.push(coordinates);
 					if (type === "MultiPolygon") polygonsCoords.push(...coordinates);
 				}
@@ -6797,10 +6950,10 @@ var Within = class Within {
 					type: "MultiPolygon",
 					coordinates: polygonsCoords
 				});
-			} else if (geojson.type === "Feature") {
-				const type = geojson.geometry.type;
-				if (type === "Polygon" || type === "MultiPolygon") return new Within(geojson, geojson.geometry);
-			} else if (geojson.type === "Polygon" || geojson.type === "MultiPolygon") return new Within(geojson, geojson);
+			} else {
+				const geometry = geometries[0];
+				if (geometry?.type === "Polygon" || geometry?.type === "MultiPolygon") return new Within(geojson, geometry);
+			}
 		}
 		return context.error("'within' expression requires valid geojson object that contains polygon geometry type.");
 	}
@@ -7410,12 +7563,8 @@ var Distance = class Distance {
 	}
 	static parse(args, context) {
 		if (args.length !== 2) return context.error(`'distance' expression requires exactly one argument, but found ${args.length - 1} instead.`);
-		if (isValue(args[1])) {
-			const geojson = args[1];
-			if (geojson.type === "FeatureCollection") return new Distance(geojson, geojson.features.map((feature) => toSimpleGeometry(feature.geometry)).flat());
-			else if (geojson.type === "Feature") return new Distance(geojson, toSimpleGeometry(geojson.geometry));
-			else if ("type" in geojson && "coordinates" in geojson) return new Distance(geojson, toSimpleGeometry(geojson));
-		}
+		const geometries = isValue(args[1]) ? getSimpleGeometries(args[1]) : null;
+		if (geometries) return new Distance(args[1], geometries.flatMap((geometry) => toSimpleGeometry(geometry)));
 		return context.error("'distance' expression requires valid geojson object that contains polygon geometry type.");
 	}
 	evaluate(ctx) {
@@ -7714,6 +7863,16 @@ CompoundExpression.register(expressions$1, {
 		NumberType,
 		[],
 		(ctx) => ctx.globals.zoom
+	],
+	pitch: [
+		NumberType,
+		[],
+		(ctx) => ctx.globals.pitch || 0
+	],
+	bearing: [
+		NumberType,
+		[],
+		(ctx) => ctx.globals.bearing || 0
 	],
 	"heatmap-density": [
 		NumberType,
@@ -8070,6 +8229,8 @@ function isExpressionConstant(expression) {
 	if (!childrenConstant) return false;
 	return isFeatureConstant(expression) && isGlobalPropertyConstant(expression, [
 		"zoom",
+		"pitch",
+		"bearing",
 		"heatmap-density",
 		"elevation",
 		"line-progress",
@@ -8138,16 +8299,11 @@ function supportsInterpolation(spec) {
 * Matches a `<property>-transition` key and captures the property it belongs to.
 */
 const transitionPropertyRegExp = /^(.*)-transition$/;
-// node_modules/@maplibre/maplibre-gl-style-spec/dist/util/extend.mjs
-function extendBy(output, ...inputs) {
-	for (const input of inputs) for (const k in input) output[k] = input[k];
-	return output;
-}
 // node_modules/@maplibre/maplibre-gl-style-spec/dist/util/get_type.mjs
 function getType(val) {
-	if (val instanceof Number) return "number";
-	else if (val instanceof String) return "string";
-	else if (val instanceof Boolean) return "boolean";
+	if (isBoxed(val, Number)) return "number";
+	else if (isBoxed(val, String)) return "string";
+	else if (isBoxed(val, Boolean)) return "boolean";
 	else if (Array.isArray(val)) return "array";
 	else if (val === null) return "null";
 	else return typeof val;
@@ -8184,7 +8340,7 @@ function createFunction(parameters, propertySpec) {
 	const type = parameters.type || (supportsInterpolation(propertySpec) ? "exponential" : "interval");
 	const parseFn = getParseFunction(propertySpec);
 	if (parseFn) {
-		parameters = extendBy({}, parameters);
+		parameters = { ...parameters };
 		if (parameters.stops) parameters.stops = parameters.stops.map((stop) => {
 			return [stop[0], parseFn(stop[1])];
 		});
@@ -8431,7 +8587,7 @@ function assertRootKey(rootKey) {
 	if (!rootKey) throw new Error("rootKey must identify the location of the expression in the style JSON, e.g. \"layers[3].paint.line-width\".");
 }
 function isExpression(expression) {
-	return Array.isArray(expression) && expression.length > 0 && typeof expression[0] === "string" && expression[0] in expressions$1;
+	return Array.isArray(expression) && expression.length > 0 && typeof expression[0] === "string" && getOwn(expressions$1, expression[0]) !== void 0;
 }
 /**
 * Parse and typecheck the given style spec JSON expression.  If
@@ -8500,6 +8656,7 @@ function createPropertyExpression(expressionInput, rootKey, propertySpec, global
 	if (!isFeatureConstantResult && !supportsPropertyExpression(propertySpec)) return error([new ExpressionParsingError("", "data expressions not supported")]);
 	const isZoomConstant = isGlobalPropertyConstant(parsed, ["zoom"]);
 	if (!isZoomConstant && !supportsZoomExpression(propertySpec)) return error([new ExpressionParsingError("", "zoom expressions not supported")]);
+	if (!isGlobalPropertyConstant(parsed, ["pitch", "bearing"])) return error([new ExpressionParsingError("", "\"pitch\" and \"bearing\" expressions are only supported in symbol layer filters.")]);
 	const zoomCurve = findZoomCurve(parsed);
 	if (!zoomCurve && !isZoomConstant) return error([new ExpressionParsingError("", "\"zoom\" expression may only be used as input to a top-level \"step\" or \"interpolate\" expression.")]);
 	else if (zoomCurve instanceof ExpressionParsingError) return error([zoomCurve]);
@@ -8640,9 +8797,11 @@ function getDefaultValue(spec) {
 	}
 }
 function addGlobalState(globals, globalState) {
-	const { zoom, heatmapDensity, elevation, lineProgress, isSupportedScript, accumulated } = globals ?? {};
+	const { zoom, pitch, bearing, heatmapDensity, elevation, lineProgress, isSupportedScript, accumulated } = globals ?? {};
 	return {
 		zoom,
+		pitch,
+		bearing,
 		heatmapDensity,
 		elevation,
 		lineProgress,
@@ -8776,7 +8935,12 @@ const filterSpec = {
 	"property-type": "data-driven",
 	expression: {
 		interpolated: false,
-		parameters: ["zoom", "feature"]
+		parameters: [
+			"zoom",
+			"feature",
+			"pitch",
+			"bearing"
+		]
 	}
 };
 /**
@@ -8795,6 +8959,7 @@ function featureFilter(filter, rootKey, globalState) {
 	if (filter === null || filter === void 0) return {
 		filter: () => true,
 		needGeometry: false,
+		needCamera: false,
 		getGlobalStateRefs: () => /* @__PURE__ */ new Set()
 	};
 	if (!isExpressionFilter(filter)) filter = convertFilter$1(filter);
@@ -8804,6 +8969,7 @@ function featureFilter(filter, rootKey, globalState) {
 	else return {
 		filter: (globalProperties, feature, canonical) => compiled.value.evaluate(globalProperties, feature, {}, canonical),
 		needGeometry: geometryNeeded(filter),
+		needCamera: !isGlobalPropertyConstant(compiled.value.expression, ["pitch", "bearing"]),
 		getGlobalStateRefs: () => findGlobalStateRefs(compiled.value.expression)
 	};
 }
@@ -8885,20 +9051,6 @@ function validateConstants(options) {
 	const constants = options.value;
 	if (constants) return [new ValidationError(key, constants, "constants have been deprecated as of v8")];
 	else return [];
-}
-// node_modules/@maplibre/maplibre-gl-style-spec/dist/util/unbundle_jsonlint.mjs
-function unbundle(value) {
-	if (value instanceof Number || value instanceof String || value instanceof Boolean) return value.valueOf();
-	else return value;
-}
-function deepUnbundle(value) {
-	if (Array.isArray(value)) return value.map(deepUnbundle);
-	else if (value instanceof Object && !(value instanceof Number || value instanceof String || value instanceof Boolean)) {
-		const unbundledValue = {};
-		for (const key in value) unbundledValue[key] = deepUnbundle(value[key]);
-		return unbundledValue;
-	}
-	return unbundle(value);
 }
 // node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_object.mjs
 function validateObject(options) {
@@ -9043,6 +9195,7 @@ function validateFunction(options) {
 			if (getType(value[0]) !== "object") return [new ValidationError(key, value, `object expected, ${getType(value[0])} found`)];
 			if (value[0].zoom === void 0) return [new ValidationError(key, value, "object stop key must have zoom")];
 			if (value[0].value === void 0) return [new ValidationError(key, value, "object stop key must have value")];
+			if (getType(value[0].zoom) !== "number") return [new ValidationError(`${key}[0].zoom`, value[0].zoom, `number expected, ${getType(value[0].zoom)} found`)];
 			if (previousStopDomainZoom && previousStopDomainZoom > unbundle(value[0].zoom)) return [new ValidationError(key, value[0].zoom, "stop zoom values must appear in ascending order")];
 			if (unbundle(value[0].zoom) !== previousStopDomainZoom) {
 				previousStopDomainZoom = unbundle(value[0].zoom);
@@ -9119,6 +9272,7 @@ function validateExpression(options) {
 	if (options.expressionContext === "property" && options.propertyKey === "text-font" && !expressionObj.outputDefined()) return [new ValidationError(options.key, options.value, `Invalid data expression for "${options.propertyKey}". Output values must be contained as literals within the expression.`)];
 	if (options.expressionContext === "property" && options.propertyType === "layout" && !isStateConstant(expressionObj)) return [new ValidationError(options.key, options.value, "\"feature-state\" data expressions are not supported with layout properties.")];
 	if (options.expressionContext === "filter" && !isStateConstant(expressionObj)) return [new ValidationError(options.key, options.value, "\"feature-state\" data expressions are not supported with filters.")];
+	if (!(options.expressionContext === "filter" && options.layerType === "symbol") && !isGlobalPropertyConstant(expressionObj, ["pitch", "bearing"])) return [new ValidationError(options.key, options.value, "\"pitch\" and \"bearing\" expressions are only supported in symbol layer filters.")];
 	if (options.expressionContext && options.expressionContext.indexOf("cluster") === 0) {
 		if (!isGlobalPropertyConstant(expressionObj, ["zoom", "feature-state"])) return [new ValidationError(options.key, options.value, "\"zoom\" and \"feature-state\" expressions are not supported with cluster properties.")];
 		if (options.expressionContext === "cluster-initial" && !isFeatureConstant(expressionObj)) return [new ValidationError(options.key, options.value, "Feature data expressions are not supported with initial expression part of cluster properties.")];
@@ -9173,10 +9327,11 @@ function validateNoMixedLegacyFilter(options, value) {
 function validateFilter(options) {
 	const value = deepUnbundle(options.value);
 	if (!isExpressionFilter(value)) return validateNonExpressionFilter(options);
-	return [...validateNoMixedLegacyFilter(options, value), ...validateExpression(extendBy({}, options, {
+	return [...validateNoMixedLegacyFilter(options, value), ...validateExpression({
+		...options,
 		expressionContext: "filter",
 		valueSpec: { value: "boolean" }
-	}))];
+	})];
 }
 function validateNonExpressionFilter(options) {
 	const value = options.value;
@@ -9244,17 +9399,17 @@ function validateProperty(options, propertyType) {
 	const styleSpec = options.styleSpec;
 	const value = options.value;
 	const propertyKey = options.objectKey;
-	const layerSpec = styleSpec[`${propertyType}_${options.layerType}`];
+	const layerSpec = typeof options.layerType === "string" ? getOwn(styleSpec, `${propertyType}_${options.layerType}`) : void 0;
 	if (!layerSpec) return [];
 	const transitionMatch = propertyKey.match(transitionPropertyRegExp);
-	if (propertyType === "paint" && transitionMatch && layerSpec[transitionMatch[1]] && layerSpec[transitionMatch[1]].transition) return validateSpec({
+	if (propertyType === "paint" && transitionMatch && getOwn(layerSpec, transitionMatch[1])?.transition) return validateSpec({
 		key,
 		value,
 		valueSpec: styleSpec.transition,
 		style,
 		styleSpec
 	});
-	const valueSpec = options.valueSpec || layerSpec[propertyKey];
+	const valueSpec = options.valueSpec || getOwn(layerSpec, propertyKey);
 	if (!valueSpec) return [new ValidationError(key, value, `unknown property "${propertyKey}"`)];
 	let tokenMatch;
 	if (getType(value) === "string" && supportsPropertyExpression(valueSpec) && !valueSpec.tokens && (tokenMatch = /^{([^}]+)}$/.exec(value))) return [new ValidationError(key, value, `"${propertyKey}" does not support interpolation syntax\nUse an identity property function instead: \`{ "type": "identity", "property": ${JSON.stringify(tokenMatch[1])} }\`.`)];
@@ -9296,7 +9451,7 @@ function validateLayer(options) {
 		const layerId = unbundle(layer.id);
 		for (let i = 0; i < options.arrayIndex; i++) {
 			const otherLayer = style.layers[i];
-			if (unbundle(otherLayer.id) === layerId) errors.push(new ValidationError(key, layer.id, `duplicate layer id "${layer.id}", previously used at line ${otherLayer.id.__line__}`));
+			if (getType(otherLayer) === "object" && unbundle(otherLayer.id) === layerId) errors.push(new ValidationError(key, layer.id, `duplicate layer id "${toDisplayString(layer.id)}", previously used at line ${otherLayer.id.__line__}`));
 		}
 	}
 	if ("ref" in layer) {
@@ -9311,27 +9466,28 @@ function validateLayer(options) {
 		});
 		let parent;
 		style.layers.forEach((layer) => {
-			if (unbundle(layer.id) === ref) parent = layer;
+			if (getType(layer) === "object" && unbundle(layer.id) === ref) parent = layer;
 		});
-		if (!parent) errors.push(new ValidationError(key, layer.ref, `ref layer "${ref}" not found`));
+		if (!parent) errors.push(new ValidationError(key, layer.ref, `ref layer "${toDisplayString(ref)}" not found`));
 		else if (parent.ref) errors.push(new ValidationError(key, layer.ref, "ref cannot reference another ref layer"));
 		else type = unbundle(parent.type);
 	} else if (type !== "background") {
 		if (!layer.source) errors.push(new ValidationError(key, layer, "missing required property \"source\""));
 		else {
-			const source = style.sources && style.sources[layer.source];
+			const sourceId = toDisplayString(layer.source);
+			const source = style.sources && getOwn(style.sources, sourceId);
 			const sourceType = source && unbundle(source.type);
-			if (!source) errors.push(new ValidationError(key, layer.source, `source "${layer.source}" not found`));
-			else if (sourceType === "vector" && type === "raster") errors.push(new ValidationError(key, layer.source, `layer "${layer.id}" requires a raster source`));
-			else if (sourceType !== "raster-dem" && type === "hillshade") errors.push(new ValidationError(key, layer.source, `layer "${layer.id}" requires a raster-dem source`));
-			else if (sourceType !== "raster-dem" && type === "color-relief") errors.push(new ValidationError(key, layer.source, `layer "${layer.id}" requires a raster-dem source`));
-			else if (sourceType === "raster" && type !== "raster") errors.push(new ValidationError(key, layer.source, `layer "${layer.id}" requires a vector source`));
-			else if (sourceType === "vector" && !layer["source-layer"]) errors.push(new ValidationError(key, layer, `layer "${layer.id}" must specify a "source-layer"`));
+			if (!source) errors.push(new ValidationError(key, layer.source, `source "${sourceId}" not found`));
+			else if (sourceType === "vector" && type === "raster") errors.push(new ValidationError(key, layer.source, `layer "${toDisplayString(layer.id)}" requires a raster source`));
+			else if (sourceType !== "raster-dem" && type === "hillshade") errors.push(new ValidationError(key, layer.source, `layer "${toDisplayString(layer.id)}" requires a raster-dem source`));
+			else if (sourceType !== "raster-dem" && type === "color-relief") errors.push(new ValidationError(key, layer.source, `layer "${toDisplayString(layer.id)}" requires a raster-dem source`));
+			else if (sourceType === "raster" && type !== "raster") errors.push(new ValidationError(key, layer.source, `layer "${toDisplayString(layer.id)}" requires a vector source`));
+			else if (sourceType === "vector" && !layer["source-layer"]) errors.push(new ValidationError(key, layer, `layer "${toDisplayString(layer.id)}" must specify a "source-layer"`));
 			else if (sourceType === "raster-dem" && type !== "hillshade" && type !== "color-relief") errors.push(new ValidationError(key, layer.source, "raster-dem source can only be used with layer type 'hillshade' or 'color-relief'."));
-			else if (type === "line" && layer.paint && layer.paint["line-gradient"] && (sourceType !== "geojson" || !source.lineMetrics)) errors.push(new ValidationError(key, layer, `layer "${layer.id}" specifies a line-gradient, which requires a GeoJSON source with \`lineMetrics\` enabled.`));
+			else if (type === "line" && layer.paint && layer.paint["line-gradient"] && (sourceType !== "geojson" || !source.lineMetrics)) errors.push(new ValidationError(key, layer, `layer "${toDisplayString(layer.id)}" specifies a line-gradient, which requires a GeoJSON source with \`lineMetrics\` enabled.`));
 		}
 	}
-	if (type === "raster" && layer.paint?.resampling && layer.paint?.["raster-resampling"]) errors.push(new ValidationError(key, layer.paint, `layer "${layer.id}" redundantly specifies "resampling" and "raster-resampling" paint properties, but only one is allowed. It is advised to use "resampling".`));
+	if (type === "raster" && layer.paint?.resampling && layer.paint?.["raster-resampling"]) errors.push(new ValidationError(key, layer.paint, `layer "${toDisplayString(layer.id)}" redundantly specifies "resampling" and "raster-resampling" paint properties, but only one is allowed. It is advised to use "resampling".`));
 	errors = errors.concat(validateObject({
 		key,
 		value: layer,
@@ -9355,7 +9511,12 @@ function validateLayer(options) {
 					objectKey: "type"
 				});
 			},
-			filter: validateFilter,
+			filter(options) {
+				return validateFilter({
+					layerType: type,
+					...options
+				});
+			},
 			layout(options) {
 				return validateObject({
 					layer,
@@ -9365,7 +9526,10 @@ function validateLayer(options) {
 					styleSpec: options.styleSpec,
 					validateSpec: options.validateSpec,
 					objectElementValidators: { "*"(options) {
-						return validateLayoutProperty(extendBy({ layerType: type }, options));
+						return validateLayoutProperty({
+							layerType: type,
+							...options
+						});
 					} }
 				});
 			},
@@ -9378,7 +9542,10 @@ function validateLayer(options) {
 					styleSpec: options.styleSpec,
 					validateSpec: options.validateSpec,
 					objectElementValidators: { "*"(options) {
-						return validatePaintProperty(extendBy({ layerType: type }, options));
+						return validatePaintProperty({
+							layerType: type,
+							...options
+						});
 					} }
 				});
 			}
@@ -9415,9 +9582,9 @@ function validateRasterDEMSource(options) {
 		"blueFactor",
 		"baseShift"
 	];
-	const encodingName = options.value.encoding ? `"${options.value.encoding}"` : "Default";
+	const encodingName = options.value.encoding ? `"${toDisplayString(options.value.encoding)}"` : "Default";
 	for (const key in rasterDEM) if (!isCustomEncoding && customEncodingKeys.includes(key)) errors.push(new ValidationError(key, rasterDEM[key], `In "${sourceName}": "${key}" is only valid when "encoding" is set to "custom". ${encodingName} encoding found`));
-	else if (rasterDEMSpec[key]) errors = errors.concat(options.validateSpec({
+	else if (getOwn(rasterDEMSpec, key)) errors = errors.concat(options.validateSpec({
 		key,
 		value: rasterDEM[key],
 		valueSpec: rasterDEMSpec[key],
@@ -9436,6 +9603,7 @@ function validateSource(options) {
 	const styleSpec = options.styleSpec;
 	const style = options.style;
 	const validateSpec = options.validateSpec;
+	if (getType(value) !== "object") return [new ValidationError(key, value, `object expected, ${getType(value)} found`)];
 	if (!value.type) return [new ValidationError(key, value, "\"type\" is required")];
 	const type = unbundle(value.type);
 	let errors;
@@ -9471,25 +9639,36 @@ function validateSource(options) {
 				validateSpec,
 				objectElementValidators
 			});
-			if (value.cluster) for (const prop in value.clusterProperties) {
-				const [operator, mapExpr] = value.clusterProperties[prop];
-				const reduceExpr = typeof operator === "string" ? [
-					operator,
-					["accumulated"],
-					["get", prop]
-				] : operator;
-				errors.push(...validateExpression({
-					key: `${key}.${prop}.map`,
-					value: mapExpr,
-					validateSpec,
-					expressionContext: "cluster-map"
-				}));
-				errors.push(...validateExpression({
-					key: `${key}.${prop}.reduce`,
-					value: reduceExpr,
-					validateSpec,
-					expressionContext: "cluster-reduce"
-				}));
+			if (value.cluster && value.clusterProperties !== void 0) {
+				if (getType(value.clusterProperties) !== "object") {
+					errors.push(new ValidationError(`${key}.clusterProperties`, value.clusterProperties, `object expected, ${getType(value.clusterProperties)} found`));
+					return errors;
+				}
+				for (const prop in value.clusterProperties) {
+					const clusterProperty = value.clusterProperties[prop];
+					if (getType(clusterProperty) !== "array") {
+						errors.push(new ValidationError(`${key}.${prop}`, clusterProperty, `array expected, ${getType(clusterProperty)} found`));
+						continue;
+					}
+					const [operator, mapExpr] = clusterProperty;
+					const reduceExpr = typeof operator === "string" ? [
+						operator,
+						["accumulated"],
+						["get", prop]
+					] : operator;
+					errors.push(...validateExpression({
+						key: `${key}.${prop}.map`,
+						value: mapExpr,
+						validateSpec,
+						expressionContext: "cluster-map"
+					}));
+					errors.push(...validateExpression({
+						key: `${key}.${prop}.reduce`,
+						value: reduceExpr,
+						validateSpec,
+						expressionContext: "cluster-reduce"
+					}));
+				}
 			}
 			return errors;
 		case "video": return validateObject({
@@ -9555,7 +9734,7 @@ function validateLight(options) {
 	}
 	for (const key in light) {
 		const transitionMatch = key.match(transitionPropertyRegExp);
-		if (transitionMatch && lightSpec[transitionMatch[1]] && lightSpec[transitionMatch[1]].transition) errors = errors.concat(options.validateSpec({
+		if (transitionMatch && getOwn(lightSpec, transitionMatch[1])?.transition) errors = errors.concat(options.validateSpec({
 			key,
 			value: light[key],
 			valueSpec: styleSpec.transition,
@@ -9563,7 +9742,7 @@ function validateLight(options) {
 			style,
 			styleSpec
 		}));
-		else if (lightSpec[key]) errors = errors.concat(options.validateSpec({
+		else if (getOwn(lightSpec, key)) errors = errors.concat(options.validateSpec({
 			key,
 			value: light[key],
 			valueSpec: lightSpec[key],
@@ -9587,14 +9766,14 @@ function validateSky(options) {
 	let errors = [];
 	for (const key in sky) {
 		const transitionMatch = key.match(transitionPropertyRegExp);
-		if (transitionMatch && skySpec[transitionMatch[1]] && skySpec[transitionMatch[1]].transition) errors = errors.concat(options.validateSpec({
+		if (transitionMatch && getOwn(skySpec, transitionMatch[1])?.transition) errors = errors.concat(options.validateSpec({
 			key,
 			value: sky[key],
 			valueSpec: styleSpec.transition,
 			style,
 			styleSpec
 		}));
-		else if (skySpec[key]) errors = errors.concat(options.validateSpec({
+		else if (getOwn(skySpec, key)) errors = errors.concat(options.validateSpec({
 			key,
 			value: sky[key],
 			valueSpec: skySpec[key],
@@ -9618,7 +9797,7 @@ function validateTerrain(options) {
 		errors = errors.concat([new ValidationError("terrain", terrain, `object expected, ${rootType} found`)]);
 		return errors;
 	}
-	for (const key in terrain) if (terrainSpec[key]) errors = errors.concat(options.validateSpec({
+	for (const key in terrain) if (getOwn(terrainSpec, key)) errors = errors.concat(options.validateSpec({
 		key,
 		value: terrain[key],
 		valueSpec: terrainSpec[key],
@@ -9741,6 +9920,10 @@ function validateSprite(options) {
 		const allSpriteIds = [];
 		const allSpriteURLs = [];
 		for (const i in sprite) {
+			if (getType(sprite[i]) !== "object") {
+				errors.push(new ValidationError(`${key}[${i}]`, sprite[i], `object expected, ${getType(sprite[i])} found`));
+				continue;
+			}
 			if (sprite[i].id && allSpriteIds.includes(sprite[i].id)) errors.push(new ValidationError(key, sprite, `all the sprites' ids must be unique, but ${sprite[i].id} is duplicated`));
 			allSpriteIds.push(sprite[i].id);
 			if (sprite[i].url && allSpriteURLs.includes(sprite[i].url)) errors.push(new ValidationError(key, sprite, `all the sprites' URLs must be unique, but ${sprite[i].url} is duplicated`));
@@ -9774,7 +9957,7 @@ function validateProjection(options) {
 	if (projection === void 0) return [];
 	else if (rootType !== "object") return [new ValidationError("projection", projection, `object expected, ${rootType} found`)];
 	let errors = [];
-	for (const key in projection) if (projectionSpec[key]) errors = errors.concat(options.validateSpec({
+	for (const key in projection) if (getOwn(projectionSpec, key)) errors = errors.concat(options.validateSpec({
 		key,
 		value: projection[key],
 		valueSpec: projectionSpec[key],
@@ -9936,7 +10119,10 @@ function validate(options) {
 	if (valueSpec.expression && isFunction$1(unbundle(value))) return validateFunction(options);
 	else if (valueSpec.expression && isExpression(deepUnbundle(value))) return validateExpression(options);
 	else if (valueSpec.type && VALIDATORS[valueSpec.type]) return VALIDATORS[valueSpec.type](options);
-	else return validateObject(extendBy({}, options, { valueSpec: valueSpec.type ? styleSpec[valueSpec.type] : valueSpec }));
+	else return validateObject({
+		...options,
+		valueSpec: valueSpec.type ? styleSpec[valueSpec.type] : valueSpec
+	});
 }
 // node_modules/@maplibre/maplibre-gl-style-spec/dist/validate/validate_glyphs_url.mjs
 function validateGlyphsUrl(options) {
@@ -9977,7 +10163,7 @@ function validateStyleMin(style, styleSpec = latest) {
 			}
 		}
 	}));
-	if (style["constants"]) errors = errors.concat(validateConstants({
+	if (style?.["constants"]) errors = errors.concat(validateConstants({
 		key: "constants",
 		value: style["constants"],
 		style,
@@ -10239,7 +10425,7 @@ if (!paintFillExtrusion["fill-extrusion-cast-shadows"]) {
 	};
 }
 // package.json
-var version$2 = "6.19.0-transit.1-terrain.11";
+var version$2 = "6.20.0-transit.1-terrain.1";
 // node_modules/@mapbox/point-geometry/index.js
 /**
 * A standalone point geometry with useful accessor, comparison, and
@@ -12240,6 +12426,12 @@ function createMat4f64() {
 	return /* @__PURE__ */ new Float64Array(16);
 }
 /**
+* Returns a new 32 bit float mat4 of zeroes.
+*/
+function createMat4f32() {
+	return /* @__PURE__ */ new Float32Array(16);
+}
+/**
 * Returns a new 64 bit float mat4 set to identity.
 */
 function createIdentityMat4f64() {
@@ -12509,10 +12701,6 @@ function wrap$1(n, min, max) {
 	const w = ((n - min) % d + d) % d + min;
 	return w === min ? max : w;
 }
-function extend(dest, ...sources) {
-	for (const src of sources) for (const k in src) dest[k] = src[k];
-	return dest;
-}
 /**
 * Given an object and a number of properties as strings, return version
 * of that object with only those properties.
@@ -12582,15 +12770,6 @@ function evaluateZoomSnap(zoom, zoomSnap, delta) {
 	return (delta > 0 ? Math.ceil(zoom * inv - 1e-9) : Math.floor(zoom * inv + 1e-10)) / inv;
 }
 /**
-* Create an object by mapping all the values of an existing object while
-* preserving their keys.
-*/
-function mapObject(input, iterator, context) {
-	const output = {};
-	for (const key in input) output[key] = iterator.call(context || this, input[key], key, input);
-	return output;
-}
-/**
 * Create an object by filtering out values of an existing object.
 */
 function filterObject(input, iterator, context) {
@@ -12623,7 +12802,7 @@ function deepEqual(a, b) {
 */
 function clone(input) {
 	if (Array.isArray(input)) return input.map(clone);
-	else if (typeof input === "object" && input) return mapObject(input, clone);
+	else if (typeof input === "object" && input) return Object.fromEntries(Object.entries(input).map(([key, value]) => [key, clone(value)]));
 	else return input;
 }
 /**
@@ -13289,7 +13468,9 @@ let elementInternals;
 /**
 * The `Element` members the sanitizer uses, read off the prototype rather than off the element it is looking at.
 * A form control named `children`, `remove` or `localName` shadows the same-named property of its own form element,
-* which would otherwise let untrusted markup pick what the sanitizer walking that tree sees.
+* which would otherwise let untrusted markup pick what the sanitizer walking that tree sees. A document is exposed to
+* the same thing: an element named `body` shadows `Document.body`, so the root of the walk and the nodes collected
+* from it are read off the prototype too.
 *
 * They are read on first use rather than when this module is loaded, since the module is also imported where there
 * is no DOM at all, such as during server side rendering.
@@ -13302,7 +13483,9 @@ function getElementInternals() {
 		remove: Element.prototype.remove,
 		removeAttribute: Element.prototype.removeAttribute,
 		localName: Object.getOwnPropertyDescriptor(Element.prototype, "localName").get,
-		namespaceURI: Object.getOwnPropertyDescriptor(Element.prototype, "namespaceURI").get
+		namespaceURI: Object.getOwnPropertyDescriptor(Element.prototype, "namespaceURI").get,
+		body: Object.getOwnPropertyDescriptor(Document.prototype, "body").get,
+		childNodes: Object.getOwnPropertyDescriptor(Node.prototype, "childNodes").get
 	};
 	return elementInternals;
 }
@@ -13376,12 +13559,13 @@ var DOM = class DOM {
 	* a string result lets carefully nested markup mutate into a different - and no longer sanitized - tree.
 	*/
 	static sanitize(str) {
-		const body = new DOMParser().parseFromString(createTrustedHTML(str), "text/html").body;
-		const { querySelectorAll, remove } = getElementInternals();
+		const { querySelectorAll, remove, body: getBody, childNodes } = getElementInternals();
+		const doc = new DOMParser().parseFromString(createTrustedHTML(str), "text/html");
+		const body = getBody.call(doc);
 		for (const element of Array.from(querySelectorAll.call(body, "*"))) if (DOM.isAllowedElement(element)) DOM.removeDisallowedAttributes(element);
 		else remove.call(element);
 		const fragment = document.createDocumentFragment();
-		fragment.append(...body.childNodes);
+		fragment.append(...childNodes.call(body));
 		return fragment;
 	}
 	/**
@@ -13619,7 +13803,10 @@ const makeRequest = async function(requestParameters, abortController) {
 		const protocolLoadFn = getProtocol(requestParameters.url);
 		if (protocolLoadFn) {
 			const response = await protocolLoadFn(requestParameters, abortController);
-			if (!response.data && requestParameters.type === "arrayBuffer") return extend(response, { data: /* @__PURE__ */ new ArrayBuffer(0) });
+			if (!response.data && requestParameters.type === "arrayBuffer") return {
+				...response,
+				data: /* @__PURE__ */ new ArrayBuffer(0)
+			};
 			return response;
 		}
 		if (isWorker(self) && self.worker?.actor) return self.worker.actor.sendAsync({
@@ -13640,10 +13827,16 @@ const makeRequest = async function(requestParameters, abortController) {
 	return makeXMLHttpRequest(requestParameters, abortController);
 };
 const getJSON = (requestParameters, abortController) => {
-	return makeRequest(extend(requestParameters, { type: "json" }), abortController);
+	return makeRequest({
+		...requestParameters,
+		type: "json"
+	}, abortController);
 };
 const getArrayBuffer = (requestParameters, abortController) => {
-	return makeRequest(extend(requestParameters, { type: "arrayBuffer" }), abortController);
+	return makeRequest({
+		...requestParameters,
+		type: "arrayBuffer"
+	}, abortController);
 };
 /** 
 * Determines whether a URL is same origin as the current location. Supports relative URLs too.
@@ -13702,11 +13895,24 @@ function _removeEventListener(type, listener, listenerList) {
 	}
 }
 /**
+* Copies the own fields of `data` onto `event`. Each is defined as an own property, so a `__proto__` key in `data`
+* becomes an ordinary field of the event instead of replacing its prototype.
+*/
+function setEventData(event, data) {
+	if (!data) return;
+	for (const [key, value] of Object.entries(data)) Object.defineProperty(event, key, {
+		value,
+		writable: true,
+		enumerable: true,
+		configurable: true
+	});
+}
+/**
 * The event class
 */
 var Event = class {
 	constructor(type, data = {}) {
-		extend(this, data);
+		setEventData(this, data);
 		this.type = type;
 	}
 };
@@ -13715,7 +13921,10 @@ var Event = class {
 */
 var ErrorEvent = class extends Event {
 	constructor(error, data = {}) {
-		super("error", extend({ error }, data));
+		super("error", {
+			error,
+			...data
+		});
 	}
 };
 /**
@@ -13770,7 +13979,7 @@ var Evented = class {
 			}
 			const parent = this._eventedParent;
 			if (parent) {
-				extend(firedEvent, typeof this._eventedParentData === "function" ? this._eventedParentData() : this._eventedParentData);
+				setEventData(firedEvent, typeof this._eventedParentData === "function" ? this._eventedParentData() : this._eventedParentData);
 				parent.fire(firedEvent);
 			}
 		} else if (firedEvent instanceof ErrorEvent) console.error(firedEvent.error);
@@ -14106,7 +14315,7 @@ var Actor = class {
 	*/
 	sendAsync(message, abortController) {
 		return new Promise((resolve, reject) => {
-			const id = Math.round(Math.random() * 0xde0b6b3a7640000).toString(36).substring(0, 10);
+			const id = Math.round(Math.random() * 1e18).toString(36).substring(0, 10);
 			const subscription = abortController ? subscribe(abortController.signal, "abort", () => {
 				subscription?.unsubscribe();
 				delete this.resolveRejects[id];
@@ -14677,7 +14886,7 @@ let ImageRequest;
 		return new Promise((resolve, reject) => {
 			requestParameters.headers ||= {};
 			requestParameters.headers.accept = "image/webp,*/*";
-			extend(requestParameters, { type: "image" });
+			requestParameters.type = "image";
 			const request = {
 				abortController,
 				requestParameters,
@@ -14899,11 +15108,12 @@ var MapMouseEvent = class extends MapLibreEvent {
 		originalEvent = originalEvent instanceof MouseEvent ? originalEvent : new MouseEvent(type, originalEvent);
 		const point = DOM.mousePos(map.getCanvas(), originalEvent);
 		const lngLat = map.unproject(point);
-		super(type, extend({
+		super(type, {
 			point,
 			lngLat,
-			originalEvent
-		}, data));
+			originalEvent,
+			...data
+		});
 		this._defaultPrevented = false;
 		this.target = map;
 	}
@@ -15225,7 +15435,10 @@ var TransitionablePropertyValue = class {
 	/** The same `PropertyValue` means `setValue` was never called, so there is nothing to transition to. */
 	transitioned(parameters, prior) {
 		if (prior.value === this.value) return prior;
-		return new TransitioningPropertyValue(this.property, this.value, prior, extend({}, parameters.transition, this.transition), parameters.now);
+		return new TransitioningPropertyValue(this.property, this.value, prior, {
+			...parameters.transition,
+			...this.transition
+		}, parameters.now);
 	}
 	untransitioned() {
 		return new TransitioningPropertyValue(this.property, this.value, null, {}, 0);
@@ -15683,6 +15896,7 @@ var StyleLayer = class extends Evented {
 		this._featureFilter = {
 			filter: () => true,
 			needGeometry: false,
+			needCamera: false,
 			getGlobalStateRefs: () => /* @__PURE__ */ new Set()
 		};
 		this._visibilityExpression = createVisibility(this.visibility, `layers[${this.id}].layout.visibility`, globalState);
@@ -16247,6 +16461,30 @@ register("StructArrayLayout7f28", StructArrayLayout7f28);
 /**
 * @internal
 * Implementation of the StructArray layout:
+* [0] - Float32[1]
+*
+*/
+var StructArrayLayout1f4 = class extends StructArray {
+	_refreshViews() {
+		this.uint8 = new Uint8Array(this.arrayBuffer);
+		this.float32 = new Float32Array(this.arrayBuffer);
+	}
+	emplaceBack(v0) {
+		const i = this.length;
+		this.resize(i + 1);
+		return this.emplace(i, v0);
+	}
+	emplace(i, v0) {
+		const o4 = i * 1;
+		this.float32[o4 + 0] = v0;
+		return i;
+	}
+};
+StructArrayLayout1f4.prototype.bytesPerElement = 4;
+register("StructArrayLayout1f4", StructArrayLayout1f4);
+/**
+* @internal
+* Implementation of the StructArray layout:
 * [0] - Uint16[10]
 *
 */
@@ -16568,23 +16806,24 @@ register("StructArrayLayout3ui6", StructArrayLayout3ui6);
 * @internal
 * Implementation of the StructArray layout:
 * [0] - Int16[2]
-* [4] - Uint16[2]
-* [8] - Uint32[3]
-* [20] - Uint16[3]
-* [28] - Float32[2]
-* [36] - Uint8[3]
-* [40] - Uint32[1]
-* [44] - Int16[1]
-* [48] - Float32[1]
-* [52] - Uint8[1]
+* [4] - Uint32[1]
+* [8] - Uint16[1]
+* [12] - Uint32[3]
+* [24] - Uint16[3]
+* [32] - Float32[2]
+* [40] - Uint8[3]
+* [44] - Uint32[1]
+* [48] - Int16[1]
+* [52] - Float32[1]
+* [56] - Uint8[1]
 *
 */
-var StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 = class extends StructArray {
+var StructArrayLayout2i1ul1ui3ul3ui2f3ub1ul1i1f1ub60 = class extends StructArray {
 	_refreshViews() {
 		this.uint8 = new Uint8Array(this.arrayBuffer);
 		this.int16 = new Int16Array(this.arrayBuffer);
-		this.uint16 = new Uint16Array(this.arrayBuffer);
 		this.uint32 = new Uint32Array(this.arrayBuffer);
+		this.uint16 = new Uint16Array(this.arrayBuffer);
 		this.float32 = new Float32Array(this.arrayBuffer);
 	}
 	emplaceBack(v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18) {
@@ -16593,33 +16832,33 @@ var StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 = class extends StructArray {
 		return this.emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18);
 	}
 	emplace(i, v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18) {
-		const o2 = i * 28;
-		const o4 = i * 14;
-		const o1 = i * 56;
+		const o2 = i * 30;
+		const o4 = i * 15;
+		const o1 = i * 60;
 		this.int16[o2 + 0] = v0;
 		this.int16[o2 + 1] = v1;
-		this.uint16[o2 + 2] = v2;
-		this.uint16[o2 + 3] = v3;
-		this.uint32[o4 + 2] = v4;
-		this.uint32[o4 + 3] = v5;
-		this.uint32[o4 + 4] = v6;
-		this.uint16[o2 + 10] = v7;
-		this.uint16[o2 + 11] = v8;
-		this.uint16[o2 + 12] = v9;
-		this.float32[o4 + 7] = v10;
-		this.float32[o4 + 8] = v11;
-		this.uint8[o1 + 36] = v12;
-		this.uint8[o1 + 37] = v13;
-		this.uint8[o1 + 38] = v14;
-		this.uint32[o4 + 10] = v15;
-		this.int16[o2 + 22] = v16;
-		this.float32[o4 + 12] = v17;
-		this.uint8[o1 + 52] = v18;
+		this.uint32[o4 + 1] = v2;
+		this.uint16[o2 + 4] = v3;
+		this.uint32[o4 + 3] = v4;
+		this.uint32[o4 + 4] = v5;
+		this.uint32[o4 + 5] = v6;
+		this.uint16[o2 + 12] = v7;
+		this.uint16[o2 + 13] = v8;
+		this.uint16[o2 + 14] = v9;
+		this.float32[o4 + 8] = v10;
+		this.float32[o4 + 9] = v11;
+		this.uint8[o1 + 40] = v12;
+		this.uint8[o1 + 41] = v13;
+		this.uint8[o1 + 42] = v14;
+		this.uint32[o4 + 11] = v15;
+		this.int16[o2 + 24] = v16;
+		this.float32[o4 + 13] = v17;
+		this.uint8[o1 + 56] = v18;
 		return i;
 	}
 };
-StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56.prototype.bytesPerElement = 56;
-register("StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56", StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56);
+StructArrayLayout2i1ul1ui3ul3ui2f3ub1ul1i1f1ub60.prototype.bytesPerElement = 60;
+register("StructArrayLayout2i1ul1ui3ul3ui2f3ub1ul1i1f1ub60", StructArrayLayout2i1ul1ui3ul3ui2f3ub1ul1i1f1ub60);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -16686,30 +16925,6 @@ var StructArrayLayout8i15ui1ul2f2ui3f1ub80 = class extends StructArray {
 };
 StructArrayLayout8i15ui1ul2f2ui3f1ub80.prototype.bytesPerElement = 80;
 register("StructArrayLayout8i15ui1ul2f2ui3f1ub80", StructArrayLayout8i15ui1ul2f2ui3f1ub80);
-/**
-* @internal
-* Implementation of the StructArray layout:
-* [0] - Float32[1]
-*
-*/
-var StructArrayLayout1f4 = class extends StructArray {
-	_refreshViews() {
-		this.uint8 = new Uint8Array(this.arrayBuffer);
-		this.float32 = new Float32Array(this.arrayBuffer);
-	}
-	emplaceBack(v0) {
-		const i = this.length;
-		this.resize(i + 1);
-		return this.emplace(i, v0);
-	}
-	emplace(i, v0) {
-		const o4 = i * 1;
-		this.float32[o4 + 0] = v0;
-		return i;
-	}
-};
-StructArrayLayout1f4.prototype.bytesPerElement = 4;
-register("StructArrayLayout1f4", StructArrayLayout1f4);
 /**
 * @internal
 * Implementation of the StructArray layout:
@@ -16923,69 +17138,69 @@ var PlacedSymbolStruct = class extends Struct {
 		return this._structArray.int16[this._pos2 + 1];
 	}
 	get glyphStartIndex() {
-		return this._structArray.uint16[this._pos2 + 2];
+		return this._structArray.uint32[this._pos4 + 1];
 	}
 	get numGlyphs() {
-		return this._structArray.uint16[this._pos2 + 3];
+		return this._structArray.uint16[this._pos2 + 4];
 	}
 	get vertexStartIndex() {
-		return this._structArray.uint32[this._pos4 + 2];
-	}
-	get lineStartIndex() {
 		return this._structArray.uint32[this._pos4 + 3];
 	}
-	get lineLength() {
+	get lineStartIndex() {
 		return this._structArray.uint32[this._pos4 + 4];
 	}
+	get lineLength() {
+		return this._structArray.uint32[this._pos4 + 5];
+	}
 	get segment() {
-		return this._structArray.uint16[this._pos2 + 10];
-	}
-	get lowerSize() {
-		return this._structArray.uint16[this._pos2 + 11];
-	}
-	get upperSize() {
 		return this._structArray.uint16[this._pos2 + 12];
 	}
-	get lineOffsetX() {
-		return this._structArray.float32[this._pos4 + 7];
+	get lowerSize() {
+		return this._structArray.uint16[this._pos2 + 13];
 	}
-	get lineOffsetY() {
+	get upperSize() {
+		return this._structArray.uint16[this._pos2 + 14];
+	}
+	get lineOffsetX() {
 		return this._structArray.float32[this._pos4 + 8];
 	}
+	get lineOffsetY() {
+		return this._structArray.float32[this._pos4 + 9];
+	}
 	get writingMode() {
-		return this._structArray.uint8[this._pos1 + 36];
+		return this._structArray.uint8[this._pos1 + 40];
 	}
 	get placedOrientation() {
-		return this._structArray.uint8[this._pos1 + 37];
+		return this._structArray.uint8[this._pos1 + 41];
 	}
 	set placedOrientation(x) {
-		this._structArray.uint8[this._pos1 + 37] = x;
+		this._structArray.uint8[this._pos1 + 41] = x;
 	}
 	get hidden() {
-		return this._structArray.uint8[this._pos1 + 38];
+		return this._structArray.uint8[this._pos1 + 42];
 	}
 	set hidden(x) {
-		this._structArray.uint8[this._pos1 + 38] = x;
+		this._structArray.uint8[this._pos1 + 42] = x;
 	}
 	get crossTileID() {
-		return this._structArray.uint32[this._pos4 + 10];
+		return this._structArray.uint32[this._pos4 + 11];
 	}
 	set crossTileID(x) {
-		this._structArray.uint32[this._pos4 + 10] = x;
+		this._structArray.uint32[this._pos4 + 11] = x;
 	}
 	get associatedIconIndex() {
-		return this._structArray.int16[this._pos2 + 22];
+		return this._structArray.int16[this._pos2 + 24];
 	}
 	get heightOffset() {
-		return this._structArray.float32[this._pos4 + 12];
+		return this._structArray.float32[this._pos4 + 13];
 	}
 	get heightGround() {
-		return this._structArray.uint8[this._pos1 + 52];
+		return this._structArray.uint8[this._pos1 + 56];
 	}
 };
-PlacedSymbolStruct.prototype.size = 56;
+PlacedSymbolStruct.prototype.size = 60;
 /** @internal */
-var PlacedSymbolArray = class extends StructArrayLayout2i2ui3ul3ui2f3ub1ul1i1f1ub56 {
+var PlacedSymbolArray = class extends StructArrayLayout2i1ul1ui3ul3ui2f3ub1ul1i1f1ub60 {
 	/**
 	* Return the PlacedSymbolStruct at the given location in the array.
 	* @param index - The index of the element.
@@ -17185,6 +17400,7 @@ var FillLayoutArray = class extends StructArrayLayout2i4 {};
 var FillExtrusionLayoutArray = class extends StructArrayLayout2i4i12 {};
 var LineLayoutArray = class extends StructArrayLayout2i4ub2b10 {};
 var LineExtLayoutArray = class extends StructArrayLayout7f28 {};
+var LineOffsetLayoutArray = class extends StructArrayLayout1f4 {};
 var PatternLayoutArray = class extends StructArrayLayout10ui20 {};
 var DashLayoutArray = class extends StructArrayLayout8ui16 {};
 var SymbolLayoutArray = class extends StructArrayLayout4i4ui4i2f2i36 {};
@@ -17203,7 +17419,7 @@ const layout$10 = createLayout([{
 	components: 2,
 	type: "Int16"
 }], 4);
-const members$4 = layout$10.members;
+const members$5 = layout$10.members;
 layout$10.size;
 layout$10.alignment;
 // src/data/segment.ts
@@ -17337,16 +17553,16 @@ var require_murmurhash3_gc = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 	* @return {number} 32-bit positive integer hash 
 	*/
 	function murmurhash3_32_gc(key, seed) {
-		var remainder = key.length & 3, bytes = key.length - remainder, h1 = seed, h1b, c1 = 3432918353, c2 = 461845907, k1, i = 0;
+		var remainder = key.length & 3, bytes = key.length - remainder, h1 = seed, h1b, c1 = 0xcc9e2d51, c2 = 461845907, k1, i = 0;
 		while (i < bytes) {
 			k1 = key.charCodeAt(i) & 255 | (key.charCodeAt(++i) & 255) << 8 | (key.charCodeAt(++i) & 255) << 16 | (key.charCodeAt(++i) & 255) << 24;
 			++i;
-			k1 = (k1 & 65535) * c1 + (((k1 >>> 16) * c1 & 65535) << 16) & 4294967295;
+			k1 = (k1 & 65535) * c1 + (((k1 >>> 16) * c1 & 65535) << 16) & 0xffffffff;
 			k1 = k1 << 15 | k1 >>> 17;
-			k1 = (k1 & 65535) * c2 + (((k1 >>> 16) * c2 & 65535) << 16) & 4294967295;
+			k1 = (k1 & 65535) * c2 + (((k1 >>> 16) * c2 & 65535) << 16) & 0xffffffff;
 			h1 ^= k1;
 			h1 = h1 << 13 | h1 >>> 19;
-			h1b = (h1 & 65535) * 5 + (((h1 >>> 16) * 5 & 65535) << 16) & 4294967295;
+			h1b = (h1 & 65535) * 5 + (((h1 >>> 16) * 5 & 65535) << 16) & 0xffffffff;
 			h1 = (h1b & 65535) + 27492 + (((h1b >>> 16) + 58964 & 65535) << 16);
 		}
 		k1 = 0;
@@ -17355,16 +17571,16 @@ var require_murmurhash3_gc = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 			case 2: k1 ^= (key.charCodeAt(i + 1) & 255) << 8;
 			case 1:
 				k1 ^= key.charCodeAt(i) & 255;
-				k1 = (k1 & 65535) * c1 + (((k1 >>> 16) * c1 & 65535) << 16) & 4294967295;
+				k1 = (k1 & 65535) * c1 + (((k1 >>> 16) * c1 & 65535) << 16) & 0xffffffff;
 				k1 = k1 << 15 | k1 >>> 17;
-				k1 = (k1 & 65535) * c2 + (((k1 >>> 16) * c2 & 65535) << 16) & 4294967295;
+				k1 = (k1 & 65535) * c2 + (((k1 >>> 16) * c2 & 65535) << 16) & 0xffffffff;
 				h1 ^= k1;
 		}
 		h1 ^= key.length;
 		h1 ^= h1 >>> 16;
-		h1 = (h1 & 65535) * 2246822507 + (((h1 >>> 16) * 2246822507 & 65535) << 16) & 4294967295;
+		h1 = (h1 & 65535) * 0x85ebca6b + (((h1 >>> 16) * 0x85ebca6b & 65535) << 16) & 0xffffffff;
 		h1 ^= h1 >>> 13;
-		h1 = (h1 & 65535) * 3266489909 + (((h1 >>> 16) * 3266489909 & 65535) << 16) & 4294967295;
+		h1 = (h1 & 65535) * 0xc2b2ae35 + (((h1 >>> 16) * 0xc2b2ae35 & 65535) << 16) & 0xffffffff;
 		h1 ^= h1 >>> 16;
 		return h1 >>> 0;
 	}
@@ -17388,10 +17604,10 @@ var require_murmurhash2_gc = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 		var l = str.length, h = seed ^ l, i = 0, k;
 		while (l >= 4) {
 			k = str.charCodeAt(i) & 255 | (str.charCodeAt(++i) & 255) << 8 | (str.charCodeAt(++i) & 255) << 16 | (str.charCodeAt(++i) & 255) << 24;
-			k = (k & 65535) * 1540483477 + (((k >>> 16) * 1540483477 & 65535) << 16);
+			k = (k & 65535) * 0x5bd1e995 + (((k >>> 16) * 0x5bd1e995 & 65535) << 16);
 			k ^= k >>> 24;
-			k = (k & 65535) * 1540483477 + (((k >>> 16) * 1540483477 & 65535) << 16);
-			h = (h & 65535) * 1540483477 + (((h >>> 16) * 1540483477 & 65535) << 16) ^ k;
+			k = (k & 65535) * 0x5bd1e995 + (((k >>> 16) * 0x5bd1e995 & 65535) << 16);
+			h = (h & 65535) * 0x5bd1e995 + (((h >>> 16) * 0x5bd1e995 & 65535) << 16) ^ k;
 			l -= 4;
 			++i;
 		}
@@ -17400,10 +17616,10 @@ var require_murmurhash2_gc = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 			case 2: h ^= (str.charCodeAt(i + 1) & 255) << 8;
 			case 1:
 				h ^= str.charCodeAt(i) & 255;
-				h = (h & 65535) * 1540483477 + (((h >>> 16) * 1540483477 & 65535) << 16);
+				h = (h & 65535) * 0x5bd1e995 + (((h >>> 16) * 0x5bd1e995 & 65535) << 16);
 		}
 		h ^= h >>> 13;
-		h = (h & 65535) * 1540483477 + (((h >>> 16) * 1540483477 & 65535) << 16);
+		h = (h & 65535) * 0x5bd1e995 + (((h >>> 16) * 0x5bd1e995 & 65535) << 16);
 		h ^= h >>> 15;
 		return h >>> 0;
 	}
@@ -18176,7 +18392,7 @@ function loadGeometry(feature) {
 		if (point.x < MIN || point.x > MAX || point.y < MIN || point.y > MAX) outside = true;
 	}
 	if (!outside) return geometry;
-	if (feature.type === 2) return clipLines$2(geometry);
+	if (feature.type === 2) return clipLines$1(geometry);
 	for (const ring of geometry) for (const point of ring) {
 		const { x, y } = point;
 		point.x = clamp$1(x, MIN, MAX);
@@ -18187,7 +18403,7 @@ function loadGeometry(feature) {
 }
 const inRange = (p) => p.x >= MIN && p.x <= MAX && p.y >= MIN && p.y <= MAX;
 /** Cuts each line to the representable range, splitting it where it leaves and comes back. */
-function clipLines$2(lines) {
+function clipLines$1(lines) {
 	const out = [];
 	for (const line of lines) {
 		let part = [];
@@ -18458,7 +18674,7 @@ var CircleBucket = class {
 	}
 	upload(context) {
 		if (!this.uploaded) {
-			this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, members$4);
+			this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, members$5);
 			this.indexBuffer = context.createIndexBuffer(this.indexArray);
 		}
 		this.programConfigurations.upload(context);
@@ -18572,11 +18788,7 @@ function lineIntersectsLine(lineA, lineB) {
 	for (let i = 0; i < lineA.length - 1; i++) {
 		const a0 = lineA[i];
 		const a1 = lineA[i + 1];
-		for (let j = 0; j < lineB.length - 1; j++) {
-			const b0 = lineB[j];
-			const b1 = lineB[j + 1];
-			if (lineSegmentIntersectsLineSegment(a0, a1, b0, b1)) return true;
-		}
+		for (let j = 0; j < lineB.length - 1; j++) if (lineSegmentIntersectsLineSegment(a0, a1, lineB[j], lineB[j + 1])) return true;
 	}
 	return false;
 }
@@ -18586,10 +18798,7 @@ function lineSegmentIntersectsLineSegment(a0, a1, b0, b1) {
 function pointIntersectsBufferedLine(p, line, radius) {
 	const radiusSquared = radius * radius;
 	if (line.length === 1) return p.distSqr(line[0]) < radiusSquared;
-	for (let i = 1; i < line.length; i++) {
-		const v = line[i - 1], w = line[i];
-		if (distToSegmentSquared(p, v, w) < radiusSquared) return true;
-	}
+	for (let i = 1; i < line.length; i++) if (distToSegmentSquared(p, line[i - 1], line[i]) < radiusSquared) return true;
 	return false;
 }
 function distToSegmentSquared(p, v, w) {
@@ -18632,11 +18841,7 @@ function polygonIntersectsBox(ring, boxX1, boxY1, boxX2, boxY2) {
 	if (ring.length > 2) {
 		for (const corner of corners) if (polygonContainsPoint(ring, corner)) return true;
 	}
-	for (let i = 0; i < ring.length - 1; i++) {
-		const p1 = ring[i];
-		const p2 = ring[i + 1];
-		if (edgeIntersectsBox(p1, p2, corners)) return true;
-	}
+	for (let i = 0; i < ring.length - 1; i++) if (edgeIntersectsBox(ring[i], ring[i + 1], corners)) return true;
 	return false;
 }
 function edgeIntersectsBox(e1, e2, corners) {
@@ -21024,6 +21229,13 @@ var MercatorCameraMath = class {
 				0,
 				0
 			],
+			tileOrigin: [
+				0,
+				0,
+				0,
+				0
+			],
+			tileOriginPosition: [0, 0],
 			projectionTransition: 0,
 			fallbackMatrix: mainMatrix,
 			clipAntimeridian: false
@@ -21387,6 +21599,86 @@ const GLOBE_BISECT_EPSILON_T = 1e-12;
 /** Latitudes outside the mercator range project past the world edge; the globe mesh still covers them. */
 const MAX_MERCATOR_Y = 1 - 1e-9;
 /**
+* The camera zoom from which tiles are drawn relative to their origin, the zoom at which the globe starts to turn into
+* mercator. Below it float32 positions relative to the planet center are within a tenth of a pixel.
+*/
+const MIN_TILE_RELATIVE_ZOOM = 10;
+/** The tile-relative matrices computed for each projected camera, by tile key, kept for as long as it is. */
+const tileRelativeMatrixCaches = /* @__PURE__ */ new WeakMap();
+/**
+* The globe matrix moved to the tile's origin, its point nearest the camera's center, on a whole tile unit so the
+* shader subtracts it from a vertex exactly. It is built in float64, so the float32 copy and the shader only carry
+* the small offsets of what is drawn around the center, as the mercator tile matrices do for a tile.
+*
+* The origin's unit vector gives the values of `tileOrigin`: divided by the cosine of the latitude, its x and z are
+* the sine and cosine of the longitude, and one plus its y is `tan(PI / 4 + latitude / 2)`.
+*
+* The clipping plane moves to the origin too, scaled to give one on the ground below the camera and zero on the
+* horizon. Unscaled it gives less than a millionth from a few meters up, which float32 loses when the shader
+* subtracts it from one.
+*/
+function getTileRelativeMatrix(projectedCamera, canonical) {
+	let cache = tileRelativeMatrixCaches.get(projectedCamera);
+	if (!cache) {
+		cache = /* @__PURE__ */ new Map();
+		tileRelativeMatrixCaches.set(projectedCamera, cache);
+	}
+	const cached = cache.get(canonical.key);
+	if (cached) return cached;
+	const scale = 1 << canonical.z;
+	const centerX = wrap$1(mercatorXfromLng(projectedCamera.center.lng) * scale - canonical.x, .5 - scale / 2, .5 + scale / 2);
+	const centerY = mercatorYfromLat(projectedCamera.center.lat) * scale - canonical.y;
+	const x = Math.round(clamp$1(centerX, 0, 1) * EXTENT);
+	const y = Math.round(clamp$1(centerY, 0, 1) * EXTENT);
+	const origin = projectTileCoordinatesToSphere(x, y, canonical.x, canonical.y, canonical.z);
+	const cosLat = Math.hypot(origin[0], origin[2]);
+	const matrix = createMat4f32();
+	translate$2(matrix, projectedCamera.modelViewProjectionMatrix, origin);
+	const plane = projectedCamera.clippingPlane;
+	const planeBelowCamera = 1 + plane[3];
+	const planeAtOrigin = plane[3] + plane[0] * origin[0] + plane[1] * origin[1] + plane[2] * origin[2];
+	const entry = {
+		matrix,
+		clippingPlane: [
+			plane[0] / planeBelowCamera,
+			plane[1] / planeBelowCamera,
+			plane[2] / planeBelowCamera,
+			planeAtOrigin / planeBelowCamera
+		],
+		tileOrigin: [
+			origin[0] / cosLat,
+			origin[2] / cosLat,
+			(1 + origin[1]) / cosLat,
+			1
+		],
+		tileOriginPosition: [x, y]
+	};
+	cache.set(canonical.key, entry);
+	return entry;
+}
+/**
+* @internal
+* The projection data of a tile with positions relative to the planet center, which is what a custom layer's own
+* positions are relative to. The globe draws its tiles with it, since it is mercator by the zoom where float32 runs out.
+*/
+function getPlanetRelativeProjectionData(projectedCamera, overscaledTileID, applyGlobeMatrix) {
+	return {
+		mainMatrix: projectedCamera.modelViewProjectionMatrix32f,
+		tileMercatorCoords: getMercatorTileCoordinates(overscaledTileID),
+		clippingPlane: projectedCamera.clippingPlane,
+		tileOrigin: [
+			0,
+			0,
+			0,
+			0
+		],
+		tileOriginPosition: [0, 0],
+		projectionTransition: applyGlobeMatrix ? 1 : 0,
+		fallbackMatrix: projectedCamera.modelViewProjectionMatrix32f,
+		clipAntimeridian: overscaledTileID?.canonical.z === 0
+	};
+}
+/**
 * @internal
 * Derives the {@link VerticalPerspectiveProjectedCamera} of a camera: the matrices the vertical perspective draws it with.
 * The computed far plane only has to be far enough to take in the globe, since the vertex shader computes its own
@@ -21462,8 +21754,8 @@ function createVerticalPerspectiveProjectedCamera(metrics, nearFarZ = metrics.ne
 	rotateX$2(cameraPosition, cameraPosition, zero, -metrics.center.lat * Math.PI / 180);
 	rotateY$2(cameraPosition, cameraPosition, zero, metrics.center.lng * Math.PI / 180);
 	const clippingPlane = computeClippingPlane(metrics, globeRadiusPixels);
-	const matrix = clone$6(inverseModelViewProjectionMatrix);
-	scale$5(matrix, matrix, [
+	const matrix = createMat4f64();
+	scale$5(matrix, inverseModelViewProjectionMatrix, [
 		1,
 		1,
 		-1
@@ -21707,15 +21999,14 @@ function rayParameter(origin, direction, point) {
 var VerticalPerspectiveCameraMath = class {
 	getProjectionData(projectedCamera, params) {
 		const { overscaledTileID, applyGlobeMatrix } = params;
-		const mercatorTileCoordinates = getMercatorTileCoordinates(overscaledTileID);
-		return {
-			mainMatrix: projectedCamera.modelViewProjectionMatrix32f,
-			tileMercatorCoords: mercatorTileCoordinates,
-			clippingPlane: projectedCamera.clippingPlane,
-			projectionTransition: applyGlobeMatrix ? 1 : 0,
-			fallbackMatrix: projectedCamera.modelViewProjectionMatrix32f,
-			clipAntimeridian: overscaledTileID?.canonical.z === 0
-		};
+		const projectionData = getPlanetRelativeProjectionData(projectedCamera, overscaledTileID, applyGlobeMatrix);
+		if (!(applyGlobeMatrix && overscaledTileID != null && projectedCamera.zoom >= MIN_TILE_RELATIVE_ZOOM)) return projectionData;
+		const tileRelative = getTileRelativeMatrix(projectedCamera, overscaledTileID.canonical);
+		projectionData.mainMatrix = tileRelative.matrix;
+		projectionData.clippingPlane = tileRelative.clippingPlane;
+		projectionData.tileOrigin = tileRelative.tileOrigin;
+		projectionData.tileOriginPosition = tileRelative.tileOriginPosition;
+		return projectionData;
 	}
 	/** See {@link CameraMath.isLocationOccluded}. */
 	isLocationOccluded(projectedCamera, worldCoordinateHelper, lngLat, terrain, elevation) {
@@ -21954,17 +22245,19 @@ var VerticalPerspectiveCameraMath = class {
 		return isRayOnGlobe(projectedCamera, p);
 	}
 	getProjectionDataForCustomLayer(projectedCamera, applyGlobeMatrix = true) {
-		const globeData = this.getProjectionData(projectedCamera, {
-			overscaledTileID: new OverscaledTileID(0, 0, 0, 0, 0),
-			applyGlobeMatrix
-		});
-		globeData.tileMercatorCoords = [
-			0,
-			0,
-			1,
-			1
-		];
-		return globeData;
+		const globeData = getPlanetRelativeProjectionData(projectedCamera, new OverscaledTileID(0, 0, 0, 0, 0), applyGlobeMatrix);
+		const mainMatrix = createMat4f64();
+		copy$5(mainMatrix, projectedCamera.modelViewProjectionMatrix);
+		return {
+			...globeData,
+			mainMatrix,
+			tileMercatorCoords: [
+				0,
+				0,
+				1,
+				1
+			]
+		};
 	}
 	getFastPathSimpleProjectionMatrix(_data, _tileID) {}
 	getClippingPlane(projectedCamera) {
@@ -21993,11 +22286,13 @@ var GlobeCameraMath = class {
 	}
 	getProjectionData(projectedCamera, params) {
 		const mercatorProjectionData = this._mercator.getProjectionData(projectedCamera.mercator, params);
-		const verticalPerspectiveProjectionData = this._verticalPerspective.getProjectionData(projectedCamera.verticalPerspective, params);
+		const verticalPerspectiveProjectionData = getPlanetRelativeProjectionData(projectedCamera.verticalPerspective, params.overscaledTileID, params.applyGlobeMatrix);
 		return {
 			mainMatrix: isGlobeRendering(projectedCamera) ? verticalPerspectiveProjectionData.mainMatrix : mercatorProjectionData.mainMatrix,
 			clippingPlane: verticalPerspectiveProjectionData.clippingPlane,
 			tileMercatorCoords: verticalPerspectiveProjectionData.tileMercatorCoords,
+			tileOrigin: verticalPerspectiveProjectionData.tileOrigin,
+			tileOriginPosition: verticalPerspectiveProjectionData.tileOriginPosition,
 			projectionTransition: params.applyGlobeMatrix ? projectedCamera.globeness : 0,
 			fallbackMatrix: mercatorProjectionData.fallbackMatrix,
 			clipAntimeridian: verticalPerspectiveProjectionData.clipAntimeridian
@@ -22918,7 +23213,7 @@ const layout$8 = createLayout([{
 	components: 2,
 	type: "Int16"
 }], 4);
-const members$3 = layout$8.members;
+const members$4 = layout$8.members;
 layout$8.size;
 layout$8.alignment;
 // src/data/bucket/pattern_bucket_features.ts
@@ -23170,8 +23465,7 @@ function eliminateHole(hole, outerNode) {
 	const bridge = findHoleBridge(hole, outerNode);
 	if (!bridge) return outerNode;
 	const bridgeReverse = splitPolygon(bridge, hole);
-	const bridge2 = bridgeReverse.next;
-	indexSegment(bridge, bridge2.next);
+	indexSegment(bridge, bridgeReverse.next.next);
 	filterPoints(bridgeReverse, bridgeReverse.next);
 	return filterPoints(bridge, bridge.next);
 }
@@ -23365,14 +23659,14 @@ function radixPass(n, src, srcZ, dst, dstZ, shift) {
 function zOrder(x, y, minX, minY, invSize) {
 	x = (x - minX) * invSize | 0;
 	y = (y - minY) * invSize | 0;
-	x = (x | x << 8) & 16711935;
-	x = (x | x << 4) & 252645135;
+	x = (x | x << 8) & 0xff00ff;
+	x = (x | x << 4) & 0xf0f0f0f;
 	x = (x | x << 2) & 858993459;
-	x = (x | x << 1) & 1431655765;
-	y = (y | y << 8) & 16711935;
-	y = (y | y << 4) & 252645135;
+	x = (x | x << 1) & 0x55555555;
+	y = (y | y << 8) & 0xff00ff;
+	y = (y | y << 4) & 0xf0f0f0f;
 	y = (y | y << 2) & 858993459;
-	y = (y | y << 1) & 1431655765;
+	y = (y | y << 1) & 0x55555555;
 	return x | y << 1;
 }
 /** @param {Node} start @returns {Node} */
@@ -24412,7 +24706,7 @@ var FillBucket = class {
 	}
 	upload(context) {
 		if (!this.uploaded) {
-			this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, members$3);
+			this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, members$4);
 			this.indexBuffer = context.createIndexBuffer(this.indexArray);
 			this.indexBuffer2 = context.createIndexBuffer(this.indexArray2);
 		}
@@ -24456,7 +24750,8 @@ const getPaint$4 = () => paint$4 = paint$4 || new Properties({
 	"fill-outline-color": new DataDrivenProperty(latest["paint_fill"]["fill-outline-color"], "fill-outline-color"),
 	"fill-translate": new DataConstantProperty(latest["paint_fill"]["fill-translate"], "fill-translate"),
 	"fill-translate-anchor": new DataConstantProperty(latest["paint_fill"]["fill-translate-anchor"], "fill-translate-anchor"),
-	"fill-pattern": new CrossFadedDataDrivenProperty(latest["paint_fill"]["fill-pattern"], "fill-pattern")
+	"fill-pattern": new CrossFadedDataDrivenProperty(latest["paint_fill"]["fill-pattern"], "fill-pattern"),
+	"fill-rounded-corner-distance": new DataConstantProperty(latest["paint_fill"]["fill-rounded-corner-distance"], "fill-rounded-corner-distance")
 });
 var fill_style_layer_properties_g_default = {
 	get paint() {
@@ -24510,7 +24805,7 @@ const anchorElevationAttributes = createLayout([{
 	components: 1,
 	type: "Float32"
 }], 4);
-const members$2 = layout$6.members;
+const members$3 = layout$6.members;
 layout$6.size;
 layout$6.alignment;
 // src/data/bucket/fill_extrusion_anchor.ts
@@ -25093,7 +25388,7 @@ var FillExtrusionBucket = class {
 	}
 	upload(context) {
 		if (!this.uploaded) {
-			this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, members$2);
+			this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, members$3);
 			this.centroidVertexBuffer = context.createVertexBuffer(this.centroidVertexArray, centroidAttributes.members, true);
 			this.indexBuffer = context.createIndexBuffer(this.indexArray);
 		}
@@ -25234,7 +25529,8 @@ let layout$5;
 const getLayout$2 = () => layout$5 = layout$5 || new Properties({ "fill-extrusion-rounded-corner-distance": new DataConstantProperty(latest["layout_fill-extrusion"]["fill-extrusion-rounded-corner-distance"], "fill-extrusion-rounded-corner-distance") });
 let paint$3;
 const getPaint$3 = () => paint$3 = paint$3 || new Properties({
-	"fill-extrusion-opacity": new DataConstantProperty(latest["paint_fill-extrusion"]["fill-extrusion-opacity"], "fill-extrusion-opacity"),
+	"fill-extrusion-opacity": new DataDrivenProperty(latest["paint_fill-extrusion"]["fill-extrusion-opacity"], "fill-extrusion-opacity"),
+	"fill-extrusion-layer-opacity": new DataConstantProperty(latest["paint_fill-extrusion"]["fill-extrusion-layer-opacity"], "fill-extrusion-layer-opacity"),
 	"fill-extrusion-color": new DataDrivenProperty(latest["paint_fill-extrusion"]["fill-extrusion-color"], "fill-extrusion-color"),
 	"fill-extrusion-translate": new DataConstantProperty(latest["paint_fill-extrusion"]["fill-extrusion-translate"], "fill-extrusion-translate"),
 	"fill-extrusion-translate-anchor": new DataConstantProperty(latest["paint_fill-extrusion"]["fill-extrusion-translate-anchor"], "fill-extrusion-translate-anchor"),
@@ -25404,7 +25700,7 @@ const lineLayoutAttributes = createLayout([
 		type: "Int8"
 	}
 ], 2);
-const members$1 = lineLayoutAttributes.members;
+const members$2 = lineLayoutAttributes.members;
 lineLayoutAttributes.size;
 lineLayoutAttributes.alignment;
 // src/data/bucket/line_attributes_ext.ts
@@ -25430,9 +25726,22 @@ const lineLayoutAttributesExt = createLayout([
 		type: "Float32"
 	}
 ]);
-const members = lineLayoutAttributesExt.members;
+const members$1 = lineLayoutAttributesExt.members;
 lineLayoutAttributesExt.size;
 lineLayoutAttributesExt.alignment;
+// src/data/bucket/line_attributes_offset.ts
+/**
+* Per vertex, how much longer the `line-offset` line is than the line itself up to that vertex, for an offset
+* of one unit of line distance. Dashes add `line-offset` times this to the distance along the line.
+*/
+const lineLayoutAttributesOffset = createLayout([{
+	name: "a_offset_distance",
+	components: 1,
+	type: "Float32"
+}]);
+const members = lineLayoutAttributesOffset.members;
+lineLayoutAttributesOffset.size;
+lineLayoutAttributesOffset.alignment;
 // src/data/bucket/line_elevation.ts
 /** A run's prefix for heights measured from the terrain rather than from sea level. */
 const RELATIVE_PREFIX = "~";
@@ -25597,6 +25906,30 @@ const MAX_OFFSET_MITER_LENGTH = 2;
 * corner that sharp is offset forwards past its neighbours instead of sideways.
 */
 const OFFSET_FALLBACK_START = 3;
+/**
+* Returns the vector `line-offset` moves a vertex along when the vertex sits on a segment close to a join.
+*
+* Offsetting a join moves its corner along the segment as well as across it, by `line-offset` times the
+* part of `offsetNormal` that runs along the segment. A vertex near the join has to move along the segment
+* by the same amount, or a corner offset past it folds the offset line back on itself. The result keeps
+* the vertex on the offset segment, one `line-offset` away along `normal`, and is no longer than
+* {@link MAX_OFFSET_MITER_LENGTH} so that it fits in a_offset_normal.
+*
+* @param normal - the unit normal of the segment the vertex is on
+* @param offsetNormal - the vector `line-offset` moves the join along
+*/
+function offsetNormalNearJoin(normal, offsetNormal) {
+	const across = offsetNormal.x * normal.x + offsetNormal.y * normal.y;
+	const along = offsetNormal.sub(normal.mult(across));
+	const maxAlong = Math.sqrt(3);
+	const alongLength = along.mag();
+	if (alongLength > maxAlong) along._mult(maxAlong / alongLength);
+	return along._add(normal);
+}
+/** Whether a layer draws dashes along a `line-offset` line, which needs {@link LineBucket.offsetDistanceArray}. */
+function dashesOffsetLine(layer) {
+	return !!layer.paint.get("line-dasharray").constantOr(1) && layer.paint.get("line-offset").constantOr(1) !== 0;
+}
 const LINE_DISTANCE_SCALE = 1 / 2;
 const WHOLE_LINE = {
 	start: 0,
@@ -25625,6 +25958,8 @@ var LineBucket = class {
 		for (const layer of this.layers) this.gradients[layer.id] = {};
 		this.layoutVertexArray = new LineLayoutArray();
 		this.layoutVertexArray2 = new LineExtLayoutArray();
+		this.offsetDistanceArray = this.layers.some(dashesOffsetLine) ? new LineOffsetLayoutArray() : void 0;
+		this.offsetDistanceBuffer = void 0;
 		this.indexArray = new TriangleIndexArray();
 		this.programConfigurations = new ProgramConfigurationSet(options.layers, options.zoom);
 		this.segments = new SegmentVector();
@@ -25701,8 +26036,9 @@ var LineBucket = class {
 	}
 	upload(context) {
 		if (!this.uploaded) {
-			if (this.layoutVertexArray2.length !== 0) this.layoutVertexBuffer2 = context.createVertexBuffer(this.layoutVertexArray2, members);
-			this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, members$1);
+			if (this.layoutVertexArray2.length !== 0) this.layoutVertexBuffer2 = context.createVertexBuffer(this.layoutVertexArray2, members$1);
+			if (this.offsetDistanceArray?.length) this.offsetDistanceBuffer = context.createVertexBuffer(this.offsetDistanceArray, members);
+			this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, members$2);
 			this.indexBuffer = context.createIndexBuffer(this.indexArray);
 		}
 		this.programConfigurations.upload(context);
@@ -25711,6 +26047,7 @@ var LineBucket = class {
 	destroy() {
 		if (!this.layoutVertexBuffer) return;
 		this.layoutVertexBuffer.destroy();
+		this.offsetDistanceBuffer?.destroy();
 		this.indexBuffer.destroy();
 		this.programConfigurations.destroy();
 		this.segments.destroy();
@@ -25730,7 +26067,11 @@ var LineBucket = class {
 		this.lineClips = this.lineFeatureClips(feature) ?? (this.variableOffsetExpression ? WHOLE_LINE : void 0);
 		this.currentLineFeature = feature;
 		this.elevationRuns = this.elevated ? parseElevationProfile(this.layers[0].layout.get("line-elevation-profile").evaluate(feature, {}, canonical), canonical) : [];
-		for (const line of geometry) this.addLine(line, feature, join, cap, miterLimit, roundLimit, canonical, subdivisionGranularity);
+		for (const line of geometry) {
+			const start = this.layoutVertexArray.length;
+			this.addLine(line, feature, join, cap, miterLimit, roundLimit, canonical, subdivisionGranularity);
+			if (this.offsetDistanceArray) this.addOffsetDistances(start);
+		}
 		this.programConfigurations.populatePaintArrays(this.layoutVertexArray.length, feature, index, {
 			imagePositions,
 			dashPositions,
@@ -25798,7 +26139,7 @@ var LineBucket = class {
 				if (prevSegmentLength > 2 * sharpCornerOffset) {
 					const newPrevVertex = currentVertex.sub(currentVertex.sub(prevVertex)._mult(sharpCornerOffset / prevSegmentLength)._round());
 					this.updateDistance(prevVertex, newPrevVertex);
-					this.addCurrentVertex(newPrevVertex, prevNormal, 0, 0, segment);
+					this.addCurrentVertex(newPrevVertex, prevNormal, 0, 0, segment, false, offsetNormalNearJoin(prevNormal, offsetNormal), offsetFallback);
 					prevVertex = newPrevVertex;
 				}
 			}
@@ -25865,7 +26206,7 @@ var LineBucket = class {
 				if (nextSegmentLength > 2 * sharpCornerOffset) {
 					const newCurrentVertex = currentVertex.add(nextVertex.sub(currentVertex)._mult(sharpCornerOffset / nextSegmentLength)._round());
 					this.updateDistance(currentVertex, newCurrentVertex);
-					this.addCurrentVertex(newCurrentVertex, nextNormal, 0, 0, segment);
+					this.addCurrentVertex(newCurrentVertex, nextNormal, 0, 0, segment, false, offsetNormalNearJoin(nextNormal, offsetNormal), offsetFallback);
 					currentVertex = newCurrentVertex;
 				}
 			}
@@ -25953,6 +26294,37 @@ var LineBucket = class {
 	updateDistance(prev, next) {
 		this.distance += prev.dist(next);
 		this.updateScaledDistance();
+	}
+	/**
+	* Fills {@link offsetDistanceArray} for the vertices of the line that {@link addLine} added from `start` on.
+	*
+	* It reads the vertices back rather than tracking the offset line while they are added, so lines without
+	* dashes along an offset pay nothing for it. Between two vertices of one segment, the offset line is longer than
+	* the segment by the offset times the change in how far their offset vectors reach along it. The vertices of a
+	* join share one position and are offset to the same corner, so the offset line gains nothing there.
+	*
+	* @param start - the index of the first vertex of the line in {@link layoutVertexArray}
+	*/
+	addOffsetDistances(start) {
+		const { int16, int8 } = this.layoutVertexArray;
+		const linesofarPerDistance = this.lineClips ? (this.lineClips.end - this.lineClips.start) * (MAX_LINE_DISTANCE - 1) / this.totalDistance : 1;
+		let offsetDistance = 0;
+		let x = 0, y = 0, offsetX = 0, offsetY = 0;
+		for (let i = start; i < this.layoutVertexArray.length; i++) {
+			const nextX = int16[i * 5] >> 1;
+			const nextY = int16[i * 5 + 1] >> 1;
+			const side = int16[i * 5 + 1] & 1 ? -1 : 1;
+			const nextOffsetX = side * int8[i * 10 + 8] / EXTRUDE_SCALE;
+			const nextOffsetY = side * int8[i * 10 + 9] / EXTRUDE_SCALE;
+			const dx = nextX - x;
+			const dy = nextY - y;
+			if (i > start && (dx !== 0 || dy !== 0)) offsetDistance += ((nextOffsetX - offsetX) * dx + (nextOffsetY - offsetY) * dy) / Math.hypot(dx, dy);
+			this.offsetDistanceArray.emplaceBack(offsetDistance * linesofarPerDistance);
+			x = nextX;
+			y = nextY;
+			offsetX = nextOffsetX;
+			offsetY = nextOffsetY;
+		}
 	}
 	hasLineDasharray(layers) {
 		for (const layer of layers) {
@@ -26057,7 +26429,7 @@ var LineFloorwidthProperty = class extends DataDrivenProperty {
 		return super.possiblyEvaluate(value, parameters);
 	}
 	evaluate(value, globals, feature, featureState) {
-		globals = extend({}, globals, { zoom: Math.floor(globals.zoom) });
+		globals = new EvaluationParameters(Math.floor(globals.zoom), globals);
 		return super.evaluate(value, globals, feature, featureState);
 	}
 };
@@ -26291,7 +26663,7 @@ createLayout([
 		name: "anchorY"
 	},
 	{
-		type: "Uint16",
+		type: "Uint32",
 		name: "glyphStartIndex"
 	},
 	{
@@ -28845,11 +29217,18 @@ function processStyledBidirectionalText(text, styleIndices, lineBreakPoints) {
 // node_modules/pbf/index.js
 const SHIFT_LEFT_32 = 4294967296;
 const TEXT_DECODER_MIN_LENGTH$1 = 12;
-const utf8TextDecoder$1 = typeof TextDecoder === "undefined" ? null : new TextDecoder("utf-8");
+const TEXT_DECODER_MIN_LENGTH_NON_ASCII = 32;
+const utf8TextDecoder$1 = new TextDecoder();
 const PBF_VARINT = 0;
 const PBF_FIXED64 = 1;
 const PBF_BYTES = 2;
 const PBF_FIXED32 = 5;
+/**
+* The type of objects accepted by write functions in generated code: any subset of fields, recursively.
+* @template T
+* @typedef {T extends Uint8Array ? T : T extends (infer U)[] ? DeepPartial<U>[] :
+*     T extends object ? {[K in keyof T]?: DeepPartial<T[K]>} : T} DeepPartial
+*/
 var PbfReader = class {
 	/**
 	* @param {Uint8Array | ArrayBuffer} buf
@@ -28943,7 +29322,7 @@ var PbfReader = class {
 		const end = this.readVarint() + this.pos;
 		const pos = this.pos;
 		this.pos = end;
-		if (end - pos >= TEXT_DECODER_MIN_LENGTH$1 && utf8TextDecoder$1) return utf8TextDecoder$1.decode(this.buf.subarray(pos, end));
+		if (end - pos >= (this.buf[pos] < 128 ? TEXT_DECODER_MIN_LENGTH$1 : TEXT_DECODER_MIN_LENGTH_NON_ASCII)) return utf8TextDecoder$1.decode(this.buf.subarray(pos, end));
 		return readUtf8$1(this.buf, pos, end);
 	}
 	readBytes() {
@@ -28957,7 +29336,26 @@ var PbfReader = class {
 	*/
 	readPackedVarint(arr = [], isSigned) {
 		const end = this.readPackedEnd();
-		while (this.pos < end) arr.push(this.readVarint(isSigned));
+		const buf = this.buf;
+		let pos = this.pos;
+		while (pos < end) {
+			const b0 = buf[pos];
+			if (b0 < 128) {
+				arr.push(b0);
+				pos++;
+				continue;
+			}
+			const b1 = buf[pos + 1];
+			if (b1 < 128) {
+				arr.push(b0 & 127 | b1 << 7);
+				pos += 2;
+				continue;
+			}
+			this.pos = pos;
+			arr.push(this.readVarint(isSigned));
+			pos = this.pos;
+		}
+		this.pos = pos;
 		return arr;
 	}
 	/** @param {number[]} [arr] */
@@ -29070,53 +29468,25 @@ function toNum(low, high, isSigned) {
 	return isSigned ? high * 4294967296 + (low >>> 0) : (high >>> 0) * 4294967296 + (low >>> 0);
 }
 /**
+* Decodes valid 1–3 byte UTF-8 sequences, handing anything else (invalid bytes, 4-byte chars) to TextDecoder.
 * @param {Uint8Array} buf
 * @param {number} pos
 * @param {number} end
 */
 function readUtf8$1(buf, pos, end) {
 	let str = "";
-	let i = pos;
-	while (i < end) {
-		const b0 = buf[i];
-		let c = null;
-		let bytesPerSequence = b0 > 239 ? 4 : b0 > 223 ? 3 : b0 > 191 ? 2 : 1;
-		if (i + bytesPerSequence > end) break;
-		let b1, b2, b3;
-		if (bytesPerSequence === 1) {
-			if (b0 < 128) c = b0;
-		} else if (bytesPerSequence === 2) {
-			b1 = buf[i + 1];
-			if ((b1 & 192) === 128) {
-				c = (b0 & 31) << 6 | b1 & 63;
-				if (c <= 127) c = null;
-			}
-		} else if (bytesPerSequence === 3) {
-			b1 = buf[i + 1];
-			b2 = buf[i + 2];
-			if ((b1 & 192) === 128 && (b2 & 192) === 128) {
-				c = (b0 & 15) << 12 | (b1 & 63) << 6 | b2 & 63;
-				if (c <= 2047 || c >= 55296 && c <= 57343) c = null;
-			}
-		} else if (bytesPerSequence === 4) {
-			b1 = buf[i + 1];
-			b2 = buf[i + 2];
-			b3 = buf[i + 3];
-			if ((b1 & 192) === 128 && (b2 & 192) === 128 && (b3 & 192) === 128) {
-				c = (b0 & 15) << 18 | (b1 & 63) << 12 | (b2 & 63) << 6 | b3 & 63;
-				if (c <= 65535 || c >= 1114112) c = null;
-			}
-		}
-		if (c === null) {
-			c = 65533;
-			bytesPerSequence = 1;
-		} else if (c > 65535) {
-			c -= 65536;
-			str += String.fromCharCode(c >>> 10 & 1023 | 55296);
-			c = 56320 | c & 1023;
+	for (let i = pos; i < end; i++) {
+		let c = buf[i];
+		if (c > 127) {
+			const b1 = buf[i + 1] ^ 128;
+			const b2 = buf[i + 2] ^ 128;
+			if (c >= 194 && c < 224 && b1 < 64 && i + 1 < end) {
+				c = (c & 31) << 6 | b1;
+				i++;
+			} else if ((c & 240) === 224 && b1 < 64 && b2 < 64 && i + 2 < end && (c = (c & 15) << 12 | b1 << 6 | b2) >= 2048 && (c < 55296 || c > 57343)) i += 2;
+			else return utf8TextDecoder$1.decode(buf.subarray(pos, end));
 		}
 		str += String.fromCharCode(c);
-		i += bytesPerSequence;
 	}
 	return str;
 }
@@ -29834,9 +30204,7 @@ function shapeLines(shaping, glyphMap, glyphPositions, imagePositions, lines, li
 }
 function shapeTextSection(section, key, vertical, lineShapingSize, glyphMap, glyphPositions) {
 	const variant = vertical && glyphMap[section.fontStack]?.vertical?.[key] ? "vertical" : "default";
-	const glyphPosition = glyphPositions[section.fontStack]?.[variant]?.[key];
-	const glyph = glyphMap[section.fontStack]?.[variant]?.[key];
-	const rectAndMetrics = getRectAndMetrics(glyphPosition, glyph);
+	const rectAndMetrics = getRectAndMetrics(glyphPositions[section.fontStack]?.[variant]?.[key], glyphMap[section.fontStack]?.[variant]?.[key]);
 	if (rectAndMetrics === null) return null;
 	let baselineOffset;
 	if (vertical) baselineOffset = lineShapingSize.verticalLineContentWidth - section.scale * 24;
@@ -31025,8 +31393,7 @@ function addSymbol(bucket, anchor, line, shapedTextOrientations, shapedIcon, ima
 	let key = (0, import_murmurhash_js.default)("");
 	if (bucket.allowVerticalPlacement && shapedTextOrientations.vertical) {
 		const verticalTextRotation = layer.layout.get("text-rotate").evaluate(feature, {}, canonical) + 90;
-		const verticalShaping = shapedTextOrientations.vertical;
-		verticalTextCollisionFeature = new CollisionFeature(collisionBoxArray, anchor, featureIndex, sourceLayerIndex, bucketIndex, verticalShaping, textBoxScale, textPadding, textAlongLine, verticalTextRotation);
+		verticalTextCollisionFeature = new CollisionFeature(collisionBoxArray, anchor, featureIndex, sourceLayerIndex, bucketIndex, shapedTextOrientations.vertical, textBoxScale, textPadding, textAlongLine, verticalTextRotation);
 		if (verticallyShapedIcon) verticalIconCollisionFeature = new CollisionFeature(collisionBoxArray, anchor, featureIndex, sourceLayerIndex, bucketIndex, verticallyShapedIcon, iconBoxScale, iconPadding, textAlongLine, verticalTextRotation);
 	}
 	if (shapedIcon) {
@@ -31797,10 +32164,7 @@ var FormatSectionOverride = class {
 		return this.defaultValue.property.specification.default;
 	}
 	eachChild(fn) {
-		if (!this.defaultValue.isConstant()) {
-			const expr = this.defaultValue.value;
-			fn(expr._styleExpression.expression);
-		}
+		if (!this.defaultValue.isConstant()) fn(this.defaultValue.value._styleExpression.expression);
 	}
 	outputDefined() {
 		return false;
@@ -32683,13 +33047,13 @@ var FontFaceManager = class {
 	}
 };
 // node_modules/@mapbox/tiny-sdf/index.js
-const INF = 0x56bc75e2d63100000;
+const INF = 1e20;
 const alphaTable = /* @__PURE__ */ new Float64Array(256);
 for (let i = 0; i < 256; i++) {
 	const d = .5 - Math.pow(i / 255, 1 / 2.2);
 	alphaTable[i] = d * Math.abs(d);
 }
-alphaTable[255] = -0x56bc75e2d63100000;
+alphaTable[255] = -1e20;
 var TinySDF = class {
 	constructor({ fontSize = 24, buffer = 3, radius = 8, cutoff = .25, fontFamily = "sans-serif", fontWeight = "normal", fontStyle = "normal", lang = null } = {}) {
 		buffer = this.buffer = Math.round(buffer);
@@ -32773,7 +33137,7 @@ function edt(data, x0, y0, width, height, gridSize, f, v, z, skipCols = 0) {
 }
 function edt1d(grid, offset, stride, length, f, v, z) {
 	v[0] = 0;
-	z[0] = -0x56bc75e2d63100000;
+	z[0] = -1e20;
 	z[1] = INF;
 	f[0] = grid[offset];
 	for (let q = 1, k = 0; q < length; q++) {
@@ -32798,11 +33162,7 @@ function edt1d(grid, offset, stride, length, f, v, z) {
 }
 // src/render/glyph_manager.ts
 /**
-* The style specification hard-codes some last resort fonts as a default fontstack.
-*/
-const defaultStack = latest.layout_symbol["text-font"].default.join(",");
-/**
-* The CSS generic font family closest to `defaultStack`.
+* The final CSS fallback for locally generated glyphs.
 */
 const defaultGenericFontFamily = "sans-serif";
 /**
@@ -33078,7 +33438,8 @@ var GlyphManager = class {
 	* for the clusters drawn from it, which need a wider canvas.
 	*
 	* A font file carries its own weight and style, so neither is sniffed out of the family name.
-	* Where no file covers the grapheme, `localIdeographFontFamily` beats the last resort fontstack.
+	* Without a matching font file, qualifying CJK text tries the layer's fonts, then
+	* `localIdeographFontFamily`, then `sans-serif`.
 	*/
 	_getTinySDF(entry, stack, id, fontFaceFamily) {
 		const cluster = isCluster(id);
@@ -33088,8 +33449,8 @@ var GlyphManager = class {
 			entry[cache][fontFaceFamily] ||= this._createTinySDF(fontFaceFamily, false, cluster ? clusterEmsWide : 1);
 			return entry[cache][fontFaceFamily];
 		}
-		const usesLocalIdeographFontFamily = stack === defaultStack && this.localIdeographFontFamily !== "" && this._charUsesLocalIdeographFontFamily(id.codePointAt(0));
-		const family = usesLocalIdeographFontFamily ? this.localIdeographFontFamily : stack;
+		const usesLocalIdeographFontFamily = this._charUsesLocalIdeographFontFamily(id.codePointAt(0));
+		const family = usesLocalIdeographFontFamily ? `${stack},${this.localIdeographFontFamily}` : stack;
 		if (cluster) {
 			entry.clusterTinySDFs ??= {};
 			entry.clusterTinySDFs[family] ||= this._createTinySDF(family, true, clusterEmsWide);
@@ -33650,10 +34011,7 @@ function convertFeaturesToMapFeatures(result, tileManager) {
 	return result;
 }
 function convertFeaturesToMapFeaturesMultiple(result, styleLayers, tileManagers) {
-	for (const layerName in result) for (const featureWrapper of result[layerName]) {
-		const tileManager = tileManagers[styleLayers[layerName].source];
-		convertFeatureToMapFeature(featureWrapper, tileManager);
-	}
+	for (const layerName in result) for (const featureWrapper of result[layerName]) convertFeatureToMapFeature(featureWrapper, tileManagers[styleLayers[layerName].source]);
 	return result;
 }
 function convertFeatureToMapFeature(featureWrapper, tileManager) {
@@ -33664,24 +34022,44 @@ function convertFeatureToMapFeature(featureWrapper, tileManager) {
 	feature.state = state;
 }
 // src/source/load_tilejson.ts
+/**
+* The smallest tile size a tiled source accepts. Halving the tile size quadruples the number of tiles that cover the
+* viewport, so a tile size of a few pixels asks for millions of them.
+*/
+const MIN_TILE_SIZE = 16;
 async function loadTileJson(options, requestManager, abortController, targetWindow) {
 	let tileJSON = options;
 	if (options.url) tileJSON = (await getJSON(await requestManager.transformRequest(options.url, "Source"), abortController)).data;
 	else await browser.frameAsync(abortController, targetWindow);
 	if (!tileJSON) return null;
-	const result = pick(extend(tileJSON, options), [
-		"tiles",
-		"minzoom",
-		"maxzoom",
-		"attribution",
-		"bounds",
-		"scheme",
-		"tileSize",
-		"encoding",
-		"sparse"
-	]);
+	const fromOptions = options;
+	const fromTileJSON = tileJSON;
+	const result = {
+		tiles: fromOptions.tiles ?? fromTileJSON.tiles,
+		minzoom: fromOptions.minzoom ?? fromTileJSON.minzoom,
+		maxzoom: fromOptions.maxzoom ?? fromTileJSON.maxzoom,
+		attribution: fromOptions.attribution ?? fromTileJSON.attribution,
+		bounds: fromOptions.bounds ?? fromTileJSON.bounds,
+		scheme: fromOptions.scheme ?? fromTileJSON.scheme,
+		tileSize: fromOptions.tileSize ?? fromTileJSON.tileSize,
+		encoding: fromOptions.encoding ?? fromTileJSON.encoding,
+		sparse: fromOptions.sparse ?? fromTileJSON.sparse
+	};
+	validateNumbers(result);
 	if ("vector_layers" in tileJSON && tileJSON.vector_layers) result.vectorLayerIds = tileJSON.vector_layers.map((layer) => layer.id);
 	return result;
+}
+/**
+* Throws unless the zoom levels are finite numbers and the tile size is a finite number of at least `MIN_TILE_SIZE`.
+* A zoom level that is not a number never compares as reached, so the tiles covering the viewport would be split
+* without end.
+*/
+function validateNumbers({ minzoom, maxzoom, tileSize }) {
+	for (const [name, value] of Object.entries({
+		minzoom,
+		maxzoom
+	})) if (value !== void 0 && !Number.isFinite(value)) throw new Error(`${name} must be a finite number, got ${JSON.stringify(value)}`);
+	if (tileSize !== void 0 && !(Number.isFinite(tileSize) && tileSize >= MIN_TILE_SIZE)) throw new Error(`tileSize must be a number of at least ${MIN_TILE_SIZE}, got ${JSON.stringify(tileSize)}`);
 }
 // src/tile/tile_bounds.ts
 var TileBounds = class {
@@ -33766,14 +34144,15 @@ var VectorTileSource = class extends Evented {
 		this.reparseOverscaled = true;
 		this.isTileClipped = true;
 		this._loaded = false;
-		extend(this, pick(options, [
-			"url",
-			"scheme",
-			"tileSize",
-			"promoteId",
-			"encoding"
-		]));
-		this._options = extend({ type: "vector" }, options);
+		this.url = options.url;
+		this.scheme = options.scheme ?? this.scheme;
+		this.tileSize = options.tileSize ?? this.tileSize;
+		this.promoteId = options.promoteId;
+		this.encoding = options.encoding;
+		this._options = {
+			type: "vector",
+			...options
+		};
 		this._collectResourceTiming = options.collectResourceTiming;
 		if (this.tileSize !== 512) throw new Error("vector tile sources must have a tileSize of 512");
 		this.setEventedParent(eventedParent);
@@ -33787,7 +34166,7 @@ var VectorTileSource = class extends Evented {
 			this._tileJSONRequest = null;
 			this._loaded = true;
 			if (tileJSON) {
-				extend(this, tileJSON);
+				this._applyTileJSON(tileJSON);
 				if (tileJSON.bounds) this.tileBounds = new TileBounds(tileJSON.bounds, this.minzoom, this.maxzoom, this.map.style.projection.worldCoordinateHelper);
 				this.fire(new MapSourceDataEvent("data", { sourceDataType: "metadata" }));
 				this.fire(new MapSourceDataEvent("data", {
@@ -33800,6 +34179,22 @@ var VectorTileSource = class extends Evented {
 			this._loaded = true;
 			if (!isAbortError(err)) this.fire(new ErrorEvent(ensureError(err)));
 		}
+	}
+	/**
+	* @internal
+	* Takes on the fields the TileJSON sets, keeping the current value of any it leaves out.
+	*/
+	_applyTileJSON(tileJSON) {
+		this.tiles = tileJSON.tiles ?? this.tiles;
+		this.minzoom = tileJSON.minzoom ?? this.minzoom;
+		this.maxzoom = tileJSON.maxzoom ?? this.maxzoom;
+		this.attribution = tileJSON.attribution ?? this.attribution;
+		this.bounds = tileJSON.bounds ?? this.bounds;
+		this.scheme = tileJSON.scheme ?? this.scheme;
+		this.tileSize = tileJSON.tileSize ?? this.tileSize;
+		this.encoding = tileJSON.encoding ?? this.encoding;
+		this.sparse = tileJSON.sparse ?? this.sparse;
+		this.vectorLayerIds = tileJSON.vectorLayerIds ?? this.vectorLayerIds;
 	}
 	loaded() {
 		return this._loaded;
@@ -33847,7 +34242,7 @@ var VectorTileSource = class extends Evented {
 		}
 	}
 	serialize() {
-		return extend({}, this._options);
+		return { ...this._options };
 	}
 	async loadTile(tile) {
 		const url = tile.tileID.canonical.url(this.tiles, this.map.getPixelRatio(), this.scheme, this.map.style.projection.worldCoordinateHelper.tileMatrixSet);
@@ -34058,12 +34453,13 @@ var RasterTileSource = class extends Evented {
 		this.tileSize = 512;
 		this._loaded = false;
 		this._premultiplyAlpha = true;
-		this._options = extend({ type: "raster" }, options);
-		extend(this, pick(options, [
-			"url",
-			"scheme",
-			"tileSize"
-		]));
+		this._options = {
+			type: "raster",
+			...options
+		};
+		this.url = options.url;
+		if ("scheme" in options) this.scheme = options.scheme;
+		this.tileSize = options.tileSize ?? this.tileSize;
 	}
 	async load(sourceDataChanged = false) {
 		this._loaded = false;
@@ -34074,7 +34470,7 @@ var RasterTileSource = class extends Evented {
 			this._tileJSONRequest = null;
 			this._loaded = true;
 			if (tileJSON) {
-				extend(this, tileJSON);
+				this._applyTileJSON(tileJSON);
 				if (tileJSON.bounds) this.tileBounds = new TileBounds(tileJSON.bounds, this.minzoom, this.maxzoom, this.map.style.projection.worldCoordinateHelper);
 				this.fire(new MapSourceDataEvent("data", { sourceDataType: "metadata" }));
 				this.fire(new MapSourceDataEvent("data", {
@@ -34087,6 +34483,19 @@ var RasterTileSource = class extends Evented {
 			this._loaded = true;
 			if (!isAbortError(err)) this.fire(new ErrorEvent(ensureError(err)));
 		}
+	}
+	/**
+	* @internal
+	* Takes on the fields the TileJSON sets, keeping the current value of any it leaves out.
+	*/
+	_applyTileJSON(tileJSON) {
+		this.tiles = tileJSON.tiles ?? this.tiles;
+		this.minzoom = tileJSON.minzoom ?? this.minzoom;
+		this.maxzoom = tileJSON.maxzoom ?? this.maxzoom;
+		this.attribution = tileJSON.attribution ?? this.attribution;
+		this.bounds = tileJSON.bounds ?? this.bounds;
+		this.scheme = tileJSON.scheme ?? this.scheme;
+		this.tileSize = tileJSON.tileSize ?? this.tileSize;
 	}
 	loaded() {
 		return this._loaded;
@@ -34134,7 +34543,7 @@ var RasterTileSource = class extends Evented {
 		return this;
 	}
 	serialize() {
-		return extend({}, this._options);
+		return { ...this._options };
 	}
 	/**
 	* Sets whether alpha premultiplication is applied to raster tile images.
@@ -34237,7 +34646,10 @@ var RasterDEMTileSource = class extends RasterTileSource {
 		super(id, options, dispatcher, eventedParent);
 		this.type = "raster-dem";
 		this.maxzoom = 22;
-		this._options = extend({ type: "raster-dem" }, options);
+		this._options = {
+			type: "raster-dem",
+			...options
+		};
 		this.encoding = options.encoding || "mapbox";
 		this.redFactor = options.redFactor;
 		this.greenFactor = options.greenFactor;
@@ -34247,6 +34659,14 @@ var RasterDEMTileSource = class extends RasterTileSource {
 	onAdd(map) {
 		super.onAdd(map);
 		this.dispatcher.getTerrainActor().catch(() => {});
+	}
+	/**
+	* @internal
+	* Takes on the encoding the TileJSON sets, as well as the fields a raster source does.
+	*/
+	_applyTileJSON(tileJSON) {
+		super._applyTileJSON(tileJSON);
+		this.encoding = tileJSON.encoding ?? this.encoding;
 	}
 	async loadTile(tile) {
 		const url = tile.tileID.canonical.url(this.tiles, this.map.getPixelRatio(), this.scheme, this.map.style.projection.worldCoordinateHelper.tileMatrixSet);
@@ -34994,14 +35414,14 @@ var GeoJSONSource = class extends Evented {
 		this.actorPromise = dispatcher.getActor();
 		this.setEventedParent(eventedParent);
 		this._data = typeof options.data === "string" ? { url: options.data } : { geojson: options.data };
-		this._options = extend({}, options);
+		this._options = { ...options };
 		this._collectResourceTiming = options.collectResourceTiming;
 		if (options.maxzoom !== void 0) this.maxzoom = options.maxzoom;
 		if (options.type) this.type = options.type;
 		if (options.attribution) this.attribution = options.attribution;
 		this.promoteId = options.promoteId;
 		if (options.clusterMaxZoom !== void 0 && this.maxzoom <= options.clusterMaxZoom) warnOnce(`The maxzoom value "${this.maxzoom}" is expected to be greater than the clusterMaxZoom value "${options.clusterMaxZoom}".`);
-		this.workerOptions = extend({
+		this.workerOptions = {
 			source: this.id,
 			geojsonVtOptions: {
 				buffer: this._pixelsToTileUnits(options.buffer !== void 0 ? options.buffer : 128),
@@ -35022,8 +35442,9 @@ var GeoJSONSource = class extends Evented {
 				}
 			},
 			clusterProperties: options.clusterProperties,
-			filter: options.filter
-		}, options.workerOptions);
+			filter: options.filter,
+			...options.workerOptions
+		};
 	}
 	/** The `promoteId` property name, when it is a plain string. */
 	get _promoteIdKey() {
@@ -35224,10 +35645,11 @@ var GeoJSONSource = class extends Evented {
 	* Create the parameters object that will be sent to the worker and used to load GeoJSON.
 	*/
 	async _getLoadGeoJSONParameters(update) {
-		const params = extend({
+		const params = {
 			type: this.type,
-			source: this.id
-		}, this.workerOptions);
+			source: this.id,
+			...this.workerOptions
+		};
 		const crs = this._getCRSParameters();
 		if (crs) params.crs = crs;
 		if (!("data" in update)) {
@@ -35323,7 +35745,7 @@ var GeoJSONSource = class extends Evented {
 		if (!timingData) return;
 		const resourceTiming = timingData.slice(0);
 		if (!resourceTiming?.length) return;
-		extend(eventData, { resourceTiming });
+		eventData.resourceTiming = resourceTiming;
 	}
 	/**
 	* Apply a diff to this source's data and return the affected feature geometries.
@@ -35433,13 +35855,14 @@ var GeoJSONSource = class extends Evented {
 		}));
 	}
 	serialize() {
-		return extend({}, this._options, {
+		return {
+			...this._options,
 			type: this.type,
 			data: this._data.updateable ? {
 				type: "FeatureCollection",
 				features: Array.from(this._data.updateable.values())
 			} : this._data.url || this._data.geojson
-		});
+		};
 	}
 	hasTransition() {
 		return false;
@@ -36470,7 +36893,7 @@ var GeoJSONFeature = class GeoJSONFeature {
 		this._x = x;
 		this._y = y;
 		this._z = z;
-		if (worldCoordinateHelper !== mercatorWorldCoordinateHelper$1) GeoJSONFeature.worldCoordinateHelpers.set(this, worldCoordinateHelper);
+		if (worldCoordinateHelper && worldCoordinateHelper !== mercatorWorldCoordinateHelper$1) GeoJSONFeature.worldCoordinateHelpers.set(this, worldCoordinateHelper);
 		for (const key in vectorTileFeature.properties) {
 			if (typeof vectorTileFeature.properties[key] !== "string" || !vectorTileFeature.properties[key].startsWith("__$json__:")) continue;
 			vectorTileFeature.properties[key] = JSON.parse(vectorTileFeature.properties[key].slice(10));
@@ -36752,7 +37175,7 @@ var PhysicalLevelTechnique;
 */
 const masks = /* @__PURE__ */ new Uint32Array(33);
 masks[0] = 0;
-for (let bitWidth = 1; bitWidth <= 32; bitWidth++) masks[bitWidth] = bitWidth === 32 ? 4294967295 : 4294967295 >>> 32 - bitWidth;
+for (let bitWidth = 1; bitWidth <= 32; bitWidth++) masks[bitWidth] = bitWidth === 32 ? 0xffffffff : 0xffffffff >>> 32 - bitWidth;
 const MASKS = masks;
 const DEFAULT_PAGE_SIZE = 65536;
 function greatestMultiple(value, factor) {
@@ -38483,8 +38906,7 @@ function decodeZigZagDeltaOfDeltaInt32(data) {
 	decodedData[1] = decodeZigZagInt32Value(data[0]);
 	let deltaSum = decodedData[1];
 	for (let i = 2; i !== decodedData.length; ++i) {
-		const zigZagValue = data[i - 1];
-		const delta = decodeZigZagInt32Value(zigZagValue);
+		const delta = decodeZigZagInt32Value(data[i - 1]);
 		deltaSum += delta;
 		decodedData[i] = decodedData[i - 1] + deltaSum;
 	}
@@ -38537,8 +38959,7 @@ function decodeDeltaRleInt32(data, numRuns, numValues) {
 	let previousValue = 0;
 	for (let i = 0; i < numRuns; i++) {
 		const runLength = data[i];
-		const zigZagDelta = data[i + numRuns];
-		const delta = decodeZigZagInt32Value(zigZagDelta);
+		const delta = decodeZigZagInt32Value(data[i + numRuns]);
 		for (let j = 0; j < runLength; j++) {
 			previousValue += delta;
 			result[outPos++] = previousValue;
@@ -38555,8 +38976,7 @@ function decodeDeltaRleInt64(data, numRuns, numValues) {
 	let previousValue = 0n;
 	for (let i = 0; i < numRuns; i++) {
 		const runLength = Number(data[i]);
-		const zigZagDelta = data[i + numRuns];
-		const delta = decodeZigZagInt64Value(zigZagDelta);
+		const delta = decodeZigZagInt64Value(data[i + numRuns]);
 		for (let j = 0; j < runLength; j++) {
 			previousValue += delta;
 			result[outPos++] = previousValue;
@@ -38819,8 +39239,7 @@ var BitVector = class {
 function unpackNullable(dataStream, presentBits, defaultValue) {
 	if (!presentBits) return dataStream;
 	const size = presentBits.size();
-	const constructor = dataStream.constructor;
-	const result = new constructor(size);
+	const result = new dataStream.constructor(size);
 	let counter = 0;
 	for (let i = 0; i < size; i++) result[i] = presentBits.get(i) ? dataStream[counter++] : defaultValue;
 	return result;
@@ -39303,8 +39722,7 @@ function convertGeometryVector(geometryVector) {
 						x = vertexBuffer[vertexBufferOffset++];
 						y = vertexBuffer[vertexBufferOffset++];
 					} else if (geometryVector.vertexBufferType === VertexBufferType.MORTON) {
-						const mortonCode = vertexBuffer[vertexOffsets[vertexOffsetsOffset++]];
-						const vertex = decodeZOrderCurve(mortonCode, mortonSettings.numBits, mortonSettings.coordinateShift);
+						const vertex = decodeZOrderCurve(vertexBuffer[vertexOffsets[vertexOffsetsOffset++]], mortonSettings.numBits, mortonSettings.coordinateShift);
 						x = vertex.x;
 						y = vertex.y;
 					} else {
@@ -39482,8 +39900,7 @@ function decodeVec2DictionaryEncodedVertices(vertexBuffer, vertexOffsets, vertex
 function decodeMortonDictionaryEncodedVertices(vertexBuffer, vertexOffsets, vertexOffset, numVertices, isRing, mortonSettings) {
 	const vertices = new Array(isRing ? numVertices + 1 : numVertices);
 	for (let i = 0; i < numVertices; i++) {
-		const mortonEncodedVertex = vertexBuffer[vertexOffsets[vertexOffset + i]];
-		const vertex = decodeZOrderCurve(mortonEncodedVertex, mortonSettings.numBits, mortonSettings.coordinateShift);
+		const vertex = decodeZOrderCurve(vertexBuffer[vertexOffsets[vertexOffset + i]], mortonSettings.numBits, mortonSettings.coordinateShift);
 		vertices[i] = new Point(vertex.x, vertex.y);
 	}
 	if (isRing) vertices[vertices.length - 1] = vertices[0];
@@ -39517,8 +39934,7 @@ var GeometryVector = class {
 	getVertex(index) {
 		if (this.vertexOffsets && this.mortonSettings) {
 			const vertexOffset = this.vertexOffsets[index];
-			const mortonEncodedVertex = this.vertexBuffer[vertexOffset];
-			const vertex = decodeZOrderCurve(mortonEncodedVertex, this.mortonSettings.numBits, this.mortonSettings.coordinateShift);
+			const vertex = decodeZOrderCurve(this.vertexBuffer[vertexOffset], this.mortonSettings.numBits, this.mortonSettings.coordinateShift);
 			return [vertex.x, vertex.y];
 		}
 		const offset = this.vertexOffsets ? this.vertexOffsets[index] * 2 : index * 2;
@@ -41053,7 +41469,7 @@ var FeatureIndex = class {
 			if (!styleLayer) continue;
 			let featureState = {};
 			if (id && sourceFeatureState) featureState = sourceFeatureState.getState(styleLayer.sourceLayer || "_geojsonTileLayer", id);
-			const serializedLayer = extend({}, serializedLayers[layerID]);
+			const serializedLayer = { ...serializedLayers[layerID] };
 			serializedLayer.paint = evaluateProperties(serializedLayer.paint, styleLayer.paint, feature, featureState, availableImages);
 			serializedLayer.layout = evaluateProperties(serializedLayer.layout, styleLayer.layout, feature, featureState, availableImages);
 			const intersectionZ = !intersectionTest || intersectionTest(feature, styleLayer, featureState);
@@ -41111,10 +41527,10 @@ function needsEvaluating(value) {
 * value, is passed through as it is.
 */
 function evaluateProperties(serializedProperties, styleLayerProperties, feature, featureState, availableImages) {
-	return mapObject(serializedProperties, (_property, key) => {
+	return Object.fromEntries(Object.keys(serializedProperties ?? {}).map((key) => {
 		const value = styleLayerProperties instanceof PossiblyEvaluated ? styleLayerProperties.get(key) : null;
-		return needsEvaluating(value) ? value.evaluate(feature, featureState, void 0, availableImages) : value;
-	});
+		return [key, needsEvaluating(value) ? value.evaluate(feature, featureState, void 0, availableImages) : value];
+	}));
 }
 function topDownFeatureComparator(a, b) {
 	return b - a;
@@ -41416,13 +41832,18 @@ var Tile = class {
 			getElevation
 		}, layers, serializedLayers, sourceFeatureState);
 	}
+	/**
+	* Appends the tile's features in a source layer to `result`, and returns how many the layer holds.
+	* With `params.range` only the features from its first index up to its second are read,
+	* so a caller can spread a large layer over several frames.
+	*/
 	querySourceFeatures(result, params) {
 		const featureIndex = this.latestFeatureIndex;
-		if (!featureIndex?.rawTileData) return;
+		if (!featureIndex?.rawTileData) return 0;
 		const vtLayers = featureIndex.loadVTLayers();
 		const sourceLayer = params.sourceLayer ? params.sourceLayer : "";
 		const layer = vtLayers["_geojsonTileLayer"] || vtLayers[sourceLayer];
-		if (!layer) return;
+		if (!layer) return 0;
 		const filter = featureFilter(params.filter, `querySourceFeatures[${sourceLayer}].filter`, params.globalState);
 		const { z, x, y } = this.tileID.canonical;
 		const coord = {
@@ -41430,16 +41851,20 @@ var Tile = class {
 			x,
 			y
 		};
-		for (let i = 0; i < layer.length; i++) {
+		const parameters = new EvaluationParameters(this.tileID.overscaledZ);
+		const start = params.range ? Math.max(0, params.range[0]) : 0;
+		const end = params.range ? Math.min(layer.length, params.range[1]) : layer.length;
+		for (let i = start; i < end; i++) {
 			const feature = layer.feature(i);
 			if (filter.needGeometry) {
 				const evaluationFeature = toEvaluationFeature(feature, true);
-				if (!filter.filter(new EvaluationParameters(this.tileID.overscaledZ), evaluationFeature, this.tileID.canonical)) continue;
-			} else if (!filter.filter(new EvaluationParameters(this.tileID.overscaledZ), feature)) continue;
+				if (!filter.filter(parameters, evaluationFeature, this.tileID.canonical)) continue;
+			} else if (!filter.filter(parameters, feature)) continue;
 			const geojsonFeature = new GeoJSONFeature(feature, z, x, y, featureIndex.getId(feature, sourceLayer), params.worldCoordinateHelper);
 			geojsonFeature.tile = coord;
 			result.push(geojsonFeature);
 		}
+		return layer.length;
 	}
 	hasData() {
 		return this.state === "loaded" || this.state === "reloading" || this.state === "expired";
@@ -41698,8 +42123,10 @@ var SourceFeatureState = class {
 	updateState(sourceLayer, featureId, newState) {
 		const feature = String(featureId);
 		this.stateChanges[sourceLayer] ||= {};
-		this.stateChanges[sourceLayer][feature] ||= {};
-		extend(this.stateChanges[sourceLayer][feature], newState);
+		this.stateChanges[sourceLayer][feature] = {
+			...this.stateChanges[sourceLayer][feature],
+			...newState
+		};
 		if (this.deletedStates[sourceLayer] === null) {
 			this.deletedStates[sourceLayer] = {};
 			for (const ft in this.state[sourceLayer]) if (ft === feature) {
@@ -41731,7 +42158,10 @@ var SourceFeatureState = class {
 		const feature = String(featureId);
 		const base = this.state[sourceLayer] || {};
 		const changes = this.stateChanges[sourceLayer] || {};
-		const reconciledState = extend({}, base[feature], changes[feature]);
+		const reconciledState = {
+			...base[feature],
+			...changes[feature]
+		};
 		if (this.deletedStates[sourceLayer] === null) return {};
 		else if (this.deletedStates[sourceLayer]) {
 			const featureDeletions = this.deletedStates[sourceLayer][featureId];
@@ -41751,8 +42181,10 @@ var SourceFeatureState = class {
 			this.state[sourceLayer] ||= {};
 			featuresChangedMap[sourceLayer] ||= {};
 			for (const feature in this.stateChanges[sourceLayer]) {
-				this.state[sourceLayer][feature] ||= {};
-				extend(this.state[sourceLayer][feature], this.stateChanges[sourceLayer][feature]);
+				this.state[sourceLayer][feature] = {
+					...this.state[sourceLayer][feature],
+					...this.stateChanges[sourceLayer][feature]
+				};
 				featuresChangedMap[sourceLayer][feature] = this.state[sourceLayer][feature];
 			}
 		}
@@ -43199,7 +43631,7 @@ var TileManager = class TileManager extends Evented {
 	* Removes tiles that are outside the viewport and adds new tiles that
 	* are inside the viewport.
 	*/
-	update(projectedCamera, worldCoordinateHelper, terrain) {
+	update(projectedCamera, worldCoordinateHelper, terrain, covers) {
 		if (!this._sourceLoaded || this._paused) return;
 		this.projectedCamera = projectedCamera;
 		this.worldCoordinateHelper = worldCoordinateHelper;
@@ -43210,16 +43642,25 @@ var TileManager = class TileManager extends Evented {
 		if (!this.used && !this.usedForTerrain) idealTileIDs = [];
 		else if (this._source.tileID) idealTileIDs = getCameraMath(projectedCamera).getVisibleUnwrappedCoordinates(projectedCamera, worldCoordinateHelper, this._source.tileID).map((unwrapped) => new OverscaledTileID(unwrapped.canonical.z, unwrapped.wrap, unwrapped.canonical.z, unwrapped.canonical.x, unwrapped.canonical.y));
 		else {
-			idealTileIDs = coveringTiles(projectedCamera, worldCoordinateHelper, {
-				tileSize: this.usedForTerrain ? this.tileSize : this._source.tileSize,
-				minzoom: this._source.minzoom,
-				maxzoom: this._source.type === "vector" && this.map._zoomLevelsToOverscale !== void 0 ? Math.max(this._source.maxzoom, projectedCamera.maxZoom - this.map._zoomLevelsToOverscale) : this._source.maxzoom,
-				roundZoom: this.usedForTerrain ? false : this._source.roundZoom,
-				reparseOverscaled: this._source.reparseOverscaled,
-				terrain,
-				calculateTileZoom: this._source.calculateTileZoom,
-				maxContentElevation: this._updateMaxContentElevation()
-			});
+			const tileSize = this.usedForTerrain ? this.tileSize : this._source.tileSize;
+			const maxzoom = this._source.type === "vector" && this.map._zoomLevelsToOverscale !== void 0 ? Math.max(this._source.maxzoom, projectedCamera.maxZoom - this.map._zoomLevelsToOverscale) : this._source.maxzoom;
+			const roundZoom = this.usedForTerrain ? false : this._source.roundZoom;
+			const maxContentElevation = this._updateMaxContentElevation();
+			const coverKey = covers && !this._source.calculateTileZoom ? `${tileSize}/${this._source.minzoom}/${maxzoom}/${+!!roundZoom}/${+!!this._source.reparseOverscaled}/${maxContentElevation}` : null;
+			idealTileIDs = coverKey !== null ? covers[coverKey] : void 0;
+			if (!idealTileIDs) {
+				idealTileIDs = coveringTiles(projectedCamera, worldCoordinateHelper, {
+					tileSize,
+					minzoom: this._source.minzoom,
+					maxzoom,
+					roundZoom,
+					reparseOverscaled: this._source.reparseOverscaled,
+					terrain,
+					calculateTileZoom: this._source.calculateTileZoom,
+					maxContentElevation
+				});
+				if (coverKey !== null) covers[coverKey] = idealTileIDs;
+			}
 			if (this._source.hasTile) idealTileIDs = idealTileIDs.filter((coord) => this._source.hasTile(coord));
 		}
 		if (this.usedForTerrain) idealTileIDs = this._addTerrainIdealTiles(idealTileIDs);
@@ -44921,7 +45362,6 @@ var Placement = class {
 		if (prevPlacement) prevPlacement.prevPlacement = void 0;
 		this.placedOrientations = {};
 	}
-	/** Whether a symbol lies in the clip: the line it is placed along, or its anchor where it has none. */
 	_getTerrainElevationFunc(tileID) {
 		const terrain = this.terrain;
 		if (!terrain) return void 0;
@@ -45007,7 +45447,7 @@ var Placement = class {
 		}
 	}
 	placeLayerBucketPart(bucketPart, seenCrossTileIDs, showCollisionBoxes) {
-		const { bucket, layout, translationText: translationTextBase, translationIcon: translationIconBase, anchorOffsetBasis, unwrappedTileID, pitchedLabelPlaneMatrix, textPixelRatio, holdingForFade, collisionBoxArray, partiallyEvaluatedTextSize, collisionGroup } = bucketPart.parameters;
+		const { bucket, layout, collisionBoxArray } = bucketPart.parameters;
 		const textOptional = layout.get("text-optional");
 		const iconOptional = layout.get("icon-optional");
 		const textOverlapMode = getOverlapMode(layout, "text-overlap", "text-allow-overlap");
@@ -45025,229 +45465,249 @@ var Placement = class {
 		const getElevation = this._getTerrainElevationFunc(tileID);
 		const simpleProjectionMatrix = getCameraMath(this.projectedCamera).getFastPathSimpleProjectionMatrix(this.projectedCamera, tileID);
 		const clipped = this.symbolClip ? symbolClipTester(this.symbolClip, bucket.layerIds, tileID.canonical) : null;
-		const placeSymbol = (symbolInstance, collisionArrays, symbolIndex) => {
-			if (seenCrossTileIDs[symbolInstance.crossTileID]) return;
-			if (clipped && clipped([symbolInstance.anchorX, symbolInstance.anchorY])) {
-				this.placements[symbolInstance.crossTileID] = new JointPlacement(false, false, false);
-				return;
-			}
-			let translationText = translationTextBase;
-			let translationIcon = translationIconBase;
-			{
-				const aox = symbolInstance.anchorOffsetX;
-				const aoy = symbolInstance.anchorOffsetY;
-				if (aox !== 0 || aoy !== 0) {
-					const [bx, by] = anchorOffsetBasis;
-					const sx = aox * bx[0] + aoy * by[0];
-					const sy = aox * bx[1] + aoy * by[1];
-					translationText = [translationTextBase[0] + sx, translationTextBase[1] + sy];
-					translationIcon = [translationIconBase[0] + sx, translationIconBase[1] + sy];
-				}
-			}
-			if (holdingForFade) {
-				this.placements[symbolInstance.crossTileID] = new JointPlacement(false, false, false);
-				return;
-			}
-			const symbolHeightOffset = symbolInstance.heightOffset;
-			const heightAnchorGround = symbolInstance.heightGround === 1;
-			let placeText = false;
-			let placeIcon = false;
-			let offscreen = true;
-			let shift = null;
-			let placed = {
-				box: null,
-				placeable: false,
-				offscreen: null,
-				occluded: false
-			};
-			let placedVerticalText = {
-				box: null,
-				placeable: false,
-				offscreen: null
-			};
-			let placedGlyphBoxes = null;
-			let placedGlyphCircles = null;
-			let placedIconBoxes = null;
-			let textFeatureIndex = 0;
-			let verticalTextFeatureIndex = 0;
-			let iconFeatureIndex = 0;
-			if (collisionArrays.textFeatureIndex) textFeatureIndex = collisionArrays.textFeatureIndex;
-			else if (symbolInstance.useRuntimeCollisionCircles) textFeatureIndex = symbolInstance.featureIndex;
-			if (collisionArrays.verticalTextFeatureIndex) verticalTextFeatureIndex = collisionArrays.verticalTextFeatureIndex;
-			const textBox = collisionArrays.textBox;
-			if (textBox) {
-				const updatePreviousOrientationIfNotPlaced = (isPlaced) => {
-					let previousOrientation = 1;
-					if (bucket.allowVerticalPlacement && !isPlaced && this.prevPlacement) {
-						const prevPlacedOrientation = this.prevPlacement.placedOrientations[symbolInstance.crossTileID];
-						if (prevPlacedOrientation) {
-							this.placedOrientations[symbolInstance.crossTileID] = prevPlacedOrientation;
-							previousOrientation = prevPlacedOrientation;
-							this.markUsedOrientation(bucket, previousOrientation, symbolInstance);
-						}
-					}
-					return previousOrientation;
-				};
-				const placeTextForPlacementModes = (placeHorizontalFn, placeVerticalFn) => {
-					if (bucket.allowVerticalPlacement && symbolInstance.numVerticalGlyphVertices > 0 && collisionArrays.verticalTextBox) for (const placementMode of bucket.writingModes) {
-						if (placementMode === 2) {
-							placed = placeVerticalFn();
-							placedVerticalText = placed;
-						} else placed = placeHorizontalFn();
-						if (placed?.placeable) break;
-					}
-					else placed = placeHorizontalFn();
-				};
-				const textAnchorOffsetStart = symbolInstance.textAnchorOffsetStartIndex;
-				const textAnchorOffsetEnd = symbolInstance.textAnchorOffsetEndIndex;
-				if (textAnchorOffsetEnd === textAnchorOffsetStart) {
-					const placeBox = (collisionTextBox, orientation) => {
-						const placedFeature = this.collisionIndex.placeCollisionBox(collisionTextBox, textOverlapMode, textPixelRatio, tileID, unwrappedTileID, pitchWithMap, rotateWithMap, translationText, collisionGroup.predicate, getElevation, void 0, simpleProjectionMatrix, symbolHeightOffset, heightAnchorGround);
-						if (placedFeature?.placeable) {
-							this.markUsedOrientation(bucket, orientation, symbolInstance);
-							this.placedOrientations[symbolInstance.crossTileID] = orientation;
-						}
-						return placedFeature;
-					};
-					const placeHorizontal = () => {
-						return placeBox(textBox, 1);
-					};
-					const placeVertical = () => {
-						const verticalTextBox = collisionArrays.verticalTextBox;
-						if (bucket.allowVerticalPlacement && symbolInstance.numVerticalGlyphVertices > 0 && verticalTextBox) return placeBox(verticalTextBox, 2);
-						return {
-							box: null,
-							offscreen: null
-						};
-					};
-					placeTextForPlacementModes(placeHorizontal, placeVertical);
-					updatePreviousOrientationIfNotPlaced(placed?.placeable);
-				} else {
-					let prevAnchor = TextAnchorEnum[this.prevPlacement?.variableOffsets[symbolInstance.crossTileID]?.anchor];
-					const placeBoxForVariableAnchors = (collisionTextBox, collisionIconBox, orientation) => {
-						const width = collisionTextBox.x2 - collisionTextBox.x1;
-						const height = collisionTextBox.y2 - collisionTextBox.y1;
-						const textBoxScale = symbolInstance.textBoxScale;
-						const variableIconBox = hasIconTextFit && iconOverlapMode === "never" ? collisionIconBox : null;
-						let placedBox = null;
-						let placementPasses = textOverlapMode === "never" ? 1 : 2;
-						let overlapMode = "never";
-						if (prevAnchor) placementPasses++;
-						for (let pass = 0; pass < placementPasses; pass++) {
-							for (let i = textAnchorOffsetStart; i < textAnchorOffsetEnd; i++) {
-								const textAnchorOffset = bucket.textAnchorOffsets.get(i);
-								if (prevAnchor && textAnchorOffset.textAnchor !== prevAnchor) continue;
-								const result = this.attemptAnchorPlacement(textAnchorOffset, collisionTextBox, width, height, textBoxScale, rotateWithMap, pitchWithMap, textPixelRatio, tileID, unwrappedTileID, collisionGroup, overlapMode, symbolInstance, bucket, orientation, translationText, translationIcon, variableIconBox, getElevation, simpleProjectionMatrix, symbolHeightOffset, heightAnchorGround);
-								if (result) {
-									placedBox = result.placedGlyphBoxes;
-									if (placedBox?.placeable) {
-										placeText = true;
-										shift = result.shift;
-										return placedBox;
-									}
-								}
-							}
-							if (prevAnchor) prevAnchor = null;
-							else overlapMode = textOverlapMode;
-						}
-						if (!placedBox && (showCollisionBoxes || alwaysShowText)) {
-							const placedFakeGlyphBox = this.collisionIndex.placeCollisionBox(textBox, "always", textPixelRatio, tileID, unwrappedTileID, pitchWithMap, rotateWithMap, translationText, collisionGroup.predicate, getElevation, void 0, simpleProjectionMatrix, symbolHeightOffset, heightAnchorGround);
-							placedBox = {
-								box: placedFakeGlyphBox.box,
-								offscreen: false,
-								placeable: false,
-								occluded: placedFakeGlyphBox.occluded
-							};
-						}
-						return placedBox;
-					};
-					const placeHorizontal = () => {
-						return placeBoxForVariableAnchors(textBox, collisionArrays.iconBox, 1);
-					};
-					const placeVertical = () => {
-						const verticalTextBox = collisionArrays.verticalTextBox;
-						const wasPlaced = placed?.placeable;
-						if (bucket.allowVerticalPlacement && !wasPlaced && symbolInstance.numVerticalGlyphVertices > 0 && verticalTextBox) return placeBoxForVariableAnchors(verticalTextBox, collisionArrays.verticalIconBox, 2);
-						return {
-							box: null,
-							occluded: true,
-							offscreen: null
-						};
-					};
-					placeTextForPlacementModes(placeHorizontal, placeVertical);
-					if (placed) {
-						placeText = placed.placeable;
-						offscreen = placed.offscreen;
-					}
-					const prevOrientation = updatePreviousOrientationIfNotPlaced(placed?.placeable);
-					if (!placeText && this.prevPlacement) {
-						const prevOffset = this.prevPlacement.variableOffsets[symbolInstance.crossTileID];
-						if (prevOffset) {
-							this.variableOffsets[symbolInstance.crossTileID] = prevOffset;
-							this.markUsedJustification(bucket, prevOffset.anchor, symbolInstance, prevOrientation);
-						}
-					}
-				}
-			}
-			placedGlyphBoxes = placed;
-			placeText = placedGlyphBoxes?.placeable;
-			offscreen = placedGlyphBoxes?.offscreen;
-			if (symbolInstance.useRuntimeCollisionCircles && symbolInstance.centerJustifiedTextSymbolIndex >= 0) {
-				const placedSymbol = bucket.text.placedSymbolArray.get(symbolInstance.centerJustifiedTextSymbolIndex);
-				const fontSize = evaluateSizeForFeature(bucket.textSizeData, partiallyEvaluatedTextSize, placedSymbol);
-				const textPixelPadding = layout.get("text-padding");
-				const circlePixelDiameter = symbolInstance.collisionCircleDiameter;
-				placedGlyphCircles = this.collisionIndex.placeCollisionCircles(textOverlapMode, placedSymbol, bucket.lineVertexArray, bucket.glyphOffsetArray, fontSize, unwrappedTileID, pitchedLabelPlaneMatrix, showCollisionBoxes, pitchWithMap, collisionGroup.predicate, circlePixelDiameter, textPixelPadding, translationText, getElevation);
-				if (placedGlyphCircles.circles.length && placedGlyphCircles.collisionDetected && !showCollisionBoxes) warnOnce("Collisions detected, but collision boxes are not shown");
-				placeText = textAlwaysOverlap || placedGlyphCircles.circles.length > 0 && !placedGlyphCircles.collisionDetected;
-				offscreen &&= placedGlyphCircles.offscreen;
-			}
-			if (collisionArrays.iconFeatureIndex) iconFeatureIndex = collisionArrays.iconFeatureIndex;
-			if (collisionArrays.iconBox) {
-				const placeIconFeature = (iconBox) => {
-					return this.collisionIndex.placeCollisionBox(iconBox, iconOverlapMode, textPixelRatio, tileID, unwrappedTileID, pitchWithMap, rotateWithMap, translationIcon, collisionGroup.predicate, getElevation, hasIconTextFit && shift ? shift : void 0, simpleProjectionMatrix, symbolHeightOffset, heightAnchorGround);
-				};
-				if (placedVerticalText && placedVerticalText.placeable && collisionArrays.verticalIconBox) {
-					placedIconBoxes = placeIconFeature(collisionArrays.verticalIconBox);
-					placeIcon = placedIconBoxes.placeable;
-				} else {
-					placedIconBoxes = placeIconFeature(collisionArrays.iconBox);
-					placeIcon = placedIconBoxes.placeable;
-				}
-				offscreen &&= placedIconBoxes.offscreen;
-			}
-			const iconWithoutText = textOptional || symbolInstance.numHorizontalGlyphVertices === 0 && symbolInstance.numVerticalGlyphVertices === 0;
-			const textWithoutIcon = iconOptional || symbolInstance.numIconVertices === 0;
-			if (!iconWithoutText && !textWithoutIcon) placeIcon = placeText = placeIcon && placeText;
-			else if (!textWithoutIcon) placeText = placeIcon && placeText;
-			else if (!iconWithoutText) placeIcon &&= placeText;
-			const hasTextBox = placeText && placedGlyphBoxes.placeable;
-			const hasIconBox = placeIcon && placedIconBoxes.placeable;
-			if (hasTextBox) {
-				if (placedVerticalText && placedVerticalText.placeable && verticalTextFeatureIndex) this.collisionIndex.insertCollisionBox(placedGlyphBoxes.box, textOverlapMode, layout.get("text-ignore-placement"), bucket.bucketInstanceId, verticalTextFeatureIndex, collisionGroup.ID);
-				else this.collisionIndex.insertCollisionBox(placedGlyphBoxes.box, textOverlapMode, layout.get("text-ignore-placement"), bucket.bucketInstanceId, textFeatureIndex, collisionGroup.ID);
-			}
-			if (hasIconBox) this.collisionIndex.insertCollisionBox(placedIconBoxes.box, iconOverlapMode, layout.get("icon-ignore-placement"), bucket.bucketInstanceId, iconFeatureIndex, collisionGroup.ID);
-			if (placedGlyphCircles) {
-				if (placeText) this.collisionIndex.insertCollisionCircles(placedGlyphCircles.circles, textOverlapMode, layout.get("text-ignore-placement"), bucket.bucketInstanceId, textFeatureIndex, collisionGroup.ID);
-			}
-			if (showCollisionBoxes) this.storeCollisionData(bucket.bucketInstanceId, symbolIndex, collisionArrays, placedGlyphBoxes, placedIconBoxes, placedGlyphCircles);
-			if (symbolInstance.crossTileID === 0) throw new Error("symbolInstance.crossTileID can't be 0");
-			if (bucket.bucketInstanceId === 0) throw new Error("bucket.bucketInstanceId can't be 0");
-			const textVisible = (placeText || alwaysShowText) && !placedGlyphBoxes?.occluded;
-			const iconVisible = (placeIcon || alwaysShowIcon) && !placedIconBoxes?.occluded;
-			this.placements[symbolInstance.crossTileID] = new JointPlacement(textVisible, iconVisible, offscreen || bucket.justReloaded);
-			seenCrossTileIDs[symbolInstance.crossTileID] = true;
+		const context = {
+			...bucketPart.parameters,
+			textOptional,
+			iconOptional,
+			textOverlapMode,
+			textAlwaysOverlap,
+			iconOverlapMode,
+			rotateWithMap,
+			pitchWithMap,
+			hasIconTextFit,
+			heightAnchorGround: false,
+			translationTextBase: bucketPart.parameters.translationText,
+			translationIconBase: bucketPart.parameters.translationIcon,
+			clipped,
+			alwaysShowText,
+			alwaysShowIcon,
+			tileID,
+			getElevation,
+			simpleProjectionMatrix,
+			seenCrossTileIDs,
+			showCollisionBoxes
 		};
 		if (zOrderByViewportY) {
 			if (bucketPart.symbolInstanceStart !== 0) throw new Error("bucket.bucketInstanceId should be 0");
 			const symbolIndexes = bucket.getSortedSymbolIndexes(-this.projectedCamera.bearingInRadians);
 			for (let i = symbolIndexes.length - 1; i >= 0; --i) {
 				const symbolIndex = symbolIndexes[i];
-				placeSymbol(bucket.symbolInstances.get(symbolIndex), bucket.collisionArrays[symbolIndex], symbolIndex);
+				this._placeSymbol(context, bucket.symbolInstances.get(symbolIndex), bucket.collisionArrays[symbolIndex], symbolIndex);
 			}
-		} else for (let i = bucketPart.symbolInstanceStart; i < bucketPart.symbolInstanceEnd; i++) placeSymbol(bucket.symbolInstances.get(i), bucket.collisionArrays[i], i);
+		} else for (let i = bucketPart.symbolInstanceStart; i < bucketPart.symbolInstanceEnd; i++) this._placeSymbol(context, bucket.symbolInstances.get(i), bucket.collisionArrays[i], i);
 		bucket.justReloaded = false;
+	}
+	/**
+	* Places one symbol of a bucket part: finds where its text and icon fit, records them in the collision index and
+	* stores the outcome in {@link Placement.placements}.
+	*/
+	_placeSymbol(context, symbolInstance, collisionArrays, symbolIndex) {
+		if (context.seenCrossTileIDs[symbolInstance.crossTileID]) return;
+		if (context.clipped?.([symbolInstance.anchorX, symbolInstance.anchorY])) {
+			this.placements[symbolInstance.crossTileID] = new JointPlacement(false, false, false);
+			return;
+		}
+		const { translationTextBase, translationIconBase } = context;
+		const aox = symbolInstance.anchorOffsetX;
+		const aoy = symbolInstance.anchorOffsetY;
+		if (aox !== 0 || aoy !== 0) {
+			const [bx, by] = context.anchorOffsetBasis;
+			const sx = aox * bx[0] + aoy * by[0];
+			const sy = aox * bx[1] + aoy * by[1];
+			context.translationText = [translationTextBase[0] + sx, translationTextBase[1] + sy];
+			context.translationIcon = [translationIconBase[0] + sx, translationIconBase[1] + sy];
+		} else {
+			context.translationText = translationTextBase;
+			context.translationIcon = translationIconBase;
+		}
+		context.heightAnchorGround = symbolInstance.heightGround === 1;
+		if (context.holdingForFade) {
+			this.placements[symbolInstance.crossTileID] = new JointPlacement(false, false, false);
+			return;
+		}
+		const symbolHeightOffset = symbolInstance.heightOffset;
+		let placeText = false;
+		let placeIcon = false;
+		let offscreen = true;
+		let shift = null;
+		let placed = {
+			box: null,
+			placeable: false,
+			offscreen: null,
+			occluded: false
+		};
+		let placedVerticalText = {
+			box: null,
+			placeable: false,
+			offscreen: null
+		};
+		let placedGlyphBoxes = null;
+		let placedGlyphCircles = null;
+		let placedIconBoxes = null;
+		let textFeatureIndex = 0;
+		let verticalTextFeatureIndex = 0;
+		let iconFeatureIndex = 0;
+		if (collisionArrays.textFeatureIndex) textFeatureIndex = collisionArrays.textFeatureIndex;
+		else if (symbolInstance.useRuntimeCollisionCircles) textFeatureIndex = symbolInstance.featureIndex;
+		if (collisionArrays.verticalTextFeatureIndex) verticalTextFeatureIndex = collisionArrays.verticalTextFeatureIndex;
+		const textBox = collisionArrays.textBox;
+		if (textBox) {
+			const hasVariableAnchors = symbolInstance.textAnchorOffsetEndIndex !== symbolInstance.textAnchorOffsetStartIndex;
+			let prevAnchor = hasVariableAnchors ? TextAnchorEnum[this.prevPlacement?.variableOffsets[symbolInstance.crossTileID]?.anchor] : null;
+			for (const orientation of getTextOrientations(context.bucket, symbolInstance, collisionArrays)) {
+				const isVertical = orientation === 2;
+				const collisionTextBox = isVertical ? collisionArrays.verticalTextBox : textBox;
+				if (hasVariableAnchors) {
+					const collisionIconBox = isVertical ? collisionArrays.verticalIconBox : collisionArrays.iconBox;
+					const result = this._placeTextAtVariableAnchors(context, symbolInstance, textBox, collisionTextBox, collisionIconBox, orientation, prevAnchor);
+					placed = result.placedBox;
+					shift = result.shift;
+					prevAnchor = result.prevAnchor;
+				} else placed = this._placeTextBox(context, symbolInstance, collisionTextBox, orientation);
+				if (isVertical) placedVerticalText = placed;
+				if (placed?.placeable) break;
+			}
+			if (hasVariableAnchors) {
+				if (placed) {
+					placeText = placed.placeable;
+					offscreen = placed.offscreen;
+				}
+				const prevOrientation = this._restorePreviousOrientation(context.bucket, symbolInstance, placed?.placeable);
+				if (!placeText && this.prevPlacement) {
+					const prevOffset = this.prevPlacement.variableOffsets[symbolInstance.crossTileID];
+					if (prevOffset) {
+						this.variableOffsets[symbolInstance.crossTileID] = prevOffset;
+						this.markUsedJustification(context.bucket, prevOffset.anchor, symbolInstance, prevOrientation);
+					}
+				}
+			} else this._restorePreviousOrientation(context.bucket, symbolInstance, placed?.placeable);
+		}
+		placedGlyphBoxes = placed;
+		placeText = placedGlyphBoxes?.placeable;
+		offscreen = placedGlyphBoxes?.offscreen;
+		if (symbolInstance.useRuntimeCollisionCircles && symbolInstance.centerJustifiedTextSymbolIndex >= 0) {
+			const placedSymbol = context.bucket.text.placedSymbolArray.get(symbolInstance.centerJustifiedTextSymbolIndex);
+			const fontSize = evaluateSizeForFeature(context.bucket.textSizeData, context.partiallyEvaluatedTextSize, placedSymbol);
+			const textPixelPadding = context.layout.get("text-padding");
+			const circlePixelDiameter = symbolInstance.collisionCircleDiameter;
+			placedGlyphCircles = this.collisionIndex.placeCollisionCircles(context.textOverlapMode, placedSymbol, context.bucket.lineVertexArray, context.bucket.glyphOffsetArray, fontSize, context.unwrappedTileID, context.pitchedLabelPlaneMatrix, context.showCollisionBoxes, context.pitchWithMap, context.collisionGroup.predicate, circlePixelDiameter, textPixelPadding, context.translationText, context.getElevation);
+			if (placedGlyphCircles.circles.length && placedGlyphCircles.collisionDetected && !context.showCollisionBoxes) warnOnce("Collisions detected, but collision boxes are not shown");
+			placeText = context.textAlwaysOverlap || placedGlyphCircles.circles.length > 0 && !placedGlyphCircles.collisionDetected;
+			offscreen &&= placedGlyphCircles.offscreen;
+		}
+		if (collisionArrays.iconFeatureIndex) iconFeatureIndex = collisionArrays.iconFeatureIndex;
+		if (collisionArrays.iconBox) {
+			const placeIconFeature = (iconBox) => {
+				return this.collisionIndex.placeCollisionBox(iconBox, context.iconOverlapMode, context.textPixelRatio, context.tileID, context.unwrappedTileID, context.pitchWithMap, context.rotateWithMap, context.translationIcon, context.collisionGroup.predicate, context.getElevation, context.hasIconTextFit && shift ? shift : void 0, context.simpleProjectionMatrix, symbolHeightOffset, context.heightAnchorGround);
+			};
+			if (placedVerticalText && placedVerticalText.placeable && collisionArrays.verticalIconBox) {
+				placedIconBoxes = placeIconFeature(collisionArrays.verticalIconBox);
+				placeIcon = placedIconBoxes.placeable;
+			} else {
+				placedIconBoxes = placeIconFeature(collisionArrays.iconBox);
+				placeIcon = placedIconBoxes.placeable;
+			}
+			offscreen &&= placedIconBoxes.offscreen;
+		}
+		const iconWithoutText = context.textOptional || symbolInstance.numHorizontalGlyphVertices === 0 && symbolInstance.numVerticalGlyphVertices === 0;
+		const textWithoutIcon = context.iconOptional || symbolInstance.numIconVertices === 0;
+		if (!iconWithoutText && !textWithoutIcon) placeIcon = placeText = placeIcon && placeText;
+		else if (!textWithoutIcon) placeText = placeIcon && placeText;
+		else if (!iconWithoutText) placeIcon &&= placeText;
+		const hasTextBox = placeText && placedGlyphBoxes.placeable;
+		const hasIconBox = placeIcon && placedIconBoxes.placeable;
+		if (hasTextBox) {
+			if (placedVerticalText && placedVerticalText.placeable && verticalTextFeatureIndex) this.collisionIndex.insertCollisionBox(placedGlyphBoxes.box, context.textOverlapMode, context.layout.get("text-ignore-placement"), context.bucket.bucketInstanceId, verticalTextFeatureIndex, context.collisionGroup.ID);
+			else this.collisionIndex.insertCollisionBox(placedGlyphBoxes.box, context.textOverlapMode, context.layout.get("text-ignore-placement"), context.bucket.bucketInstanceId, textFeatureIndex, context.collisionGroup.ID);
+		}
+		if (hasIconBox) this.collisionIndex.insertCollisionBox(placedIconBoxes.box, context.iconOverlapMode, context.layout.get("icon-ignore-placement"), context.bucket.bucketInstanceId, iconFeatureIndex, context.collisionGroup.ID);
+		if (placedGlyphCircles) {
+			if (placeText) this.collisionIndex.insertCollisionCircles(placedGlyphCircles.circles, context.textOverlapMode, context.layout.get("text-ignore-placement"), context.bucket.bucketInstanceId, textFeatureIndex, context.collisionGroup.ID);
+		}
+		if (context.showCollisionBoxes) this.storeCollisionData(context.bucket.bucketInstanceId, symbolIndex, collisionArrays, placedGlyphBoxes, placedIconBoxes, placedGlyphCircles);
+		if (symbolInstance.crossTileID === 0) throw new Error("symbolInstance.crossTileID can't be 0");
+		if (context.bucket.bucketInstanceId === 0) throw new Error("context.bucket.bucketInstanceId can't be 0");
+		const textVisible = (placeText || context.alwaysShowText) && !placedGlyphBoxes?.occluded;
+		const iconVisible = (placeIcon || context.alwaysShowIcon) && !placedIconBoxes?.occluded;
+		this.placements[symbolInstance.crossTileID] = new JointPlacement(textVisible, iconVisible, offscreen || context.bucket.justReloaded);
+		context.seenCrossTileIDs[symbolInstance.crossTileID] = true;
+	}
+	/**
+	* Places a symbol's text in one orientation at its single anchor, and records the orientation when it fits.
+	*/
+	_placeTextBox(context, symbolInstance, collisionTextBox, orientation) {
+		const placedFeature = this.collisionIndex.placeCollisionBox(collisionTextBox, context.textOverlapMode, context.textPixelRatio, context.tileID, context.unwrappedTileID, context.pitchWithMap, context.rotateWithMap, context.translationText, context.collisionGroup.predicate, context.getElevation, void 0, context.simpleProjectionMatrix, symbolInstance.heightOffset, context.heightAnchorGround);
+		if (placedFeature?.placeable) {
+			this.markUsedOrientation(context.bucket, orientation, symbolInstance);
+			this.placedOrientations[symbolInstance.crossTileID] = orientation;
+		}
+		return placedFeature;
+	}
+	/**
+	* Places a symbol's text in one orientation at the first of its `text-variable-anchor` anchors that fits.
+	*
+	* The anchor the symbol had in the previous placement is tried first, in an extra pass, so that a label does not
+	* jump between anchors while the map moves. That preference is used up once it fails: the returned `prevAnchor` is
+	* what the next orientation's attempt has to start from. When no anchor fits but the box has to be shown anyway,
+	* for the collision debug view or because the text always overlaps, a centred box stands in for it, which still
+	* lets the globe hide the text.
+	*/
+	_placeTextAtVariableAnchors(context, symbolInstance, textBox, collisionTextBox, collisionIconBox, orientation, prevAnchor) {
+		const width = collisionTextBox.x2 - collisionTextBox.x1;
+		const height = collisionTextBox.y2 - collisionTextBox.y1;
+		const textBoxScale = symbolInstance.textBoxScale;
+		const variableIconBox = context.hasIconTextFit && context.iconOverlapMode === "never" ? collisionIconBox : null;
+		let placedBox = null;
+		let placementPasses = context.textOverlapMode === "never" ? 1 : 2;
+		let overlapMode = "never";
+		if (prevAnchor) placementPasses++;
+		for (let pass = 0; pass < placementPasses; pass++) {
+			for (let i = symbolInstance.textAnchorOffsetStartIndex; i < symbolInstance.textAnchorOffsetEndIndex; i++) {
+				const textAnchorOffset = context.bucket.textAnchorOffsets.get(i);
+				if (prevAnchor && textAnchorOffset.textAnchor !== prevAnchor) continue;
+				const result = this.attemptAnchorPlacement(textAnchorOffset, collisionTextBox, width, height, textBoxScale, context.rotateWithMap, context.pitchWithMap, context.textPixelRatio, context.tileID, context.unwrappedTileID, context.collisionGroup, overlapMode, symbolInstance, context.bucket, orientation, context.translationText, context.translationIcon, variableIconBox, context.getElevation, context.simpleProjectionMatrix, symbolInstance.heightOffset, context.heightAnchorGround);
+				if (result) {
+					placedBox = result.placedGlyphBoxes;
+					if (placedBox?.placeable) return {
+						placedBox,
+						shift: result.shift,
+						prevAnchor
+					};
+				}
+			}
+			if (prevAnchor) prevAnchor = null;
+			else overlapMode = context.textOverlapMode;
+		}
+		if (!placedBox && (context.showCollisionBoxes || context.alwaysShowText)) {
+			const placedFakeGlyphBox = this.collisionIndex.placeCollisionBox(textBox, "always", context.textPixelRatio, context.tileID, context.unwrappedTileID, context.pitchWithMap, context.rotateWithMap, context.translationText, context.collisionGroup.predicate, context.getElevation, void 0, context.simpleProjectionMatrix, symbolInstance.heightOffset, context.heightAnchorGround);
+			placedBox = {
+				box: placedFakeGlyphBox.box,
+				offscreen: false,
+				placeable: false,
+				occluded: placedFakeGlyphBox.occluded
+			};
+		}
+		return {
+			placedBox,
+			shift: null,
+			prevAnchor
+		};
+	}
+	/**
+	* When a symbol that can be set vertically was not placed, keeps the orientation it had in the previous
+	* placement so that it fades out the way it was drawn, and returns that orientation.
+	*/
+	_restorePreviousOrientation(bucket, symbolInstance, isPlaced) {
+		let previousOrientation = 1;
+		if (bucket.allowVerticalPlacement && !isPlaced && this.prevPlacement) {
+			const prevPlacedOrientation = this.prevPlacement.placedOrientations[symbolInstance.crossTileID];
+			if (prevPlacedOrientation) {
+				this.placedOrientations[symbolInstance.crossTileID] = prevPlacedOrientation;
+				previousOrientation = prevPlacedOrientation;
+				this.markUsedOrientation(bucket, previousOrientation, symbolInstance);
+			}
+		}
+		return previousOrientation;
 	}
 	storeCollisionData(bucketInstanceId, symbolIndex, collisionArrays, placedGlyphBoxes, placedIconBoxes, placedGlyphCircles) {
 		if (collisionArrays.textBox || collisionArrays.iconBox) {
@@ -45352,7 +45812,7 @@ var Placement = class {
 	}
 	/** Writes the opacity buffers of `styleLayer`, skipping buckets a rewrite would leave as they are. */
 	updateLayerOpacities(styleLayer, tiles) {
-		const seenCrossTileIDs = {};
+		const seenCrossTileIDs = /* @__PURE__ */ new Set();
 		for (const tile of tiles) {
 			const symbolBucket = tile.getBucket(styleLayer);
 			if (!symbolBucket || !tile.latestFeatureIndex || styleLayer.id !== symbolBucket.layerIds[0]) continue;
@@ -45384,8 +45844,8 @@ var Placement = class {
 		const stride = bucket.symbolInstances.bytesPerElement / 4;
 		for (let s = 0; s < length; s++) {
 			const crossTileID = uint32[s * stride + CROSS_TILE_ID_UINT32_OFFSET];
-			const duplicate = Boolean(seenCrossTileIDs[crossTileID]);
-			seenCrossTileIDs[crossTileID] = true;
+			const duplicate = seenCrossTileIDs.has(crossTileID);
+			if (!duplicate) seenCrossTileIDs.add(crossTileID);
 			if (crossTileIDs[s] !== crossTileID || duplicates[s] !== duplicate) {
 				crossTileIDs[s] = crossTileID;
 				duplicates[s] = duplicate;
@@ -45568,7 +46028,18 @@ function packOpacity(opacityState) {
 	const opacityBits = Math.floor(opacityState.opacity * 127);
 	return opacityBits * shift25 + targetBit * shift24 + opacityBits * shift17 + targetBit * shift16 + opacityBits * shift9 + targetBit * shift8 + opacityBits * shift1 + targetBit;
 }
-const PACKED_VISIBLE_OPACITY = 4294967295;
+const PACKED_VISIBLE_OPACITY = 0xffffffff;
+/**
+* The orientations to try a symbol's text in, in order of preference. Text can be set vertically only when the bucket
+* allows it and the symbol has vertical glyphs and a vertical collision box; every writing mode other than vertical
+* sets it horizontally.
+*/
+function getTextOrientations(bucket, symbolInstance, collisionArrays) {
+	if (!(bucket.allowVerticalPlacement && symbolInstance.numVerticalGlyphVertices > 0 && collisionArrays.verticalTextBox)) return HORIZONTAL_ONLY;
+	return bucket.writingModes.map((mode) => mode === 2 ? 2 : 1);
+}
+/** The orientations of text that cannot be set vertically, shared so that placing a symbol allocates nothing for them. */
+const HORIZONTAL_ONLY = [1];
 // src/style/pauseable_placement.ts
 var LayerPlacement = class {
 	constructor(styleLayer) {
@@ -46136,9 +46607,9 @@ var CrossTileSymbolIndex = class {
 	}
 };
 // src/shaders/glsl/_prelude.fragment.glsl.g.ts
-var _prelude_fragment_glsl_g_default = "#ifdef GL_ES\nprecision mediump float;\n#else\n#if !defined(lowp)\n#define lowp\n#endif\n#if !defined(mediump)\n#define mediump\n#endif\n#if !defined(highp)\n#define highp\n#endif\n#endif\nout highp vec4 fragColor;layout(std140) uniform ProjectionUBO {highp mat4 u_projection_matrix;highp mat4 u_projection_fallback_matrix;highp vec4 u_projection_tile_mercator_coords;highp vec4 u_projection_clipping_plane;highp float u_projection_transition;highp int u_projection_clip_antimeridian;};layout(std140) uniform FrameUBO {highp vec2 u_units_to_pixels;highp vec2 u_world_size;highp float u_camera_to_center_distance;highp float u_symbol_fade_change;highp float u_aspect_ratio;highp float u_device_pixel_ratio;highp vec2 u_viewport_size;highp vec2 u_pixel_extrude_scale;highp float u_pitch;};\n#ifdef LINE_ELEVATION\nvoid elevated_line_fragment(highp vec2 tile_pos,float lift) {if (tile_pos.x < 0.0 || tile_pos.y < 0.0 || tile_pos.x > 8192.0 || tile_pos.y > 8192.0) discard;\n#ifdef LINE_UNDERGROUND\nif (lift >=0.0) discard;\n#endif\n#ifdef LINE_OVERGROUND\nif (lift < 0.0) discard;\n#endif\n}\n#endif\n#ifdef TILE_FADE\nuniform lowp float u_tile_fade;\n#endif\n#ifdef HORIZON_FADE\nfloat horizon_fade(highp float depth) {return 1.0-smoothstep(2.5,5.0,depth/u_camera_to_center_distance);}\n#endif\n#ifdef SHADING\nuniform highp sampler2DShadow u_sun_shadow;uniform highp vec3 u_sun;uniform sampler2D u_occlusion;uniform highp vec2 u_occlusion_strength;uniform highp vec2 u_ground;uniform vec3 u_shadow_color;uniform sampler2D u_lights;uniform highp vec4 u_light;float sun_shade(highp vec4 p,highp float slope) {if (u_sun.x <=0.0) return 0.0;highp vec3 c=p.xyz/p.w*0.5+0.5;highp vec2 edge=abs(c.xy*2.0-1.0);highp float reach=max(edge.x,edge.y);if (reach >=1.0 || c.z > 1.0) return 0.0;highp float z=c.z-(0.5+1.0*min(slope,4.0))*u_sun.z;highp float d=0.75*u_sun.y;float lit=textureLod(u_sun_shadow,vec3(c.xy+vec2(-d,-d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(d,-d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(-d,d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(d,d),z),0.0);return u_sun.x*(1.0-lit*0.25)*(1.0-smoothstep(0.9,1.0,reach));}float ground_occlusion(highp vec2 uv) {if (u_occlusion_strength.x <=0.0) return 0.0;highp vec2 edge=abs(uv*2.0-1.0);highp float reach=max(edge.x,edge.y);if (reach >=1.0) return 0.0;float near=clamp(2.0*textureLod(u_occlusion,uv,0.0).r,0.0,1.0);return u_occlusion_strength.x*pow(near,u_occlusion_strength.y)*(1.0-smoothstep(0.8,1.0,reach));}vec4 lamp_light(highp vec2 uv) {if (u_light.a <=0.0) return vec4(0.0);highp vec2 edge=abs(uv*2.0-1.0);highp float reach=max(edge.x,edge.y);if (reach >=1.0) return vec4(0.0);vec4 light=textureLod(u_lights,uv,0.0)*(1.0-smoothstep(0.8,1.0,reach));return vec4(light.rgb*u_light.a,light.a);}vec4 ground_shade(highp vec4 sun,highp vec2 occlusion_uv) {float shadow=sun_shade(sun,u_ground.x)*u_ground.y;float occlusion=ground_occlusion(occlusion_uv);vec4 light=lamp_light(occlusion_uv);return vec4(u_shadow_color*shadow+light.rgb+u_light.rgb*light.a,1.0-(1.0-shadow)*(1.0-occlusion));}\n#endif";
+var _prelude_fragment_glsl_g_default = "#ifdef GL_ES\nprecision mediump float;\n#else\n#if !defined(lowp)\n#define lowp\n#endif\n#if !defined(mediump)\n#define mediump\n#endif\n#if !defined(highp)\n#define highp\n#endif\n#endif\nout highp vec4 fragColor;layout(std140) uniform ProjectionUBO {highp mat4 u_projection_matrix;highp mat4 u_projection_fallback_matrix;highp vec4 u_projection_tile_mercator_coords;highp vec4 u_projection_clipping_plane;highp vec4 u_projection_tile_origin;highp vec2 u_projection_tile_origin_position;highp float u_projection_transition;highp int u_projection_clip_antimeridian;};layout(std140) uniform FrameUBO {highp vec2 u_units_to_pixels;highp vec2 u_world_size;highp float u_camera_to_center_distance;highp float u_symbol_fade_change;highp float u_aspect_ratio;highp float u_device_pixel_ratio;highp vec2 u_viewport_size;highp vec2 u_pixel_extrude_scale;highp float u_pitch;};\n#ifdef LINE_ELEVATION\nvoid elevated_line_fragment(highp vec2 tile_pos,float lift) {if (tile_pos.x < 0.0 || tile_pos.y < 0.0 || tile_pos.x > 8192.0 || tile_pos.y > 8192.0) discard;\n#ifdef LINE_UNDERGROUND\nif (lift >=0.0) discard;\n#endif\n#ifdef LINE_OVERGROUND\nif (lift < 0.0) discard;\n#endif\n}\n#endif\n#ifdef TILE_FADE\nuniform lowp float u_tile_fade;\n#endif\n#ifdef HORIZON_FADE\nfloat horizon_fade(highp float depth) {return 1.0-smoothstep(2.5,5.0,depth/u_camera_to_center_distance);}\n#endif\n#ifdef SHADING\nuniform highp sampler2DShadow u_sun_shadow;uniform highp vec3 u_sun;uniform sampler2D u_occlusion;uniform highp vec2 u_occlusion_strength;uniform highp vec2 u_ground;uniform vec3 u_shadow_color;uniform sampler2D u_lights;uniform highp vec4 u_light;float sun_shade(highp vec4 p,highp float slope) {if (u_sun.x <=0.0) return 0.0;highp vec3 c=p.xyz/p.w*0.5+0.5;highp vec2 edge=abs(c.xy*2.0-1.0);highp float reach=max(edge.x,edge.y);if (reach >=1.0 || c.z > 1.0) return 0.0;highp float z=c.z-(0.5+1.0*min(slope,4.0))*u_sun.z;highp float d=0.75*u_sun.y;float lit=textureLod(u_sun_shadow,vec3(c.xy+vec2(-d,-d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(d,-d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(-d,d),z),0.0)+textureLod(u_sun_shadow,vec3(c.xy+vec2(d,d),z),0.0);return u_sun.x*(1.0-lit*0.25)*(1.0-smoothstep(0.9,1.0,reach));}float ground_occlusion(highp vec2 uv) {if (u_occlusion_strength.x <=0.0) return 0.0;highp vec2 edge=abs(uv*2.0-1.0);highp float reach=max(edge.x,edge.y);if (reach >=1.0) return 0.0;float near=clamp(2.0*textureLod(u_occlusion,uv,0.0).r,0.0,1.0);return u_occlusion_strength.x*pow(near,u_occlusion_strength.y)*(1.0-smoothstep(0.8,1.0,reach));}vec4 lamp_light(highp vec2 uv) {if (u_light.a <=0.0) return vec4(0.0);highp vec2 edge=abs(uv*2.0-1.0);highp float reach=max(edge.x,edge.y);if (reach >=1.0) return vec4(0.0);vec4 light=textureLod(u_lights,uv,0.0)*(1.0-smoothstep(0.8,1.0,reach));return vec4(light.rgb*u_light.a,light.a);}vec4 ground_shade(highp vec4 sun,highp vec2 occlusion_uv) {float shadow=sun_shade(sun,u_ground.x)*u_ground.y;float occlusion=ground_occlusion(occlusion_uv);vec4 light=lamp_light(occlusion_uv);return vec4(u_shadow_color*shadow+light.rgb+u_light.rgb*light.a,1.0-(1.0-shadow)*(1.0-occlusion));}\n#endif";
 // src/shaders/glsl/_prelude.vertex.glsl.g.ts
-var _prelude_vertex_glsl_g_default = "#ifdef GL_ES\nprecision highp float;\n#else\n#if !defined(lowp)\n#define lowp\n#endif\n#if !defined(mediump)\n#define mediump\n#endif\n#if !defined(highp)\n#define highp\n#endif\n#endif\nvec2 unpack_float(const float packedValue) {int packedIntValue=int(packedValue);int v0=packedIntValue/256;return vec2(v0,packedIntValue-v0*256);}vec2 unpack_opacity(const uint packedOpacity) {return vec2(float(packedOpacity >> 1u)/127.0,float(packedOpacity & 1u));}vec4 decode_color(const vec2 encodedColor) {return vec4(unpack_float(encodedColor[0])/255.0,unpack_float(encodedColor[1])/255.0\n);}float unpack_mix_vec2(const vec2 packedValue,const float t) {return mix(packedValue[0],packedValue[1],t);}vec4 unpack_mix_color(const vec4 packedColors,const float t) {vec4 minColor=decode_color(vec2(packedColors[0],packedColors[1]));vec4 maxColor=decode_color(vec2(packedColors[2],packedColors[3]));return mix(minColor,maxColor,t);}vec2 get_pattern_pos(const vec2 pixel_coord_upper,const vec2 pixel_coord_lower,const vec2 pattern_size,const float tile_units_to_pixels,const vec2 pos) {vec2 offset=mod(mod(mod(pixel_coord_upper,pattern_size)*256.0,pattern_size)*256.0+pixel_coord_lower,pattern_size);return (tile_units_to_pixels*pos+offset)/pattern_size;}mat3 rotationMatrixFromAxisAngle(vec3 u,float angle) {float c=cos(angle);float s=sin(angle);float c2=1.0-c;return mat3(u.x*u.x*c2+      c,u.x*u.y*c2-u.z*s,u.x*u.z*c2+u.y*s,u.y*u.x*c2+u.z*s,u.y*u.y*c2+    c,u.y*u.z*c2-u.x*s,u.z*u.x*c2-u.y*s,u.z*u.y*c2+u.x*s,u.z*u.z*c2+    c\n);}\n#ifdef TERRAIN3D\nuniform sampler2D u_terrain;uniform highp sampler2D u_depth;layout(std140) uniform TerrainUBO {highp mat4 u_terrain_matrix;highp vec4 u_terrain_unpack;highp float u_terrain_dim;highp float u_terrain_exaggeration;};\n#endif\nconst highp vec4 bitSh=vec4(256.*256.*256.,256.*256.,256.,1.);const highp vec4 bitShifts=vec4(1.)/bitSh;highp float unpack(highp vec4 color) {return dot(color,bitShifts);}highp float depthOpacity(vec3 frag) {\n#ifdef TERRAIN3D\nhighp float d=unpack(texture(u_depth,frag.xy*0.5+0.5))+0.0001-frag.z;return 1.0-max(0.0,min(1.0,-d*500.0));\n#else\nreturn 1.0;\n#endif\n}float calculate_visibility(vec4 pos) {\n#ifdef TERRAIN3D\nvec3 frag=pos.xyz/pos.w;highp float d=depthOpacity(frag);if (d > 0.95) return 1.0;return (d+depthOpacity(frag+vec3(0.0,0.01,0.0)))/2.0;\n#else\nreturn 1.0;\n#endif\n}float ele(ivec2 pos) {\n#ifdef TERRAIN3D\nvec4 rgb=(texelFetch(u_terrain,pos,0)*255.0)*u_terrain_unpack;return rgb.r+rgb.g+rgb.b-u_terrain_unpack.a;\n#else\nreturn 0.0;\n#endif\n}float get_elevation(vec2 pos) {\n#ifdef TERRAIN3D\n#ifdef GLOBE\nif ((pos.y <-32767.5) || (pos.y > 32766.5)) {return 0.0;}\n#endif\nvec2 coord=(u_terrain_matrix*vec4(pos,0.0,1.0)).xy*u_terrain_dim+1.5;vec2 f=fract(coord);ivec2 c=ivec2(floor(coord));ivec2 hi=textureSize(u_terrain,0)-1;float tl=ele(clamp(c,ivec2(0),hi));float tr=ele(clamp(c+ivec2(1,0),ivec2(0),hi));float bl=ele(clamp(c+ivec2(0,1),ivec2(0),hi));float br=ele(clamp(c+ivec2(1,1),ivec2(0),hi));float elevation=mix(mix(tl,tr,f.x),mix(bl,br,f.x),f.y);return elevation*u_terrain_exaggeration;\n#else\nreturn 0.0;\n#endif\n}const float PI=3.141592653589793;\n#define PROJECTION_UBO\nlayout(std140) uniform ProjectionUBO {highp mat4 u_projection_matrix;highp mat4 u_projection_fallback_matrix;highp vec4 u_projection_tile_mercator_coords;highp vec4 u_projection_clipping_plane;highp float u_projection_transition;highp int u_projection_clip_antimeridian;};layout(std140) uniform FrameUBO {highp vec2 u_units_to_pixels;highp vec2 u_world_size;highp float u_camera_to_center_distance;highp float u_symbol_fade_change;highp float u_aspect_ratio;highp float u_device_pixel_ratio;highp vec2 u_viewport_size;highp vec2 u_pixel_extrude_scale;highp float u_pitch;};\n#ifdef HORIZON_FADE\nfloat horizon_fade(highp float depth) {return 1.0-smoothstep(2.5,5.0,depth/u_camera_to_center_distance);}\n#endif";
+var _prelude_vertex_glsl_g_default = "#ifdef GL_ES\nprecision highp float;\n#else\n#if !defined(lowp)\n#define lowp\n#endif\n#if !defined(mediump)\n#define mediump\n#endif\n#if !defined(highp)\n#define highp\n#endif\n#endif\nvec2 unpack_float(const float packedValue) {int packedIntValue=int(packedValue);int v0=packedIntValue/256;return vec2(v0,packedIntValue-v0*256);}vec2 unpack_opacity(const uint packedOpacity) {return vec2(float(packedOpacity >> 1u)/127.0,float(packedOpacity & 1u));}vec4 decode_color(const vec2 encodedColor) {return vec4(unpack_float(encodedColor[0])/255.0,unpack_float(encodedColor[1])/255.0\n);}float unpack_mix_vec2(const vec2 packedValue,const float t) {return mix(packedValue[0],packedValue[1],t);}vec4 unpack_mix_color(const vec4 packedColors,const float t) {vec4 minColor=decode_color(vec2(packedColors[0],packedColors[1]));vec4 maxColor=decode_color(vec2(packedColors[2],packedColors[3]));return mix(minColor,maxColor,t);}vec2 get_pattern_pos(const vec2 pixel_coord_upper,const vec2 pixel_coord_lower,const vec2 pattern_size,const float tile_units_to_pixels,const vec2 pos) {vec2 offset=mod(mod(mod(pixel_coord_upper,pattern_size)*256.0,pattern_size)*256.0+pixel_coord_lower,pattern_size);return (tile_units_to_pixels*pos+offset)/pattern_size;}mat3 rotationMatrixFromAxisAngle(vec3 u,float angle) {float c=cos(angle);float s=sin(angle);float c2=1.0-c;return mat3(u.x*u.x*c2+      c,u.x*u.y*c2-u.z*s,u.x*u.z*c2+u.y*s,u.y*u.x*c2+u.z*s,u.y*u.y*c2+    c,u.y*u.z*c2-u.x*s,u.z*u.x*c2-u.y*s,u.z*u.y*c2+u.x*s,u.z*u.z*c2+    c\n);}\n#ifdef TERRAIN3D\nuniform sampler2D u_terrain;uniform highp sampler2D u_depth;layout(std140) uniform TerrainUBO {highp mat4 u_terrain_matrix;highp vec4 u_terrain_unpack;highp float u_terrain_dim;highp float u_terrain_exaggeration;};\n#endif\nconst highp vec4 bitSh=vec4(256.*256.*256.,256.*256.,256.,1.);const highp vec4 bitShifts=vec4(1.)/bitSh;highp float unpack(highp vec4 color) {return dot(color,bitShifts);}highp float depthOpacity(vec3 frag) {\n#ifdef TERRAIN3D\nhighp float d=unpack(texture(u_depth,frag.xy*0.5+0.5))+0.0001-frag.z;return 1.0-max(0.0,min(1.0,-d*500.0));\n#else\nreturn 1.0;\n#endif\n}float calculate_visibility(vec4 pos) {\n#ifdef TERRAIN3D\nvec3 frag=pos.xyz/pos.w;highp float d=depthOpacity(frag);if (d > 0.95) return 1.0;return (d+depthOpacity(frag+vec3(0.0,0.01,0.0)))/2.0;\n#else\nreturn 1.0;\n#endif\n}float ele(ivec2 pos) {\n#ifdef TERRAIN3D\nvec4 rgb=(texelFetch(u_terrain,pos,0)*255.0)*u_terrain_unpack;return rgb.r+rgb.g+rgb.b-u_terrain_unpack.a;\n#else\nreturn 0.0;\n#endif\n}float get_elevation(vec2 pos) {\n#ifdef TERRAIN3D\n#ifdef GLOBE\nif ((pos.y <-32767.5) || (pos.y > 32766.5)) {return 0.0;}\n#endif\nvec2 coord=(u_terrain_matrix*vec4(pos,0.0,1.0)).xy*u_terrain_dim+1.5;vec2 f=fract(coord);ivec2 c=ivec2(floor(coord));ivec2 hi=textureSize(u_terrain,0)-1;float tl=ele(clamp(c,ivec2(0),hi));float tr=ele(clamp(c+ivec2(1,0),ivec2(0),hi));float bl=ele(clamp(c+ivec2(0,1),ivec2(0),hi));float br=ele(clamp(c+ivec2(1,1),ivec2(0),hi));float elevation=mix(mix(tl,tr,f.x),mix(bl,br,f.x),f.y);return elevation*u_terrain_exaggeration;\n#else\nreturn 0.0;\n#endif\n}const float PI=3.141592653589793;\n#define PROJECTION_UBO\nlayout(std140) uniform ProjectionUBO {highp mat4 u_projection_matrix;highp mat4 u_projection_fallback_matrix;highp vec4 u_projection_tile_mercator_coords;highp vec4 u_projection_clipping_plane;highp vec4 u_projection_tile_origin;highp vec2 u_projection_tile_origin_position;highp float u_projection_transition;highp int u_projection_clip_antimeridian;};layout(std140) uniform FrameUBO {highp vec2 u_units_to_pixels;highp vec2 u_world_size;highp float u_camera_to_center_distance;highp float u_symbol_fade_change;highp float u_aspect_ratio;highp float u_device_pixel_ratio;highp vec2 u_viewport_size;highp vec2 u_pixel_extrude_scale;highp float u_pitch;};\n#ifdef HORIZON_FADE\nfloat horizon_fade(highp float depth) {return 1.0-smoothstep(2.5,5.0,depth/u_camera_to_center_distance);}\n#endif";
 // src/shaders/glsl/background.fragment.glsl.g.ts
 var background_fragment_glsl_g_default = "uniform vec4 u_color;uniform float u_opacity;void main() {fragColor=u_color*u_opacity;\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}";
 // src/shaders/glsl/background.vertex.glsl.g.ts
@@ -46150,7 +46621,7 @@ var background_pattern_vertex_glsl_g_default = "uniform vec2 u_pattern_size_a;un
 // src/shaders/glsl/circle.fragment.glsl.g.ts
 var circle_fragment_glsl_g_default = "in vec3 v_data;in float v_visibility;\n#pragma maplibre: define highp vec4 color\n#pragma maplibre: define mediump float radius\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define highp vec4 stroke_color\n#pragma maplibre: define mediump float stroke_width\n#pragma maplibre: define lowp float stroke_opacity\nvoid main() {\n#pragma maplibre: initialize highp vec4 color\n#pragma maplibre: initialize mediump float radius\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize highp vec4 stroke_color\n#pragma maplibre: initialize mediump float stroke_width\n#pragma maplibre: initialize lowp float stroke_opacity\nvec2 extrude=v_data.xy;float extrude_length=length(extrude);float antialiased_blur=v_data.z;float opacity_t=smoothstep(0.0,antialiased_blur,extrude_length-1.0);float color_t=stroke_width < 0.01 ? 0.0 : smoothstep(antialiased_blur,0.0,extrude_length-radius/(radius+stroke_width));fragColor=v_visibility*opacity_t*mix(color*opacity,stroke_color*stroke_opacity,color_t);const float epsilon=0.5/255.0;if (fragColor.r < epsilon && fragColor.g < epsilon && fragColor.b < epsilon && fragColor.a < epsilon) {discard;}\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}";
 // src/shaders/glsl/circle.vertex.glsl.g.ts
-var circle_vertex_glsl_g_default = "uniform bool u_scale_with_map;uniform bool u_pitch_with_map;uniform vec2 u_extrude_scale;uniform highp float u_globe_extrude_scale;uniform vec2 u_translate;layout(location=0) in ivec2 a_pos;out vec3 v_data;out float v_visibility;\n#pragma maplibre: define highp vec4 color\n#pragma maplibre: define mediump float radius\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define highp vec4 stroke_color\n#pragma maplibre: define mediump float stroke_width\n#pragma maplibre: define lowp float stroke_opacity\nvoid main(void) {\n#pragma maplibre: initialize highp vec4 color\n#pragma maplibre: initialize mediump float radius\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize highp vec4 stroke_color\n#pragma maplibre: initialize mediump float stroke_width\n#pragma maplibre: initialize lowp float stroke_opacity\nivec2 pos_raw=a_pos+32768;vec2 extrude=vec2(pos_raw & 7)/7.0*2.0-1.0;vec2 circle_center=vec2(pos_raw >> 3)+u_translate;float ele=get_elevation(circle_center);vec4 projected_center=projectTileWithElevation(circle_center,ele);v_visibility=calculate_visibility(projected_center);\n#ifdef HORIZON_FADE\nv_visibility*=horizon_fade(projected_center.w);\n#endif\nif (u_pitch_with_map) {\n#ifdef GLOBE\nvec3 center_vector=projectToSphere(circle_center);\n#endif\nfloat angle_scale=u_globe_extrude_scale;vec2 corner_position=circle_center;if (u_scale_with_map) {angle_scale*=(radius+stroke_width);corner_position+=extrude*u_extrude_scale*(radius+stroke_width);} else {\n#ifdef GLOBE\nvec4 projected_center=interpolateProjection(circle_center,center_vector,ele);\n#else\nvec4 projected_center=projectTileWithElevation(circle_center,ele);\n#endif\ncorner_position+=extrude*u_extrude_scale*(radius+stroke_width)*(projected_center.w/u_camera_to_center_distance);angle_scale*=(radius+stroke_width)*(projected_center.w/u_camera_to_center_distance);}\n#ifdef GLOBE\nvec2 angles=extrude*angle_scale;vec3 corner_vector=globeRotateVector(center_vector,angles);gl_Position=interpolateProjection(corner_position,corner_vector,ele);\n#else\ngl_Position=projectTileWithElevation(corner_position,ele);\n#endif\n} else {gl_Position=projectTileWithElevation(circle_center,ele);if (gl_Position.z/gl_Position.w > 1.0) {gl_Position.xy=vec2(10000.0);}if (u_scale_with_map) {gl_Position.xy+=extrude*(radius+stroke_width)*u_extrude_scale*u_camera_to_center_distance;} else {gl_Position.xy+=extrude*(radius+stroke_width)*u_extrude_scale*gl_Position.w;}}float antialiasblur=-max(1.0/u_device_pixel_ratio/(radius+stroke_width),blur);v_data=vec3(extrude.x,extrude.y,antialiasblur);}";
+var circle_vertex_glsl_g_default = "uniform bool u_scale_with_map;uniform bool u_pitch_with_map;uniform vec2 u_extrude_scale;uniform highp float u_globe_extrude_scale;uniform vec2 u_translate;layout(location=0) in ivec2 a_pos;out vec3 v_data;out float v_visibility;\n#pragma maplibre: define highp vec4 color\n#pragma maplibre: define mediump float radius\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define highp vec4 stroke_color\n#pragma maplibre: define mediump float stroke_width\n#pragma maplibre: define lowp float stroke_opacity\nvoid main(void) {\n#pragma maplibre: initialize highp vec4 color\n#pragma maplibre: initialize mediump float radius\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize highp vec4 stroke_color\n#pragma maplibre: initialize mediump float stroke_width\n#pragma maplibre: initialize lowp float stroke_opacity\nivec2 pos_raw=a_pos+32768;vec2 extrude=vec2(pos_raw & 7)/7.0*2.0-1.0;vec2 circle_center=vec2(pos_raw >> 3)+u_translate;float ele=get_elevation(circle_center);vec4 projected_center=projectTileWithElevation(circle_center,ele);v_visibility=calculate_visibility(projected_center);\n#ifdef HORIZON_FADE\nv_visibility*=horizon_fade(projected_center.w);\n#endif\nif (u_pitch_with_map) {\n#ifdef GLOBE\nvec3 center_vector=projectToSphereOffset(circle_center);\n#endif\nfloat angle_scale=u_globe_extrude_scale;vec2 corner_position=circle_center;if (u_scale_with_map) {angle_scale*=(radius+stroke_width);corner_position+=extrude*u_extrude_scale*(radius+stroke_width);} else {\n#ifdef GLOBE\nvec4 projected_center=interpolateProjection(circle_center,center_vector,ele);\n#else\nvec4 projected_center=projectTileWithElevation(circle_center,ele);\n#endif\ncorner_position+=extrude*u_extrude_scale*(radius+stroke_width)*(projected_center.w/u_camera_to_center_distance);angle_scale*=(radius+stroke_width)*(projected_center.w/u_camera_to_center_distance);}\n#ifdef GLOBE\nvec2 angles=extrude*angle_scale;vec3 corner_vector=globeRotateVectorOffset(circle_center,center_vector,angles);gl_Position=interpolateProjection(corner_position,corner_vector,ele);\n#else\ngl_Position=projectTileWithElevation(corner_position,ele);\n#endif\n} else {gl_Position=projectTileWithElevation(circle_center,ele);if (gl_Position.z/gl_Position.w > 1.0) {gl_Position.xy=vec2(10000.0);}if (u_scale_with_map) {gl_Position.xy+=extrude*(radius+stroke_width)*u_extrude_scale*u_camera_to_center_distance;} else {gl_Position.xy+=extrude*(radius+stroke_width)*u_extrude_scale*gl_Position.w;}}float antialiasblur=-max(1.0/u_device_pixel_ratio/(radius+stroke_width),blur);v_data=vec3(extrude.x,extrude.y,antialiasblur);}";
 // src/shaders/glsl/clipping_mask.fragment.glsl.g.ts
 var clipping_mask_fragment_glsl_g_default = "void main() {fragColor=vec4(1.0);}";
 // src/shaders/glsl/clipping_mask.vertex.glsl.g.ts
@@ -46158,7 +46629,7 @@ var clipping_mask_vertex_glsl_g_default = "layout(location=0) in vec2 a_pos;void
 // src/shaders/glsl/heatmap.fragment.glsl.g.ts
 var heatmap_fragment_glsl_g_default = "uniform highp float u_intensity;in vec2 v_extrude;\n#pragma maplibre: define highp float weight\n#define GAUSS_COEF 0.3989422804014327\nvoid main() {\n#pragma maplibre: initialize highp float weight\nfloat d=-0.5*3.0*3.0*dot(v_extrude,v_extrude);float val=weight*u_intensity*GAUSS_COEF*exp(d);fragColor=vec4(val,1.0,1.0,1.0);\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}";
 // src/shaders/glsl/heatmap.vertex.glsl.g.ts
-var heatmap_vertex_glsl_g_default = "uniform float u_extrude_scale;uniform float u_opacity;uniform float u_intensity;uniform highp float u_globe_extrude_scale;layout(location=0) in ivec2 a_pos;out vec2 v_extrude;\n#pragma maplibre: define highp float weight\n#pragma maplibre: define mediump float radius\nconst highp float ZERO=1.0/255.0/16.0;\n#define GAUSS_COEF 0.3989422804014327\nvoid main(void) {\n#pragma maplibre: initialize highp float weight\n#pragma maplibre: initialize mediump float radius\nivec2 pos_raw=a_pos+32768;vec2 unscaled_extrude=vec2(pos_raw & 7)/7.0*2.0-1.0;float S=sqrt(-2.0*log(ZERO/weight/u_intensity/GAUSS_COEF))/3.0;v_extrude=S*unscaled_extrude;vec2 extrude=v_extrude*radius*u_extrude_scale;vec2 circle_center=vec2(pos_raw >> 3);\n#ifdef GLOBE\nvec2 angles=v_extrude*radius*u_globe_extrude_scale;vec3 center_vector=projectToSphere(circle_center);vec3 corner_vector=globeRotateVector(center_vector,angles);gl_Position=interpolateProjection(circle_center+extrude,corner_vector,0.0);\n#else\ngl_Position=projectTileFor3D(circle_center+extrude,get_elevation(circle_center));\n#endif\n}";
+var heatmap_vertex_glsl_g_default = "uniform float u_extrude_scale;uniform float u_opacity;uniform float u_intensity;uniform highp float u_globe_extrude_scale;layout(location=0) in ivec2 a_pos;out vec2 v_extrude;\n#pragma maplibre: define highp float weight\n#pragma maplibre: define mediump float radius\nconst highp float ZERO=1.0/255.0/16.0;\n#define GAUSS_COEF 0.3989422804014327\nvoid main(void) {\n#pragma maplibre: initialize highp float weight\n#pragma maplibre: initialize mediump float radius\nivec2 pos_raw=a_pos+32768;vec2 unscaled_extrude=vec2(pos_raw & 7)/7.0*2.0-1.0;float S=sqrt(-2.0*log(ZERO/weight/u_intensity/GAUSS_COEF))/3.0;v_extrude=S*unscaled_extrude;vec2 extrude=v_extrude*radius*u_extrude_scale;vec2 circle_center=vec2(pos_raw >> 3);\n#ifdef GLOBE\nvec2 angles=v_extrude*radius*u_globe_extrude_scale;vec3 center_vector=projectToSphereOffset(circle_center);vec3 corner_vector=globeRotateVectorOffset(circle_center,center_vector,angles);gl_Position=interpolateProjection(circle_center+extrude,corner_vector,0.0);\n#else\ngl_Position=projectTileFor3D(circle_center+extrude,get_elevation(circle_center));\n#endif\n}";
 // src/shaders/glsl/heatmap_texture.fragment.glsl.g.ts
 var heatmap_texture_fragment_glsl_g_default = "uniform sampler2D u_image;uniform sampler2D u_color_ramp;uniform float u_opacity;in vec2 v_pos;void main() {float t=texture(u_image,v_pos).r;vec4 color=texture(u_color_ramp,vec2(t,0.5));fragColor=color*u_opacity;\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(0.0);\n#endif\n}";
 // src/shaders/glsl/heatmap_texture.vertex.glsl.g.ts
@@ -46200,11 +46671,11 @@ var fill_pattern_vertex_glsl_g_default = "uniform vec2 u_pixel_coord_upper;unifo
 // src/shaders/glsl/fill_extrusion.fragment.glsl.g.ts
 var fill_extrusion_fragment_glsl_g_default = "in vec4 v_color;\n#ifdef SHADING\nuniform float u_shade_edge;in vec3 v_ambient;in float v_facing;in highp vec4 v_sun;in float v_dark;in vec3 v_edge;in highp vec3 v_wall;in highp vec2 v_facade;in highp vec2 v_light;uniform float u_light_height;\n#endif\nvoid main() {fragColor=v_color;\n#ifdef SHADING\nfloat edge=v_edge.x < 0.0 ? 0.0 : v_edge.z*(1.0-smoothstep(0.0,v_edge.y,1.0-v_edge.x));float facing=clamp(v_facing,0.0,1.0);float shade=facing > 0.0 ? sun_shade(v_sun,sqrt(1.0-facing*facing)/max(facing,0.2)) : 0.0;vec3 color=mix(v_color.rgb,v_ambient*0.9,shade)*(1.0-v_dark);\n#ifdef SHADING_WALL\nif (v_wall.z > 0.0) color=shade_wall(color,v_wall,v_facade.y,v_facade.x);\n#endif\ncolor*=1.0-u_shade_edge*edge;color+=(color+0.12)*lamp_light(v_light).rgb*exp(-max(v_wall.y,0.0)/u_light_height);fragColor=vec4(color*v_color.a,v_color.a);\n#endif\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}";
 // src/shaders/glsl/fill_extrusion.vertex.glsl.g.ts
-var fill_extrusion_vertex_glsl_g_default = "uniform vec3 u_lightcolor;uniform lowp vec3 u_lightpos;uniform lowp vec3 u_lightpos_globe;uniform lowp float u_lightintensity;uniform float u_vertical_gradient;uniform lowp float u_opacity;uniform vec2 u_fill_translate;layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in float a_anchor_elevation;\n#endif\nout vec4 v_color;\n#ifdef SHADING\nuniform float u_shade_strength;uniform float u_shade_band;uniform float u_shade_edge_width;uniform vec3 u_sun_tint;uniform vec3 u_sky_tint;uniform float u_wall_rise;uniform float u_roof_lift;uniform mat4 u_sun_matrix;uniform mat4 u_occlusion_matrix;uniform float u_unit_metres;uniform vec2 u_wall_origin;out vec3 v_ambient;out float v_facing;out vec4 v_sun;out float v_dark;out vec3 v_edge;out vec3 v_wall;out vec2 v_facade;out vec2 v_light;float shade_hash(vec2 p) {vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}\n#endif\n#pragma maplibre: define highp float base\n#pragma maplibre: define highp float height\n#pragma maplibre: define highp vec4 color\n#ifdef SHADING\n#pragma maplibre: define highp vec4 roof_color\n#pragma maplibre: define highp float facade_style\n#pragma maplibre: define highp float facade_seed\n#endif\nvoid main() {\n#pragma maplibre: initialize highp float base\n#pragma maplibre: initialize highp float height\n#pragma maplibre: initialize highp vec4 color\n#ifdef SHADING\n#pragma maplibre: initialize highp vec4 roof_color\n#pragma maplibre: initialize highp float facade_style\n#pragma maplibre: initialize highp float facade_seed\n#endif\nif (height < 0.0) {gl_Position=vec4(2.0,2.0,2.0,1.0);return;}vec3 normal=vec3(a_normal_ed.xyz);float gradient_base=max(0.0,base);float gradient_height=max(0.0,height);\n#ifdef TERRAIN3D\nfloat height_terrain3d_offset=a_anchor_elevation;float base_terrain3d_offset=height_terrain3d_offset-(base > 0.0 ? 0.0 : 10.0);\n#else\nfloat height_terrain3d_offset=0.0;float base_terrain3d_offset=0.0;\n#endif\nbase=max(0.0,base)+base_terrain3d_offset;height=max(0.0,height)+height_terrain3d_offset;float t=float(a_normal_ed.x & 1);float elevation=t > 0.0 ? height : base;vec2 posInTile=a_pos+u_fill_translate;\n#ifdef GLOBE\nvec3 spherePos=projectToSphere(posInTile,a_pos);gl_Position=interpolateProjectionFor3D(posInTile,spherePos,elevation);\n#else\ngl_Position=u_projection_matrix*vec4(posInTile,elevation,1.0);\n#endif\n#ifdef SHADING\nbool wall=a_normal_ed.z < 8192;float wall_ratio=wall ? t :-1.0;vec2 tangent=normalize(vec2(-normal.y,normal.x)+1e-6);v_wall=vec3(dot(a_pos+u_wall_origin,tangent)*u_unit_metres,t > 0.0 ? gradient_height : gradient_base,wall ? gradient_height : 0.0);v_facade=vec2(facade_style,shade_hash(vec2(mod(facade_seed,256.0),floor(facade_seed/256.0))+0.5));float dark=(wall_ratio < 0.0 || wall_ratio >=u_shade_band) ? 0.0 : (exp(-3.0*wall_ratio/u_shade_band)-0.0498)*1.0524;v_dark=u_shade_strength*dark;vec4 top=gl_Position+(height-elevation)*u_projection_matrix[2];vec4 foot=gl_Position+(base-elevation)*u_projection_matrix[2];float wall_px=(top.w > 0.001 && foot.w > 0.001) ? length((top.xy/top.w-foot.xy/foot.w)*0.5*u_viewport_size*u_device_pixel_ratio) : 0.0;v_edge=vec3(wall_ratio,min(u_shade_edge_width/max(wall_px,1.0),0.25),smoothstep(1.5,4.0,wall_px/max(u_shade_edge_width,0.001)));vec4 surface=(!wall && roof_color.a > 0.0) ? roof_color : color;float luminance=dot(surface.rgb,vec3(0.2126,0.7152,0.0722));surface.rgb+=vec3(0.03);vec3 n=normal/16384.0;float directional=clamp(dot(n,u_lightpos),0.0,1.0);directional=mix(1.0-u_lightintensity,max(1.0-luminance+u_lightintensity,1.0),directional);v_facing=dot(n,normalize(u_lightpos));float rise=wall ? mix(1.0-u_wall_rise,1.0,sqrt(wall_ratio)) : 1.0+u_roof_lift;v_color=vec4(clamp(surface.rgb*directional*mix(u_sky_tint,u_sun_tint,clamp(v_facing,0.0,1.0))*rise,0.0,1.0),u_opacity);v_ambient=clamp(surface.rgb*(1.0-u_lightintensity)*u_sky_tint*rise,0.0,1.0);v_sun=u_sun_matrix*vec4(posInTile,elevation,1.0);v_light=(u_occlusion_matrix*vec4(posInTile,0.0,1.0)).xy;\n#else\nfloat colorvalue=color.r*0.2126+color.g*0.7152+color.b*0.0722;v_color=vec4(0.0,0.0,0.0,1.0);vec4 ambientlight=vec4(0.03,0.03,0.03,1.0);color+=ambientlight;vec3 normalForLighting=normal/16384.0;float directional=clamp(dot(normalForLighting,u_lightpos),0.0,1.0);\n#ifdef GLOBE\nmat3 rotMatrix=globeGetRotationMatrix(spherePos);normalForLighting=rotMatrix*normalForLighting;directional=mix(directional,clamp(dot(normalForLighting,u_lightpos_globe),0.0,1.0),u_projection_transition);\n#endif\ndirectional=mix((1.0-u_lightintensity),max((1.0-colorvalue+u_lightintensity),1.0),directional);if (normal.z==0.0) {directional*=((1.0-u_vertical_gradient)+(u_vertical_gradient*clamp((t+gradient_base)*pow(gradient_height/150.0,0.5),mix(0.7,0.98,1.0-u_lightintensity),1.0)));}v_color.r+=clamp(color.r*directional*u_lightcolor.r,mix(0.0,0.3,1.0-u_lightcolor.r),1.0);v_color.g+=clamp(color.g*directional*u_lightcolor.g,mix(0.0,0.3,1.0-u_lightcolor.g),1.0);v_color.b+=clamp(color.b*directional*u_lightcolor.b,mix(0.0,0.3,1.0-u_lightcolor.b),1.0);v_color*=u_opacity;\n#endif\n}";
+var fill_extrusion_vertex_glsl_g_default = "uniform vec3 u_lightcolor;uniform lowp vec3 u_lightpos;uniform lowp vec3 u_lightpos_globe;uniform lowp float u_lightintensity;uniform float u_vertical_gradient;uniform vec2 u_fill_translate;layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in float a_anchor_elevation;\n#endif\nout vec4 v_color;\n#ifdef SHADING\nuniform float u_shade_strength;uniform float u_shade_band;uniform float u_shade_edge_width;uniform vec3 u_sun_tint;uniform vec3 u_sky_tint;uniform float u_wall_rise;uniform float u_roof_lift;uniform mat4 u_sun_matrix;uniform mat4 u_occlusion_matrix;uniform float u_unit_metres;uniform vec2 u_wall_origin;out vec3 v_ambient;out float v_facing;out vec4 v_sun;out float v_dark;out vec3 v_edge;out vec3 v_wall;out vec2 v_facade;out vec2 v_light;float shade_hash(vec2 p) {vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}\n#endif\n#pragma maplibre: define highp float base\n#pragma maplibre: define highp float height\n#pragma maplibre: define highp vec4 color\n#pragma maplibre: define highp float opacity\n#ifdef SHADING\n#pragma maplibre: define highp vec4 roof_color\n#pragma maplibre: define highp float facade_style\n#pragma maplibre: define highp float facade_seed\n#endif\nvoid main() {\n#pragma maplibre: initialize highp float base\n#pragma maplibre: initialize highp float height\n#pragma maplibre: initialize highp vec4 color\n#pragma maplibre: initialize highp float opacity\n#ifdef SHADING\n#pragma maplibre: initialize highp vec4 roof_color\n#pragma maplibre: initialize highp float facade_style\n#pragma maplibre: initialize highp float facade_seed\n#endif\nopacity=clamp(opacity,0.0,1.0);if (opacity <=0.0 || height < 0.0) {gl_Position=vec4(-2.0,-2.0,-2.0,1.0);return;}vec3 normal=vec3(a_normal_ed.xyz);float gradient_base=max(0.0,base);float gradient_height=max(0.0,height);\n#ifdef TERRAIN3D\nfloat height_terrain3d_offset=a_anchor_elevation;float base_terrain3d_offset=height_terrain3d_offset-(base > 0.0 ? 0.0 : 10.0);\n#else\nfloat height_terrain3d_offset=0.0;float base_terrain3d_offset=0.0;\n#endif\nbase=max(0.0,base)+base_terrain3d_offset;height=max(0.0,height)+height_terrain3d_offset;float t=float(a_normal_ed.x & 1);float elevation=t > 0.0 ? height : base;vec2 posInTile=a_pos+u_fill_translate;\n#ifdef GLOBE\nvec3 spherePos=projectToSphereOffset(posInTile,a_pos);gl_Position=interpolateProjectionFor3D(posInTile,spherePos,elevation);\n#else\ngl_Position=u_projection_matrix*vec4(posInTile,elevation,1.0);\n#endif\n#ifdef SHADING\nbool wall=a_normal_ed.z < 8192;float wall_ratio=wall ? t :-1.0;vec2 tangent=normalize(vec2(-normal.y,normal.x)+1e-6);v_wall=vec3(dot(a_pos+u_wall_origin,tangent)*u_unit_metres,t > 0.0 ? gradient_height : gradient_base,wall ? gradient_height : 0.0);v_facade=vec2(facade_style,shade_hash(vec2(mod(facade_seed,256.0),floor(facade_seed/256.0))+0.5));float dark=(wall_ratio < 0.0 || wall_ratio >=u_shade_band) ? 0.0 : (exp(-3.0*wall_ratio/u_shade_band)-0.0498)*1.0524;v_dark=u_shade_strength*dark;vec4 top=gl_Position+(height-elevation)*u_projection_matrix[2];vec4 foot=gl_Position+(base-elevation)*u_projection_matrix[2];float wall_px=(top.w > 0.001 && foot.w > 0.001) ? length((top.xy/top.w-foot.xy/foot.w)*0.5*u_viewport_size*u_device_pixel_ratio) : 0.0;v_edge=vec3(wall_ratio,min(u_shade_edge_width/max(wall_px,1.0),0.25),smoothstep(1.5,4.0,wall_px/max(u_shade_edge_width,0.001)));vec4 surface=(!wall && roof_color.a > 0.0) ? roof_color : color;float luminance=dot(surface.rgb,vec3(0.2126,0.7152,0.0722));surface.rgb+=vec3(0.03);vec3 n=normal/16384.0;float directional=clamp(dot(n,u_lightpos),0.0,1.0);directional=mix(1.0-u_lightintensity,max(1.0-luminance+u_lightintensity,1.0),directional);v_facing=dot(n,normalize(u_lightpos));float rise=wall ? mix(1.0-u_wall_rise,1.0,sqrt(wall_ratio)) : 1.0+u_roof_lift;v_color=vec4(clamp(surface.rgb*directional*mix(u_sky_tint,u_sun_tint,clamp(v_facing,0.0,1.0))*rise,0.0,1.0),opacity);v_ambient=clamp(surface.rgb*(1.0-u_lightintensity)*u_sky_tint*rise,0.0,1.0);v_sun=u_sun_matrix*vec4(posInTile,elevation,1.0);v_light=(u_occlusion_matrix*vec4(posInTile,0.0,1.0)).xy;\n#else\nfloat colorvalue=color.r*0.2126+color.g*0.7152+color.b*0.0722;v_color=vec4(0.0,0.0,0.0,1.0);vec4 ambientlight=vec4(0.03,0.03,0.03,1.0);color+=ambientlight;vec3 normalForLighting=normal/16384.0;float directional=clamp(dot(normalForLighting,u_lightpos),0.0,1.0);\n#ifdef GLOBE\nmat3 rotMatrix=globeGetRotationMatrix(globeTileOrigin()+spherePos);normalForLighting=rotMatrix*normalForLighting;directional=mix(directional,clamp(dot(normalForLighting,u_lightpos_globe),0.0,1.0),u_projection_transition);\n#endif\ndirectional=mix((1.0-u_lightintensity),max((1.0-colorvalue+u_lightintensity),1.0),directional);if (normal.z==0.0) {directional*=((1.0-u_vertical_gradient)+(u_vertical_gradient*clamp((t+gradient_base)*pow(gradient_height/150.0,0.5),mix(0.7,0.98,1.0-u_lightintensity),1.0)));}v_color.r+=clamp(color.r*directional*u_lightcolor.r,mix(0.0,0.3,1.0-u_lightcolor.r),1.0);v_color.g+=clamp(color.g*directional*u_lightcolor.g,mix(0.0,0.3,1.0-u_lightcolor.g),1.0);v_color.b+=clamp(color.b*directional*u_lightcolor.b,mix(0.0,0.3,1.0-u_lightcolor.b),1.0);v_color*=opacity;\n#endif\n}";
 // src/shaders/glsl/fill_extrusion_depth.fragment.glsl.g.ts
 var fill_extrusion_depth_fragment_glsl_g_default = "#ifdef LIGHT\nin highp vec3 v_lit;\n#endif\nvoid main() {fragColor=vec4(1.0);\n#ifdef LIGHT\nfragColor=vec4(0.0,0.0,0.0,clamp(wall_light(v_lit.y,v_lit.x,v_lit.z),0.0,1.0));\n#endif\n}";
 // src/shaders/glsl/fill_extrusion_depth.vertex.glsl.g.ts
-var fill_extrusion_depth_vertex_glsl_g_default = "layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in float a_anchor_elevation;\n#endif\n#pragma maplibre: define highp float base\n#pragma maplibre: define highp float height\n#ifdef LIGHT\n#pragma maplibre: define highp float facade_style\n#pragma maplibre: define highp float facade_seed\nout highp vec3 v_lit;float shade_hash(vec2 p) {vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}\n#endif\nvoid main() {\n#pragma maplibre: initialize highp float base\n#pragma maplibre: initialize highp float height\n#ifdef LIGHT\n#pragma maplibre: initialize highp float facade_style\n#pragma maplibre: initialize highp float facade_seed\nv_lit=vec3(facade_style,shade_hash(vec2(mod(facade_seed,256.0),floor(facade_seed/256.0))+0.5),max(0.0,height));\n#endif\nif (height < 0.0) {gl_Position=vec4(2.0,2.0,2.0,1.0);return;}\n#ifdef TERRAIN3D\nfloat ground=a_anchor_elevation;\n#else\nfloat ground=0.0;\n#endif\nfloat elevation=((a_normal_ed.x & 1) > 0 ? max(0.0,height) : max(0.0,base))+ground;gl_Position=u_projection_matrix*vec4(a_pos,elevation,1.0);}";
+var fill_extrusion_depth_vertex_glsl_g_default = "layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in float a_anchor_elevation;\n#endif\n#pragma maplibre: define highp float base\n#pragma maplibre: define highp float height\n#pragma maplibre: define highp float opacity\n#ifdef LIGHT\n#pragma maplibre: define highp float facade_style\n#pragma maplibre: define highp float facade_seed\nout highp vec3 v_lit;float shade_hash(vec2 p) {vec3 q=fract(vec3(p.xyx)*0.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}\n#endif\nvoid main() {\n#pragma maplibre: initialize highp float base\n#pragma maplibre: initialize highp float height\n#pragma maplibre: initialize highp float opacity\n#ifdef LIGHT\n#pragma maplibre: initialize highp float facade_style\n#pragma maplibre: initialize highp float facade_seed\nv_lit=vec3(facade_style,shade_hash(vec2(mod(facade_seed,256.0),floor(facade_seed/256.0))+0.5),max(0.0,height));\n#endif\nif (height < 0.0 || opacity <=0.0) {gl_Position=vec4(2.0,2.0,2.0,1.0);return;}\n#ifdef TERRAIN3D\nfloat ground=a_anchor_elevation;\n#else\nfloat ground=0.0;\n#endif\nfloat elevation=((a_normal_ed.x & 1) > 0 ? max(0.0,height) : max(0.0,base))+ground;gl_Position=u_projection_matrix*vec4(a_pos,elevation,1.0);}";
 // src/shaders/glsl/shading_ground.fragment.glsl.g.ts
 var shading_ground_fragment_glsl_g_default = "in highp vec4 v_sun;in highp vec2 v_occlusion;void main() {fragColor=ground_shade(v_sun,v_occlusion);}";
 // src/shaders/glsl/shading_ground.vertex.glsl.g.ts
@@ -46216,7 +46687,7 @@ var shading_blur_vertex_glsl_g_default = "layout(location=0) in vec2 a_pos;out v
 // src/shaders/glsl/fill_extrusion_pattern.fragment.glsl.g.ts
 var fill_extrusion_pattern_fragment_glsl_g_default = "uniform vec2 u_texsize;uniform float u_fade;uniform sampler2D u_image;in vec2 v_pos_a;in vec2 v_pos_b;in vec4 v_lighting;\n#pragma maplibre: define lowp float base\n#pragma maplibre: define lowp float height\n#pragma maplibre: define lowp vec4 pattern_from\n#pragma maplibre: define lowp vec4 pattern_to\n#pragma maplibre: define lowp float pixel_ratio_from\n#pragma maplibre: define lowp float pixel_ratio_to\nvoid main() {\n#pragma maplibre: initialize lowp float base\n#pragma maplibre: initialize lowp float height\n#pragma maplibre: initialize mediump vec4 pattern_from\n#pragma maplibre: initialize mediump vec4 pattern_to\n#pragma maplibre: initialize lowp float pixel_ratio_from\n#pragma maplibre: initialize lowp float pixel_ratio_to\nvec2 pattern_tl_a=pattern_from.xy;vec2 pattern_br_a=pattern_from.zw;vec2 pattern_tl_b=pattern_to.xy;vec2 pattern_br_b=pattern_to.zw;vec2 imagecoord=mod(v_pos_a,1.0);vec2 pos=mix(pattern_tl_a/u_texsize,pattern_br_a/u_texsize,imagecoord);vec4 color1=texture(u_image,pos);vec2 imagecoord_b=mod(v_pos_b,1.0);vec2 pos2=mix(pattern_tl_b/u_texsize,pattern_br_b/u_texsize,imagecoord_b);vec4 color2=texture(u_image,pos2);vec4 mixedColor=mix(color1,color2,u_fade);fragColor=mixedColor*v_lighting;\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}";
 // src/shaders/glsl/fill_extrusion_pattern.vertex.glsl.g.ts
-var fill_extrusion_pattern_vertex_glsl_g_default = "uniform vec2 u_pixel_coord_upper;uniform vec2 u_pixel_coord_lower;uniform float u_height_factor;uniform vec3 u_scale;uniform float u_vertical_gradient;uniform lowp float u_opacity;uniform vec2 u_fill_translate;uniform vec3 u_lightcolor;uniform lowp vec3 u_lightpos;uniform lowp vec3 u_lightpos_globe;uniform lowp float u_lightintensity;layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in float a_anchor_elevation;\n#endif\n#ifdef GLOBE\nout vec3 v_sphere_pos;\n#endif\nout vec2 v_pos_a;out vec2 v_pos_b;out vec4 v_lighting;\n#pragma maplibre: define lowp float base\n#pragma maplibre: define lowp float height\n#pragma maplibre: define lowp vec4 pattern_from\n#pragma maplibre: define lowp vec4 pattern_to\n#pragma maplibre: define lowp float pixel_ratio_from\n#pragma maplibre: define lowp float pixel_ratio_to\nvoid main() {\n#pragma maplibre: initialize lowp float base\n#pragma maplibre: initialize lowp float height\n#pragma maplibre: initialize mediump vec4 pattern_from\n#pragma maplibre: initialize mediump vec4 pattern_to\n#pragma maplibre: initialize lowp float pixel_ratio_from\n#pragma maplibre: initialize lowp float pixel_ratio_to\nif (height < 0.0) {gl_Position=vec4(2.0,2.0,2.0,1.0);return;}vec2 pattern_tl_a=pattern_from.xy;vec2 pattern_br_a=pattern_from.zw;vec2 pattern_tl_b=pattern_to.xy;vec2 pattern_br_b=pattern_to.zw;float tileRatio=u_scale.x;float fromScale=u_scale.y;float toScale=u_scale.z;vec3 normal=vec3(a_normal_ed.xyz);float edgedistance=float(a_normal_ed.w);vec2 display_size_a=(pattern_br_a-pattern_tl_a)/pixel_ratio_from;vec2 display_size_b=(pattern_br_b-pattern_tl_b)/pixel_ratio_to;float gradient_base=max(0.0,base);float gradient_height=max(0.0,height);\n#ifdef TERRAIN3D\nfloat height_terrain3d_offset=a_anchor_elevation;float base_terrain3d_offset=height_terrain3d_offset-(base > 0.0 ? 0.0 : 10.0);\n#else\nfloat height_terrain3d_offset=0.0;float base_terrain3d_offset=0.0;\n#endif\nbase=max(0.0,base)+base_terrain3d_offset;height=max(0.0,height)+height_terrain3d_offset;float t=float(a_normal_ed.x & 1);float elevation=t > 0.0 ? height : base;vec2 posInTile=a_pos+u_fill_translate;\n#ifdef GLOBE\nvec3 spherePos=projectToSphere(posInTile,a_pos);vec3 elevatedPos=spherePos*(1.0+elevation/GLOBE_RADIUS);v_sphere_pos=elevatedPos;gl_Position=interpolateProjectionFor3D(posInTile,spherePos,elevation);\n#else\ngl_Position=u_projection_matrix*vec4(posInTile,elevation,1.0);\n#endif\nvec2 pos=a_normal_ed.x==1 && a_normal_ed.y==0 && a_normal_ed.z==16384\n? a_pos\n: vec2(edgedistance,elevation*u_height_factor);v_pos_a=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,fromScale*display_size_a,tileRatio,pos);v_pos_b=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,toScale*display_size_b,tileRatio,pos);v_lighting=vec4(0.0,0.0,0.0,1.0);float directional=clamp(dot(normal/16383.0,u_lightpos),0.0,1.0);directional=mix((1.0-u_lightintensity),max((0.5+u_lightintensity),1.0),directional);if (normal.z==0.0) {directional*=((1.0-u_vertical_gradient)+(u_vertical_gradient*clamp((t+gradient_base)*pow(gradient_height/150.0,0.5),mix(0.7,0.98,1.0-u_lightintensity),1.0)));}v_lighting.rgb+=clamp(directional*u_lightcolor,mix(vec3(0.0),vec3(0.3),1.0-u_lightcolor),vec3(1.0));v_lighting*=u_opacity;}";
+var fill_extrusion_pattern_vertex_glsl_g_default = "uniform vec2 u_pixel_coord_upper;uniform vec2 u_pixel_coord_lower;uniform float u_height_factor;uniform vec3 u_scale;uniform float u_vertical_gradient;uniform vec2 u_fill_translate;uniform vec3 u_lightcolor;uniform lowp vec3 u_lightpos;uniform lowp vec3 u_lightpos_globe;uniform lowp float u_lightintensity;layout(location=0) in vec2 a_pos;layout(location=1) in ivec4 a_normal_ed;\n#ifdef TERRAIN3D\nlayout(location=2) in float a_anchor_elevation;\n#endif\n#ifdef GLOBE\nout vec3 v_sphere_pos;\n#endif\nout vec2 v_pos_a;out vec2 v_pos_b;out vec4 v_lighting;\n#pragma maplibre: define lowp float base\n#pragma maplibre: define lowp float height\n#pragma maplibre: define lowp vec4 pattern_from\n#pragma maplibre: define lowp vec4 pattern_to\n#pragma maplibre: define lowp float pixel_ratio_from\n#pragma maplibre: define lowp float pixel_ratio_to\n#pragma maplibre: define highp float opacity\nvoid main() {\n#pragma maplibre: initialize lowp float base\n#pragma maplibre: initialize lowp float height\n#pragma maplibre: initialize mediump vec4 pattern_from\n#pragma maplibre: initialize mediump vec4 pattern_to\n#pragma maplibre: initialize lowp float pixel_ratio_from\n#pragma maplibre: initialize lowp float pixel_ratio_to\n#pragma maplibre: initialize highp float opacity\nopacity=clamp(opacity,0.0,1.0);if (opacity <=0.0) {gl_Position=vec4(-2.0,-2.0,-2.0,1.0);return;}if (height < 0.0) {gl_Position=vec4(2.0,2.0,2.0,1.0);return;}vec2 pattern_tl_a=pattern_from.xy;vec2 pattern_br_a=pattern_from.zw;vec2 pattern_tl_b=pattern_to.xy;vec2 pattern_br_b=pattern_to.zw;float tileRatio=u_scale.x;float fromScale=u_scale.y;float toScale=u_scale.z;vec3 normal=vec3(a_normal_ed.xyz);float edgedistance=float(a_normal_ed.w);vec2 display_size_a=(pattern_br_a-pattern_tl_a)/pixel_ratio_from;vec2 display_size_b=(pattern_br_b-pattern_tl_b)/pixel_ratio_to;float gradient_base=max(0.0,base);float gradient_height=max(0.0,height);\n#ifdef TERRAIN3D\nfloat height_terrain3d_offset=a_anchor_elevation;float base_terrain3d_offset=height_terrain3d_offset-(base > 0.0 ? 0.0 : 10.0);\n#else\nfloat height_terrain3d_offset=0.0;float base_terrain3d_offset=0.0;\n#endif\nbase=max(0.0,base)+base_terrain3d_offset;height=max(0.0,height)+height_terrain3d_offset;float t=float(a_normal_ed.x & 1);float elevation=t > 0.0 ? height : base;vec2 posInTile=a_pos+u_fill_translate;\n#ifdef GLOBE\nvec3 spherePos=projectToSphereOffset(posInTile,a_pos);vec3 elevatedPos=(globeTileOrigin()+spherePos)*(1.0+elevation/GLOBE_RADIUS);v_sphere_pos=elevatedPos;gl_Position=interpolateProjectionFor3D(posInTile,spherePos,elevation);\n#else\ngl_Position=u_projection_matrix*vec4(posInTile,elevation,1.0);\n#endif\nvec2 pos=a_normal_ed.x==1 && a_normal_ed.y==0 && a_normal_ed.z==16384\n? a_pos\n: vec2(edgedistance,elevation*u_height_factor);v_pos_a=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,fromScale*display_size_a,tileRatio,pos);v_pos_b=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,toScale*display_size_b,tileRatio,pos);v_lighting=vec4(0.0,0.0,0.0,1.0);float directional=clamp(dot(normal/16383.0,u_lightpos),0.0,1.0);directional=mix((1.0-u_lightintensity),max((0.5+u_lightintensity),1.0),directional);if (normal.z==0.0) {directional*=((1.0-u_vertical_gradient)+(u_vertical_gradient*clamp((t+gradient_base)*pow(gradient_height/150.0,0.5),mix(0.7,0.98,1.0-u_lightintensity),1.0)));}v_lighting.rgb+=clamp(directional*u_lightcolor,mix(vec3(0.0),vec3(0.3),1.0-u_lightcolor),vec3(1.0));v_lighting*=opacity;}";
 // src/shaders/glsl/hillshade_prepare.fragment.glsl.g.ts
 var hillshade_prepare_fragment_glsl_g_default = "#ifdef GL_ES\nprecision highp float;\n#endif\nuniform sampler2D u_image;in vec2 v_pos;uniform vec2 u_dimension;uniform float u_zoom;uniform vec4 u_unpack;uniform float u_log2_world_width;float getElevation(ivec2 texel) {vec4 data=texelFetch(u_image,texel,0)*255.0;data.a=-1.0;return dot(data,u_unpack);}void main() {ivec2 pos=ivec2(gl_FragCoord.xy)+ivec2(1);float tileSize=u_dimension.x-4.0;float a=getElevation(pos+ivec2(-1,-1));float b=getElevation(pos+ivec2(0,-1));float c=getElevation(pos+ivec2(1,-1));float d=getElevation(pos+ivec2(-1,0));float e=getElevation(pos);float f=getElevation(pos+ivec2(1,0));float g=getElevation(pos+ivec2(-1,1));float h=getElevation(pos+ivec2(0,1));float i=getElevation(pos+ivec2(1,1));float exaggerationFactor=u_zoom < 2.0 ? 0.4 : u_zoom < 4.5 ? 0.35 : 0.3;float exaggeration=u_zoom < 15.0 ? (u_zoom-15.0)*exaggerationFactor : 0.0;vec2 deriv=vec2((c+f+f+i)-(a+d+d+g),(g+h+h+i)-(a+b+b+c))*tileSize/pow(2.0,exaggeration+(3.0+u_log2_world_width-u_zoom));fragColor=clamp(vec4(deriv.x/8.0+128.0/255.0,deriv.y/8.0+128.0/255.0,1.0,1.0),0.0,1.0);\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}";
 // src/shaders/glsl/hillshade_prepare.vertex.glsl.g.ts
@@ -46231,7 +46702,7 @@ var line_fragment_glsl_g_default = "in vec2 v_width2;in vec2 v_normal;in float v
 const shaders = {
 	prelude: prepare(_prelude_fragment_glsl_g_default, _prelude_vertex_glsl_g_default),
 	projectionMercator: prepare("\nvoid clipAntimeridian() {}", "float projectLineThickness(float tileY) {return 1.0;}float projectCircleRadius(float tileY) {return 1.0;}vec4 projectTile(vec2 p) {vec4 result=u_projection_matrix*vec4(p,0.0,1.0);return result;}vec4 projectTile(vec2 p,vec2 rawPos) {vec4 result=u_projection_matrix*vec4(p,0.0,1.0);if (rawPos.y <-32767.5 || rawPos.y > 32766.5) {result.z=-10000000.0;}return result;}vec4 projectTileWithElevation(vec2 posInTile,float elevation) {return u_projection_matrix*vec4(posInTile,elevation,1.0);}vec4 projectTileFor3D(vec2 posInTile,float elevation) {return projectTileWithElevation(posInTile,elevation);}"),
-	projectionGlobe: prepare("in highp float v_projection_tile_x;void clipAntimeridian() {if (u_projection_clip_antimeridian !=0 && (v_projection_tile_x < 0.0 || v_projection_tile_x >=8192.0)) {discard;}}", "#define GLOBE_RADIUS 6371008.8\n#ifndef PROJECTION_UBO\nuniform highp vec4 u_projection_tile_mercator_coords;uniform highp vec4 u_projection_clipping_plane;uniform highp float u_projection_transition;uniform mat4 u_projection_fallback_matrix;\n#endif\nout highp float v_projection_tile_x;vec3 globeRotateVector(vec3 vec,vec2 angles) {vec3 axisRight=vec3(vec.z,0.0,-vec.x);vec3 axisUp=cross(axisRight,vec);axisRight=normalize(axisRight);axisUp=normalize(axisUp);vec2 t=tan(angles);return normalize(vec+axisRight*t.x+axisUp*t.y);}mat3 globeGetRotationMatrix(vec3 spherePos) {vec3 axisRight=vec3(spherePos.z,0.0,-spherePos.x);vec3 axisDown=cross(axisRight,spherePos);axisRight=normalize(axisRight);axisDown=normalize(axisDown);return mat3(axisRight,axisDown,spherePos\n);}float circumferenceRatioAtTileY(float tileY) {float mercator_pos_y=u_projection_tile_mercator_coords.y+u_projection_tile_mercator_coords.w*tileY;float t=exp(PI-(mercator_pos_y*PI*2.0));return (2.0*t)/(t*t+1.0);}float projectLineThickness(float tileY) {float thickness=1.0/circumferenceRatioAtTileY(tileY);if (u_projection_transition < 0.999) {return mix(1.0,thickness,u_projection_transition);} else {return thickness;}}vec3 projectToSphere(vec2 translatedPos,vec2 rawPos) {vec2 mercator_pos=u_projection_tile_mercator_coords.xy+u_projection_tile_mercator_coords.zw*translatedPos;float spherical_x=mercator_pos.x*PI*2.0+PI;float t=exp(PI-(mercator_pos.y*PI*2.0));float t2=t*t;float denom=t2+1.0;float sin_sy=(t2-1.0)/denom;float cos_sy=(2.0*t)/denom;vec3 pos=vec3(sin(spherical_x)*cos_sy,sin_sy,cos(spherical_x)*cos_sy\n);if (rawPos.y <-32767.5) {pos=vec3(0.0,1.0,0.0);}if (rawPos.y > 32766.5) {pos=vec3(0.0,-1.0,0.0);}return pos;}vec3 projectToSphere(vec2 posInTile) {return projectToSphere(posInTile,vec2(0.0,0.0));}float globeComputeClippingZ(vec3 spherePos) {return (1.0-(dot(spherePos,u_projection_clipping_plane.xyz)+u_projection_clipping_plane.w));}vec4 interpolateProjection(vec2 posInTile,vec3 spherePos,float elevation) {v_projection_tile_x=posInTile.x;vec3 elevatedPos=spherePos*(1.0+elevation/GLOBE_RADIUS);vec4 globePosition=u_projection_matrix*vec4(elevatedPos,1.0);globePosition.z=globeComputeClippingZ(elevatedPos)*globePosition.w;if (u_projection_transition > 0.999) {return globePosition;}vec4 flatPosition=u_projection_fallback_matrix*vec4(posInTile,elevation,1.0);const float z_globeness_threshold=0.2;vec4 result=globePosition;result.z=mix(0.0,globePosition.z,clamp((u_projection_transition-z_globeness_threshold)/(1.0-z_globeness_threshold),0.0,1.0));result.xyw=mix(flatPosition.xyw,globePosition.xyw,u_projection_transition);if ((posInTile.y <-32767.5) || (posInTile.y > 32766.5)) {result=globePosition;const float poles_hidden_anim_percentage=0.02;result.z=mix(globePosition.z,100.0,pow(max((1.0-u_projection_transition)/poles_hidden_anim_percentage,0.0),8.0));}return result;}vec4 interpolateProjectionFor3D(vec2 posInTile,vec3 spherePos,float elevation) {v_projection_tile_x=posInTile.x;vec3 elevatedPos=spherePos*(1.0+elevation/GLOBE_RADIUS);vec4 globePosition=u_projection_matrix*vec4(elevatedPos,1.0);if (u_projection_transition > 0.999) {return globePosition;}vec4 fallbackPosition=u_projection_fallback_matrix*vec4(posInTile,elevation,1.0);return mix(fallbackPosition,globePosition,u_projection_transition);}vec4 projectTile(vec2 posInTile) {return interpolateProjection(posInTile,projectToSphere(posInTile),0.0);}vec4 projectTile(vec2 posInTile,vec2 rawPos) {return interpolateProjection(posInTile,projectToSphere(posInTile,rawPos),0.0);}vec4 projectTileWithElevation(vec2 posInTile,float elevation) {return interpolateProjection(posInTile,projectToSphere(posInTile),elevation);}vec4 projectTileFor3D(vec2 posInTile,float elevation) {vec3 spherePos=projectToSphere(posInTile,posInTile);return interpolateProjectionFor3D(posInTile,spherePos,elevation);}"),
+	projectionGlobe: prepare("in highp float v_projection_tile_x;void clipAntimeridian() {if (u_projection_clip_antimeridian !=0 && (v_projection_tile_x < 0.0 || v_projection_tile_x >=8192.0)) {discard;}}", "#define GLOBE_RADIUS 6371008.8\n#ifndef PROJECTION_UBO\nuniform highp vec4 u_projection_tile_mercator_coords;uniform highp vec4 u_projection_clipping_plane;uniform highp vec4 u_projection_tile_origin;uniform highp vec2 u_projection_tile_origin_position;uniform highp float u_projection_transition;uniform mat4 u_projection_fallback_matrix;\n#endif\nout highp float v_projection_tile_x;vec3 globeRotateVector(vec3 vec,vec2 angles) {vec3 axisRight=vec3(vec.z,0.0,-vec.x);vec3 axisUp=cross(axisRight,vec);axisRight=normalize(axisRight);axisUp=normalize(axisUp);vec2 t=tan(angles);return normalize(vec+axisRight*t.x+axisUp*t.y);}mat3 globeGetRotationMatrix(vec3 spherePos) {vec3 axisRight=vec3(spherePos.z,0.0,-spherePos.x);vec3 axisDown=cross(axisRight,spherePos);axisRight=normalize(axisRight);axisDown=normalize(axisDown);return mat3(axisRight,axisDown,spherePos\n);}float circumferenceRatioAtTileY(float tileY) {float mercator_pos_y=u_projection_tile_mercator_coords.y+u_projection_tile_mercator_coords.w*tileY;float t=exp(PI-(mercator_pos_y*PI*2.0));return (2.0*t)/(t*t+1.0);}float projectLineThickness(float tileY) {float thickness=1.0/circumferenceRatioAtTileY(tileY);if (u_projection_transition < 0.999) {return mix(1.0,thickness,u_projection_transition);} else {return thickness;}}vec3 projectToSphere(vec2 translatedPos,vec2 rawPos) {vec2 mercator_pos=u_projection_tile_mercator_coords.xy+u_projection_tile_mercator_coords.zw*translatedPos;float spherical_x=mercator_pos.x*PI*2.0+PI;float t=exp(PI-(mercator_pos.y*PI*2.0));float t2=t*t;float denom=t2+1.0;float sin_sy=(t2-1.0)/denom;float cos_sy=(2.0*t)/denom;vec3 pos=vec3(sin(spherical_x)*cos_sy,sin_sy,cos(spherical_x)*cos_sy\n);if (rawPos.y <-32767.5) {pos=vec3(0.0,1.0,0.0);}if (rawPos.y > 32766.5) {pos=vec3(0.0,-1.0,0.0);}return pos;}vec3 projectToSphere(vec2 posInTile) {return projectToSphere(posInTile,vec2(0.0,0.0));}float globeSinSmall(float x) {float x2=x*x;return x*(1.0-x2/6.0*(1.0-x2/20.0*(1.0-x2/42.0*(1.0-x2/72.0*(1.0-x2/110.0*(1.0-x2/156.0))))));}float globeTanSmall(float x) {if (abs(x) >=0.5) {return tan(x);}float s=globeSinSmall(x);return s/sqrt(1.0-s*s);}float globeExpm1Small(float x) {if (abs(x) >=0.5) {return exp(x)-1.0;}return x*(1.0+x/2.0*(1.0+x/3.0*(1.0+x/4.0*(1.0+x/5.0*(1.0+x/6.0*(1.0+x/7.0*(1.0+x/8.0)))))));}vec3 globeTileOrigin() {if (u_projection_tile_origin.w < 0.5) {return vec3(0.0);}float t=u_projection_tile_origin.z;float denom=t*t+1.0;float cos_sy=2.0*t/denom;return vec3(u_projection_tile_origin.x*cos_sy,(t*t-1.0)/denom,u_projection_tile_origin.y*cos_sy);}vec2 globeAnglesFromTileOrigin(vec2 translatedPos) {return u_projection_tile_mercator_coords.zw*(translatedPos-u_projection_tile_origin_position)*(PI*2.0);}bool globeIsNearTileOrigin(vec2 translatedPos) {if (u_projection_tile_origin.w < 0.5) {return false;}vec2 delta=abs(globeAnglesFromTileOrigin(translatedPos));return delta.x <=PI*0.5 && delta.y <=PI*0.5;}vec3 projectToSphereOffset(vec2 translatedPos,vec2 rawPos) {if (!globeIsNearTileOrigin(translatedPos)) {return projectToSphere(translatedPos,rawPos)-globeTileOrigin();}if (rawPos.y <-32767.5) {return vec3(0.0,1.0,0.0)-globeTileOrigin();}if (rawPos.y > 32766.5) {return vec3(0.0,-1.0,0.0)-globeTileOrigin();}vec2 delta=globeAnglesFromTileOrigin(translatedPos);float sin_x0=u_projection_tile_origin.x;float cos_x0=u_projection_tile_origin.y;float t0=u_projection_tile_origin.z;float t0_2=t0*t0;float e=globeExpm1Small(-delta.y);float t=t0+t0*e;float denom=(t*t+1.0)*(t0_2+1.0);float d_sin_sy=2.0*t0_2*e*(2.0+e)/denom;float d_cos_sy=2.0*t0*e*(1.0-t*t0)/denom;float cos_sy=2.0*t0/(t0_2+1.0)+d_cos_sy;float sin_dx=globeSinSmall(delta.x);float half_sin_dx=globeSinSmall(delta.x*0.5);float cos_dx_minus_one=-2.0*half_sin_dx*half_sin_dx;float d_sin_x=sin_x0*cos_dx_minus_one+cos_x0*sin_dx;float d_cos_x=cos_x0*cos_dx_minus_one-sin_x0*sin_dx;return vec3(sin_x0*d_cos_sy+d_sin_x*cos_sy,d_sin_sy,cos_x0*d_cos_sy+d_cos_x*cos_sy\n);}vec3 projectToSphereOffset(vec2 posInTile) {return projectToSphereOffset(posInTile,vec2(0.0,0.0));}vec3 globeRotateVectorOffset(vec2 posInTile,vec3 offset,vec2 angles) {if (!globeIsNearTileOrigin(posInTile)) {return globeRotateVector(projectToSphere(posInTile),angles)-globeTileOrigin();}vec3 vec=globeTileOrigin()+offset;mat3 axes=globeGetRotationMatrix(vec);vec3 d=axes[0]*globeTanSmall(angles.x)+axes[1]*globeTanSmall(angles.y);float len=sqrt(1.0+dot(d,d));return offset+(d-vec*(dot(d,d)/(1.0+len)))/len;}float globeComputeClippingZ(vec3 spherePos) {return (1.0-min(dot(spherePos,u_projection_clipping_plane.xyz)+u_projection_clipping_plane.w,0.5));}vec4 interpolateProjection(vec2 posInTile,vec3 spherePos,float elevation) {v_projection_tile_x=posInTile.x;vec3 origin=globeTileOrigin();vec3 elevatedPos=spherePos*(1.0+elevation/GLOBE_RADIUS)+origin*(elevation/GLOBE_RADIUS);vec4 globePosition=u_projection_matrix*vec4(elevatedPos,1.0);globePosition.z=globeComputeClippingZ(elevatedPos)*globePosition.w;if (u_projection_transition > 0.999) {return globePosition;}vec4 flatPosition=u_projection_fallback_matrix*vec4(posInTile,elevation,1.0);const float z_globeness_threshold=0.2;vec4 result=globePosition;result.z=mix(0.0,globePosition.z,clamp((u_projection_transition-z_globeness_threshold)/(1.0-z_globeness_threshold),0.0,1.0));result.xyw=mix(flatPosition.xyw,globePosition.xyw,u_projection_transition);if ((posInTile.y <-32767.5) || (posInTile.y > 32766.5)) {result=globePosition;const float poles_hidden_anim_percentage=0.02;result.z=mix(globePosition.z,100.0,pow(max((1.0-u_projection_transition)/poles_hidden_anim_percentage,0.0),8.0));}return result;}vec4 interpolateProjectionFor3D(vec2 posInTile,vec3 spherePos,float elevation) {v_projection_tile_x=posInTile.x;vec3 elevatedPos=spherePos*(1.0+elevation/GLOBE_RADIUS)+globeTileOrigin()*(elevation/GLOBE_RADIUS);vec4 globePosition=u_projection_matrix*vec4(elevatedPos,1.0);if (u_projection_transition > 0.999) {return globePosition;}vec4 fallbackPosition=u_projection_fallback_matrix*vec4(posInTile,elevation,1.0);return mix(fallbackPosition,globePosition,u_projection_transition);}vec4 projectTile(vec2 posInTile) {return interpolateProjection(posInTile,projectToSphereOffset(posInTile),0.0);}vec4 projectTile(vec2 posInTile,vec2 rawPos) {return interpolateProjection(posInTile,projectToSphereOffset(posInTile,rawPos),0.0);}vec4 projectTileWithElevation(vec2 posInTile,float elevation) {return interpolateProjection(posInTile,projectToSphereOffset(posInTile),elevation);}vec4 projectTileFor3D(vec2 posInTile,float elevation) {vec3 spherePos=projectToSphereOffset(posInTile,posInTile);return interpolateProjectionFor3D(posInTile,spherePos,elevation);}"),
 	background: prepare(background_fragment_glsl_g_default, background_vertex_glsl_g_default),
 	backgroundPattern: prepare(background_pattern_fragment_glsl_g_default, background_pattern_vertex_glsl_g_default),
 	circle: prepare(circle_fragment_glsl_g_default, circle_vertex_glsl_g_default),
@@ -46258,9 +46729,9 @@ const shaders = {
 	lineVariableOffset: prepare(line_fragment_glsl_g_default, "\n#define scale 0.015873016\nlayout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;layout(location=3) in float a_line_offset;uniform vec2 u_translation;uniform mediump float u_ratio;out vec2 v_normal;out vec2 v_width2;out float v_gamma_scale;\n#ifdef LINE_ELEVATION\nin vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;\n#ifdef GLOBE\n#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)\n#else\n#define ELEVATION_DEPTH_BIAS 2.0\n#endif\n#endif\nout highp float v_linesofar;\n#ifdef GLOBE\nout float v_depth;\n#endif\n#pragma maplibre: define highp vec4 color\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define mediump float gapwidth\n#pragma maplibre: define lowp float offset\n#pragma maplibre: define mediump float width\n#ifdef LINE_VIEWPORT\nvec4 viewport_extrusion(vec2 centre,float elevation,vec2 tangent,vec2 v,vec4 projected) {vec2 normal=vec2(-tangent.y,tangent.x);vec4 ahead=projectTileFor3D(centre+tangent*8.0,elevation);vec4 beside=projectTileFor3D(centre+normal*8.0,elevation);vec2 at=projected.xy/projected.w;vec2 along=normalize((ahead.xy/ahead.w-at)*u_viewport_size);vec2 across=vec2(-along.y,along.x);across*=sign(dot(across,(beside.xy/beside.w-at)*u_viewport_size));vec2 pixels=dot(v,normal)*across+dot(v,tangent)*along;return vec4(pixels*2.0/u_viewport_size*projected.w,0.0,0.0);}\n#endif\nvoid main() {\n#pragma maplibre: initialize highp vec4 color\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize mediump float gapwidth\n#pragma maplibre: initialize lowp float offset\n#pragma maplibre: initialize mediump float width\noffset=a_line_offset;if (opacity < 0.01) {gl_Position=vec4(-2.0,-2.0,-2.0,1.0);return;}float ANTIALIASING=1.0/u_device_pixel_ratio/2.0;vec2 a_extrude=vec2(ivec2(a_data.xy)-128);v_linesofar=float((a_data.z >> 2u)+a_data.w*64u)*2.0;vec2 pos=vec2(a_pos_normal >> 1);mediump vec2 normal=vec2(a_pos_normal & 1);normal.y=normal.y*2.0-1.0;v_normal=normal;gapwidth=gapwidth/2.0;float halfwidth=width/2.0;offset=-1.0*offset;float inset=gapwidth+(gapwidth > 0.0 ? ANTIALIASING : 0.0);float outset=gapwidth+halfwidth*(gapwidth > 0.0 ? 2.0 : 1.0)+(halfwidth==0.0 ? 0.0 : ANTIALIASING);mediump vec2 dist=outset*a_extrude*scale;mediump vec2 offset2=offset*a_offset_normal*scale*normal.y;float adjustedThickness=projectLineThickness(pos.y);vec2 line_pos=pos+offset2/u_ratio*adjustedThickness+u_translation;vec2 edge_pos=line_pos+dist/u_ratio*adjustedThickness;\n#ifdef LINE_ELEVATION\nfloat ground=get_elevation(pos);float elevation=a_elevation.x*u_terrain_exaggeration+a_elevation.y*ground;\n#ifdef LINE_VIEWPORT\nvec2 centre=pos+u_translation;vec4 projected_no_extrude=projectTileFor3D(centre,elevation);vec4 projected_with_extrude=projected_no_extrude+viewport_extrusion(centre,elevation,a_elevation.zw,offset2+dist,projected_no_extrude);vec4 depth_at=projectTileFor3D(centre,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=centre;\n#else\nvec4 projected_no_extrude=projectTileFor3D(line_pos,elevation);vec4 projected_with_extrude=projectTileFor3D(edge_pos,elevation);vec4 depth_at=projectTileFor3D(edge_pos,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=edge_pos;\n#endif\ngl_Position=vec4(projected_with_extrude.xy,depth_at.z/depth_at.w*projected_with_extrude.w,projected_with_extrude.w);v_lift=elevation-ground;\n#else\nvec4 projected_no_extrude=projectTile(line_pos);vec4 projected_with_extrude=projectTile(edge_pos);gl_Position=projected_with_extrude;\n#endif\n#ifdef GLOBE\nv_depth=gl_Position.z/gl_Position.w;\n#endif\n#if (!defined(LINE_ELEVATION) && defined TERRAIN3D) || defined LINE_VIEWPORT\nv_gamma_scale=1.0;\n#else\nfloat extrude_length_without_perspective=length(dist);float extrude_length_with_perspective=length((projected_with_extrude.xy-projected_no_extrude.xy)/projected_with_extrude.w*u_units_to_pixels);v_gamma_scale=extrude_length_without_perspective/extrude_length_with_perspective;\n#endif\nv_width2=vec2(outset,inset);}"),
 	lineGradient: prepare("uniform sampler2D u_image;in vec2 v_width2;in vec2 v_normal;in float v_gamma_scale;in highp vec2 v_uv;\n#ifdef GLOBE\nin float v_depth;\n#endif\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#ifdef LINE_ELEVATION\nin highp vec2 v_tile_pos;in float v_lift;\n#endif\nvoid main() {\n#ifdef LINE_ELEVATION\nelevated_line_fragment(v_tile_pos,v_lift);\n#endif\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\nclipAntimeridian();float dist=length(v_normal)*v_width2.s;float blur2=(blur+1.0/u_device_pixel_ratio)*v_gamma_scale;float alpha=clamp(min(dist-(v_width2.t-blur2),v_width2.s-dist)/blur2,0.0,1.0);vec4 color=texture(u_image,v_uv);fragColor=color*(alpha*opacity);\n#ifdef GLOBE\nif (v_depth > 1.0) {discard;}\n#endif\n#ifdef HORIZON_FADE\nfragColor*=horizon_fade(1.0/gl_FragCoord.w);\n#endif\n#ifdef TILE_FADE\nfragColor*=u_tile_fade;\n#endif\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}", "\n#define scale 0.015873016\nlayout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;layout(location=3) in float a_uv_x;layout(location=4) in float a_split_index;uniform vec2 u_translation;uniform mediump float u_ratio;uniform float u_image_height;out vec2 v_normal;out vec2 v_width2;out float v_gamma_scale;\n#ifdef LINE_ELEVATION\nin vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;\n#ifdef GLOBE\n#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)\n#else\n#define ELEVATION_DEPTH_BIAS 2.0\n#endif\n#endif\nout highp vec2 v_uv;\n#ifdef GLOBE\nout float v_depth;\n#endif\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define mediump float gapwidth\n#pragma maplibre: define lowp float offset\n#pragma maplibre: define mediump float width\n#ifdef LINE_VIEWPORT\nvec4 viewport_extrusion(vec2 centre,float elevation,vec2 tangent,vec2 v,vec4 projected) {vec2 normal=vec2(-tangent.y,tangent.x);vec4 ahead=projectTileFor3D(centre+tangent*8.0,elevation);vec4 beside=projectTileFor3D(centre+normal*8.0,elevation);vec2 at=projected.xy/projected.w;vec2 along=normalize((ahead.xy/ahead.w-at)*u_viewport_size);vec2 across=vec2(-along.y,along.x);across*=sign(dot(across,(beside.xy/beside.w-at)*u_viewport_size));vec2 pixels=dot(v,normal)*across+dot(v,tangent)*along;return vec4(pixels*2.0/u_viewport_size*projected.w,0.0,0.0);}\n#endif\nvoid main() {\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize mediump float gapwidth\n#pragma maplibre: initialize lowp float offset\n#pragma maplibre: initialize mediump float width\nif (opacity < 0.01) {gl_Position=vec4(-2.0,-2.0,-2.0,1.0);return;}float ANTIALIASING=1.0/u_device_pixel_ratio/2.0;vec2 a_extrude=vec2(ivec2(a_data.xy)-128);highp float texel_height=1.0/u_image_height;highp float half_texel_height=0.5*texel_height;v_uv=vec2(a_uv_x,a_split_index*texel_height-half_texel_height);vec2 pos=vec2(a_pos_normal >> 1);mediump vec2 normal=vec2(a_pos_normal & 1);normal.y=normal.y*2.0-1.0;v_normal=normal;gapwidth=gapwidth/2.0;float halfwidth=width/2.0;offset=-1.0*offset;float inset=gapwidth+(gapwidth > 0.0 ? ANTIALIASING : 0.0);float outset=gapwidth+halfwidth*(gapwidth > 0.0 ? 2.0 : 1.0)+(halfwidth==0.0 ? 0.0 : ANTIALIASING);mediump vec2 dist=outset*a_extrude*scale;mediump vec2 offset2=offset*a_offset_normal*scale*normal.y;float adjustedThickness=projectLineThickness(pos.y);vec2 line_pos=pos+offset2/u_ratio*adjustedThickness+u_translation;vec2 edge_pos=line_pos+dist/u_ratio*adjustedThickness;\n#ifdef LINE_ELEVATION\nfloat ground=get_elevation(pos);float elevation=a_elevation.x*u_terrain_exaggeration+a_elevation.y*ground;\n#ifdef LINE_VIEWPORT\nvec2 centre=pos+u_translation;vec4 projected_no_extrude=projectTileFor3D(centre,elevation);vec4 projected_with_extrude=projected_no_extrude+viewport_extrusion(centre,elevation,a_elevation.zw,offset2+dist,projected_no_extrude);vec4 depth_at=projectTileFor3D(centre,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=centre;\n#else\nvec4 projected_no_extrude=projectTileFor3D(line_pos,elevation);vec4 projected_with_extrude=projectTileFor3D(edge_pos,elevation);vec4 depth_at=projectTileFor3D(edge_pos,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=edge_pos;\n#endif\ngl_Position=vec4(projected_with_extrude.xy,depth_at.z/depth_at.w*projected_with_extrude.w,projected_with_extrude.w);v_lift=elevation-ground;\n#else\nvec4 projected_no_extrude=projectTile(line_pos);vec4 projected_with_extrude=projectTile(edge_pos);gl_Position=projected_with_extrude;\n#endif\n#ifdef GLOBE\nv_depth=gl_Position.z/gl_Position.w;\n#endif\n#if (!defined(LINE_ELEVATION) && defined TERRAIN3D) || defined LINE_VIEWPORT\nv_gamma_scale=1.0;\n#else\nfloat extrude_length_without_perspective=length(dist);float extrude_length_with_perspective=length((projected_with_extrude.xy-projected_no_extrude.xy)/projected_with_extrude.w*u_units_to_pixels);v_gamma_scale=extrude_length_without_perspective/extrude_length_with_perspective;\n#endif\nv_width2=vec2(outset,inset);}"),
 	linePattern: prepare("#ifdef GL_ES\nprecision highp float;\n#endif\nuniform vec2 u_texsize;uniform float u_fade;uniform mediump vec3 u_scale;uniform sampler2D u_image;in vec2 v_normal;in vec2 v_width2;in float v_linesofar;in float v_gamma_scale;in float v_width;\n#ifdef GLOBE\nin float v_depth;\n#endif\n#pragma maplibre: define lowp vec4 pattern_from\n#pragma maplibre: define lowp vec4 pattern_to\n#pragma maplibre: define lowp float pixel_ratio_from\n#pragma maplibre: define lowp float pixel_ratio_to\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#ifdef LINE_ELEVATION\nin highp vec2 v_tile_pos;in float v_lift;\n#endif\nvoid main() {\n#ifdef LINE_ELEVATION\nelevated_line_fragment(v_tile_pos,v_lift);\n#endif\n#pragma maplibre: initialize mediump vec4 pattern_from\n#pragma maplibre: initialize mediump vec4 pattern_to\n#pragma maplibre: initialize lowp float pixel_ratio_from\n#pragma maplibre: initialize lowp float pixel_ratio_to\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\nclipAntimeridian();vec2 pattern_tl_a=pattern_from.xy;vec2 pattern_br_a=pattern_from.zw;vec2 pattern_tl_b=pattern_to.xy;vec2 pattern_br_b=pattern_to.zw;float tileZoomRatio=u_scale.x;float fromScale=u_scale.y;float toScale=u_scale.z;vec2 display_size_a=(pattern_br_a-pattern_tl_a)/pixel_ratio_from;vec2 display_size_b=(pattern_br_b-pattern_tl_b)/pixel_ratio_to;vec2 pattern_size_a=vec2(display_size_a.x*fromScale/tileZoomRatio,display_size_a.y);vec2 pattern_size_b=vec2(display_size_b.x*toScale/tileZoomRatio,display_size_b.y);float aspect_a=display_size_a.y/v_width;float aspect_b=display_size_b.y/v_width;float dist=length(v_normal)*v_width2.s;float blur2=(blur+1.0/u_device_pixel_ratio)*v_gamma_scale;float alpha=clamp(min(dist-(v_width2.t-blur2),v_width2.s-dist)/blur2,0.0,1.0);float x_a=mod(v_linesofar/pattern_size_a.x*aspect_a,1.0);float x_b=mod(v_linesofar/pattern_size_b.x*aspect_b,1.0);float y=0.5*v_normal.y+0.5;vec2 texel_size=1.0/u_texsize;vec2 pos_a=mix(pattern_tl_a*texel_size-texel_size,pattern_br_a*texel_size+texel_size,vec2(x_a,y));vec2 pos_b=mix(pattern_tl_b*texel_size-texel_size,pattern_br_b*texel_size+texel_size,vec2(x_b,y));vec4 color=mix(texture(u_image,pos_a),texture(u_image,pos_b),u_fade);fragColor=color*alpha*opacity;\n#ifdef GLOBE\nif (v_depth > 1.0) {discard;}\n#endif\n#ifdef HORIZON_FADE\nfragColor*=horizon_fade(1.0/gl_FragCoord.w);\n#endif\n#ifdef TILE_FADE\nfragColor*=u_tile_fade;\n#endif\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}", "\n#define scale 0.015873016\n#define LINE_DISTANCE_SCALE 2.0\nlayout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;uniform vec2 u_translation;uniform mediump float u_ratio;out vec2 v_normal;out vec2 v_width2;out float v_linesofar;out float v_gamma_scale;\n#ifdef LINE_ELEVATION\nin vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;\n#ifdef GLOBE\n#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)\n#else\n#define ELEVATION_DEPTH_BIAS 2.0\n#endif\n#endif\nout float v_width;\n#ifdef GLOBE\nout float v_depth;\n#endif\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define lowp float offset\n#pragma maplibre: define mediump float gapwidth\n#pragma maplibre: define mediump float width\n#pragma maplibre: define lowp float floorwidth\n#pragma maplibre: define lowp vec4 pattern_from\n#pragma maplibre: define lowp vec4 pattern_to\n#pragma maplibre: define lowp float pixel_ratio_from\n#pragma maplibre: define lowp float pixel_ratio_to\n#ifdef LINE_VIEWPORT\nvec4 viewport_extrusion(vec2 centre,float elevation,vec2 tangent,vec2 v,vec4 projected) {vec2 normal=vec2(-tangent.y,tangent.x);vec4 ahead=projectTileFor3D(centre+tangent*8.0,elevation);vec4 beside=projectTileFor3D(centre+normal*8.0,elevation);vec2 at=projected.xy/projected.w;vec2 along=normalize((ahead.xy/ahead.w-at)*u_viewport_size);vec2 across=vec2(-along.y,along.x);across*=sign(dot(across,(beside.xy/beside.w-at)*u_viewport_size));vec2 pixels=dot(v,normal)*across+dot(v,tangent)*along;return vec4(pixels*2.0/u_viewport_size*projected.w,0.0,0.0);}\n#endif\nvoid main() {\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize lowp float offset\n#pragma maplibre: initialize mediump float gapwidth\n#pragma maplibre: initialize mediump float width\n#pragma maplibre: initialize lowp float floorwidth\n#pragma maplibre: initialize mediump vec4 pattern_from\n#pragma maplibre: initialize mediump vec4 pattern_to\n#pragma maplibre: initialize lowp float pixel_ratio_from\n#pragma maplibre: initialize lowp float pixel_ratio_to\nif (opacity < 0.01) {gl_Position=vec4(-2.0,-2.0,-2.0,1.0);return;}float ANTIALIASING=1.0/u_device_pixel_ratio/2.0;vec2 a_extrude=vec2(ivec2(a_data.xy)-128);float a_linesofar=float((a_data.z >> 2u)+a_data.w*64u)*LINE_DISTANCE_SCALE;vec2 pos=vec2(a_pos_normal >> 1);mediump vec2 normal=vec2(a_pos_normal & 1);normal.y=normal.y*2.0-1.0;v_normal=normal;gapwidth=gapwidth/2.0;float halfwidth=width/2.0;offset=-1.0*offset;float inset=gapwidth+(gapwidth > 0.0 ? ANTIALIASING : 0.0);float outset=gapwidth+halfwidth*(gapwidth > 0.0 ? 2.0 : 1.0)+(halfwidth==0.0 ? 0.0 : ANTIALIASING);mediump vec2 dist=outset*a_extrude*scale;mediump vec2 offset2=offset*a_offset_normal*scale*normal.y;float adjustedThickness=projectLineThickness(pos.y);vec2 line_pos=pos+offset2/u_ratio*adjustedThickness+u_translation;vec2 edge_pos=line_pos+dist/u_ratio*adjustedThickness;\n#ifdef LINE_ELEVATION\nfloat ground=get_elevation(pos);float elevation=a_elevation.x*u_terrain_exaggeration+a_elevation.y*ground;\n#ifdef LINE_VIEWPORT\nvec2 centre=pos+u_translation;vec4 projected_no_extrude=projectTileFor3D(centre,elevation);vec4 projected_with_extrude=projected_no_extrude+viewport_extrusion(centre,elevation,a_elevation.zw,offset2+dist,projected_no_extrude);vec4 depth_at=projectTileFor3D(centre,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=centre;\n#else\nvec4 projected_no_extrude=projectTileFor3D(line_pos,elevation);vec4 projected_with_extrude=projectTileFor3D(edge_pos,elevation);vec4 depth_at=projectTileFor3D(edge_pos,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=edge_pos;\n#endif\ngl_Position=vec4(projected_with_extrude.xy,depth_at.z/depth_at.w*projected_with_extrude.w,projected_with_extrude.w);v_lift=elevation-ground;\n#else\nvec4 projected_no_extrude=projectTile(line_pos);vec4 projected_with_extrude=projectTile(edge_pos);gl_Position=projected_with_extrude;\n#endif\n#ifdef GLOBE\nv_depth=gl_Position.z/gl_Position.w;\n#endif\n#if (!defined(LINE_ELEVATION) && defined TERRAIN3D) || defined LINE_VIEWPORT\nv_gamma_scale=1.0;\n#else\nfloat extrude_length_without_perspective=length(dist);float extrude_length_with_perspective=length((projected_with_extrude.xy-projected_no_extrude.xy)/projected_with_extrude.w*u_units_to_pixels);v_gamma_scale=extrude_length_without_perspective/extrude_length_with_perspective;\n#endif\nv_linesofar=a_linesofar;v_width2=vec2(outset,inset);v_width=floorwidth;}"),
-	lineSDF: prepare("uniform lowp float u_lineatlas_width;uniform sampler2D u_image;uniform float u_mix;in vec2 v_normal;in vec2 v_width2;in vec2 v_tex_a;in vec2 v_tex_b;in float v_gamma_scale;\n#ifdef GLOBE\nin float v_depth;\n#endif\n#pragma maplibre: define highp vec4 color\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define mediump float width\n#pragma maplibre: define lowp float floorwidth\n#pragma maplibre: define mediump vec4 dasharray_from\n#pragma maplibre: define mediump vec4 dasharray_to\n#ifdef LINE_ELEVATION\nin highp vec2 v_tile_pos;in float v_lift;\n#endif\nvoid main() {\n#ifdef LINE_ELEVATION\nelevated_line_fragment(v_tile_pos,v_lift);\n#endif\n#pragma maplibre: initialize highp vec4 color\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize mediump float width\n#pragma maplibre: initialize lowp float floorwidth\n#pragma maplibre: initialize mediump vec4 dasharray_from\n#pragma maplibre: initialize mediump vec4 dasharray_to\nclipAntimeridian();float dist=length(v_normal)*v_width2.s;float blur2=(blur+1.0/u_device_pixel_ratio)*v_gamma_scale;float alpha=clamp(min(dist-(v_width2.t-blur2),v_width2.s-dist)/blur2,0.0,1.0);float sdfdist_a=texture(u_image,v_tex_a).a;float sdfdist_b=texture(u_image,v_tex_b).a;float sdfdist=mix(sdfdist_a,sdfdist_b,u_mix);float sdfgamma=(u_lineatlas_width/256.0/u_device_pixel_ratio)/min(dasharray_from.w,dasharray_to.w);alpha*=smoothstep(0.5-sdfgamma/floorwidth,0.5+sdfgamma/floorwidth,sdfdist);fragColor=color*(alpha*opacity);\n#ifdef GLOBE\nif (v_depth > 1.0) {discard;}\n#endif\n#ifdef HORIZON_FADE\nfragColor*=horizon_fade(1.0/gl_FragCoord.w);\n#endif\n#ifdef TILE_FADE\nfragColor*=u_tile_fade;\n#endif\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}", "\n#define scale 0.015873016\n#define LINE_DISTANCE_SCALE 2.0\nlayout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;uniform vec2 u_translation;uniform mediump float u_ratio;uniform float u_tileratio;uniform float u_crossfade_from;uniform float u_crossfade_to;uniform float u_lineatlas_height;out vec2 v_normal;out vec2 v_width2;out vec2 v_tex_a;out vec2 v_tex_b;out float v_gamma_scale;\n#ifdef LINE_ELEVATION\nin vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;\n#ifdef GLOBE\n#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)\n#else\n#define ELEVATION_DEPTH_BIAS 2.0\n#endif\n#endif\n#ifdef GLOBE\nout float v_depth;\n#endif\n#pragma maplibre: define highp vec4 color\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define mediump float gapwidth\n#pragma maplibre: define lowp float offset\n#pragma maplibre: define mediump float width\n#pragma maplibre: define lowp float floorwidth\n#pragma maplibre: define mediump vec4 dasharray_from\n#pragma maplibre: define mediump vec4 dasharray_to\n#ifdef LINE_VIEWPORT\nvec4 viewport_extrusion(vec2 centre,float elevation,vec2 tangent,vec2 v,vec4 projected) {vec2 normal=vec2(-tangent.y,tangent.x);vec4 ahead=projectTileFor3D(centre+tangent*8.0,elevation);vec4 beside=projectTileFor3D(centre+normal*8.0,elevation);vec2 at=projected.xy/projected.w;vec2 along=normalize((ahead.xy/ahead.w-at)*u_viewport_size);vec2 across=vec2(-along.y,along.x);across*=sign(dot(across,(beside.xy/beside.w-at)*u_viewport_size));vec2 pixels=dot(v,normal)*across+dot(v,tangent)*along;return vec4(pixels*2.0/u_viewport_size*projected.w,0.0,0.0);}\n#endif\nvoid main() {\n#pragma maplibre: initialize highp vec4 color\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize mediump float gapwidth\n#pragma maplibre: initialize lowp float offset\n#pragma maplibre: initialize mediump float width\n#pragma maplibre: initialize lowp float floorwidth\n#pragma maplibre: initialize mediump vec4 dasharray_from\n#pragma maplibre: initialize mediump vec4 dasharray_to\nif (opacity < 0.01) {gl_Position=vec4(-2.0,-2.0,-2.0,1.0);return;}float ANTIALIASING=1.0/u_device_pixel_ratio/2.0;vec2 a_extrude=vec2(ivec2(a_data.xy)-128);float a_linesofar=float((a_data.z >> 2u)+a_data.w*64u)*LINE_DISTANCE_SCALE;vec2 pos=vec2(a_pos_normal >> 1);mediump vec2 normal=vec2(a_pos_normal & 1);normal.y=normal.y*2.0-1.0;v_normal=normal;gapwidth=gapwidth/2.0;float halfwidth=width/2.0;offset=-1.0*offset;float inset=gapwidth+(gapwidth > 0.0 ? ANTIALIASING : 0.0);float outset=gapwidth+halfwidth*(gapwidth > 0.0 ? 2.0 : 1.0)+(halfwidth==0.0 ? 0.0 : ANTIALIASING);mediump vec2 dist=outset*a_extrude*scale;mediump vec2 offset2=offset*a_offset_normal*scale*normal.y;float adjustedThickness=projectLineThickness(pos.y);vec2 line_pos=pos+offset2/u_ratio*adjustedThickness+u_translation;vec2 edge_pos=line_pos+dist/u_ratio*adjustedThickness;\n#ifdef LINE_ELEVATION\nfloat ground=get_elevation(pos);float elevation=a_elevation.x*u_terrain_exaggeration+a_elevation.y*ground;\n#ifdef LINE_VIEWPORT\nvec2 centre=pos+u_translation;vec4 projected_no_extrude=projectTileFor3D(centre,elevation);vec4 projected_with_extrude=projected_no_extrude+viewport_extrusion(centre,elevation,a_elevation.zw,offset2+dist,projected_no_extrude);vec4 depth_at=projectTileFor3D(centre,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=centre;\n#else\nvec4 projected_no_extrude=projectTileFor3D(line_pos,elevation);vec4 projected_with_extrude=projectTileFor3D(edge_pos,elevation);vec4 depth_at=projectTileFor3D(edge_pos,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=edge_pos;\n#endif\ngl_Position=vec4(projected_with_extrude.xy,depth_at.z/depth_at.w*projected_with_extrude.w,projected_with_extrude.w);v_lift=elevation-ground;\n#else\nvec4 projected_no_extrude=projectTile(line_pos);vec4 projected_with_extrude=projectTile(edge_pos);gl_Position=projected_with_extrude;\n#endif\n#ifdef GLOBE\nv_depth=gl_Position.z/gl_Position.w;\n#endif\n#if (!defined(LINE_ELEVATION) && defined TERRAIN3D) || defined LINE_VIEWPORT\nv_gamma_scale=1.0;\n#else\nfloat extrude_length_without_perspective=length(dist);float extrude_length_with_perspective=length((projected_with_extrude.xy-projected_no_extrude.xy)/projected_with_extrude.w*u_units_to_pixels);v_gamma_scale=extrude_length_without_perspective/extrude_length_with_perspective;\n#endif\nfloat u_patternscale_a_x=u_tileratio/dasharray_from.w/u_crossfade_from;float u_patternscale_a_y=-dasharray_from.z/2.0/u_lineatlas_height;float u_patternscale_b_x=u_tileratio/dasharray_to.w/u_crossfade_to;float u_patternscale_b_y=-dasharray_to.z/2.0/u_lineatlas_height;v_tex_a=vec2(a_linesofar*u_patternscale_a_x/floorwidth,normal.y*u_patternscale_a_y+(float(dasharray_from.y)+0.5)/u_lineatlas_height);v_tex_b=vec2(a_linesofar*u_patternscale_b_x/floorwidth,normal.y*u_patternscale_b_y+(float(dasharray_to.y)+0.5)/u_lineatlas_height);v_width2=vec2(outset,inset);}"),
-	lineGradientSDF: prepare("uniform sampler2D u_image;uniform sampler2D u_image_dash;uniform float u_mix;uniform lowp float u_lineatlas_width;in vec2 v_normal;in vec2 v_width2;in vec2 v_tex_a;in vec2 v_tex_b;in float v_gamma_scale;in highp vec2 v_uv;\n#ifdef GLOBE\nin float v_depth;\n#endif\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define mediump float width\n#pragma maplibre: define lowp float floorwidth\n#pragma maplibre: define mediump vec4 dasharray_from\n#pragma maplibre: define mediump vec4 dasharray_to\n#ifdef LINE_ELEVATION\nin highp vec2 v_tile_pos;in float v_lift;\n#endif\nvoid main() {\n#ifdef LINE_ELEVATION\nelevated_line_fragment(v_tile_pos,v_lift);\n#endif\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize mediump float width\n#pragma maplibre: initialize lowp float floorwidth\n#pragma maplibre: initialize mediump vec4 dasharray_from\n#pragma maplibre: initialize mediump vec4 dasharray_to\nclipAntimeridian();float dist=length(v_normal)*v_width2.s;float blur2=(blur+1.0/u_device_pixel_ratio)*v_gamma_scale;float alpha=clamp(min(dist-(v_width2.t-blur2),v_width2.s-dist)/blur2,0.0,1.0);vec4 color=texture(u_image,v_uv);float sdfdist_a=texture(u_image_dash,v_tex_a).a;float sdfdist_b=texture(u_image_dash,v_tex_b).a;float sdfdist=mix(sdfdist_a,sdfdist_b,u_mix);float sdfgamma=(u_lineatlas_width/256.0)/min(dasharray_from.w,dasharray_to.w);float dash_alpha=smoothstep(0.5-sdfgamma/floorwidth,0.5+sdfgamma/floorwidth,sdfdist);fragColor=color*(alpha*dash_alpha*opacity);\n#ifdef GLOBE\nif (v_depth > 1.0) {discard;}\n#endif\n#ifdef HORIZON_FADE\nfragColor*=horizon_fade(1.0/gl_FragCoord.w);\n#endif\n#ifdef TILE_FADE\nfragColor*=u_tile_fade;\n#endif\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}", "\n#define scale 0.015873016\n#define LINE_DISTANCE_SCALE 2.0\nlayout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;layout(location=3) in float a_uv_x;layout(location=4) in float a_split_index;uniform vec2 u_translation;uniform mediump float u_ratio;uniform float u_image_height;uniform float u_tileratio;uniform float u_crossfade_from;uniform float u_crossfade_to;uniform float u_lineatlas_height;out vec2 v_normal;out vec2 v_width2;out float v_gamma_scale;\n#ifdef LINE_ELEVATION\nin vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;\n#ifdef GLOBE\n#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)\n#else\n#define ELEVATION_DEPTH_BIAS 2.0\n#endif\n#endif\nout highp vec2 v_uv;out vec2 v_tex_a;out vec2 v_tex_b;\n#ifdef GLOBE\nout float v_depth;\n#endif\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define mediump float gapwidth\n#pragma maplibre: define lowp float offset\n#pragma maplibre: define mediump float width\n#pragma maplibre: define lowp float floorwidth\n#pragma maplibre: define mediump vec4 dasharray_from\n#pragma maplibre: define mediump vec4 dasharray_to\n#ifdef LINE_VIEWPORT\nvec4 viewport_extrusion(vec2 centre,float elevation,vec2 tangent,vec2 v,vec4 projected) {vec2 normal=vec2(-tangent.y,tangent.x);vec4 ahead=projectTileFor3D(centre+tangent*8.0,elevation);vec4 beside=projectTileFor3D(centre+normal*8.0,elevation);vec2 at=projected.xy/projected.w;vec2 along=normalize((ahead.xy/ahead.w-at)*u_viewport_size);vec2 across=vec2(-along.y,along.x);across*=sign(dot(across,(beside.xy/beside.w-at)*u_viewport_size));vec2 pixels=dot(v,normal)*across+dot(v,tangent)*along;return vec4(pixels*2.0/u_viewport_size*projected.w,0.0,0.0);}\n#endif\nvoid main() {\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize mediump float gapwidth\n#pragma maplibre: initialize lowp float offset\n#pragma maplibre: initialize mediump float width\n#pragma maplibre: initialize lowp float floorwidth\n#pragma maplibre: initialize mediump vec4 dasharray_from\n#pragma maplibre: initialize mediump vec4 dasharray_to\nif (opacity < 0.01) {gl_Position=vec4(-2.0,-2.0,-2.0,1.0);return;}float ANTIALIASING=1.0/u_device_pixel_ratio/2.0;vec2 a_extrude=vec2(ivec2(a_data.xy)-128);float a_linesofar=float((a_data.z >> 2u)+a_data.w*64u)*LINE_DISTANCE_SCALE;float texel_height=1.0/u_image_height;float half_texel_height=0.5*texel_height;v_uv=vec2(a_uv_x,a_split_index*texel_height-half_texel_height);vec2 pos=vec2(a_pos_normal >> 1);mediump vec2 normal=vec2(a_pos_normal & 1);normal.y=normal.y*2.0-1.0;v_normal=normal;gapwidth=gapwidth/2.0;float halfwidth=width/2.0;offset=-1.0*offset;float inset=gapwidth+(gapwidth > 0.0 ? ANTIALIASING : 0.0);float outset=gapwidth+halfwidth*(gapwidth > 0.0 ? 2.0 : 1.0)+(halfwidth==0.0 ? 0.0 : ANTIALIASING);mediump vec2 dist=outset*a_extrude*scale;mediump vec2 offset2=offset*a_offset_normal*scale*normal.y;float adjustedThickness=projectLineThickness(pos.y);vec2 line_pos=pos+offset2/u_ratio*adjustedThickness+u_translation;vec2 edge_pos=line_pos+dist/u_ratio*adjustedThickness;\n#ifdef LINE_ELEVATION\nfloat ground=get_elevation(pos);float elevation=a_elevation.x*u_terrain_exaggeration+a_elevation.y*ground;\n#ifdef LINE_VIEWPORT\nvec2 centre=pos+u_translation;vec4 projected_no_extrude=projectTileFor3D(centre,elevation);vec4 projected_with_extrude=projected_no_extrude+viewport_extrusion(centre,elevation,a_elevation.zw,offset2+dist,projected_no_extrude);vec4 depth_at=projectTileFor3D(centre,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=centre;\n#else\nvec4 projected_no_extrude=projectTileFor3D(line_pos,elevation);vec4 projected_with_extrude=projectTileFor3D(edge_pos,elevation);vec4 depth_at=projectTileFor3D(edge_pos,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=edge_pos;\n#endif\ngl_Position=vec4(projected_with_extrude.xy,depth_at.z/depth_at.w*projected_with_extrude.w,projected_with_extrude.w);v_lift=elevation-ground;\n#else\nvec4 projected_no_extrude=projectTile(line_pos);vec4 projected_with_extrude=projectTile(edge_pos);gl_Position=projected_with_extrude;\n#endif\n#ifdef GLOBE\nv_depth=gl_Position.z/gl_Position.w;\n#endif\n#if (!defined(LINE_ELEVATION) && defined TERRAIN3D) || defined LINE_VIEWPORT\nv_gamma_scale=1.0;\n#else\nfloat extrude_length_without_perspective=length(dist);float extrude_length_with_perspective=length((projected_with_extrude.xy-projected_no_extrude.xy)/projected_with_extrude.w*u_units_to_pixels);v_gamma_scale=extrude_length_without_perspective/extrude_length_with_perspective;\n#endif\nfloat u_patternscale_a_x=u_tileratio/dasharray_from.w/u_crossfade_from;float u_patternscale_a_y=-dasharray_from.z/2.0/u_lineatlas_height;float u_patternscale_b_x=u_tileratio/dasharray_to.w/u_crossfade_to;float u_patternscale_b_y=-dasharray_to.z/2.0/u_lineatlas_height;v_tex_a=vec2(a_linesofar*u_patternscale_a_x/floorwidth,normal.y*u_patternscale_a_y+(float(dasharray_from.y)+0.5)/u_lineatlas_height);v_tex_b=vec2(a_linesofar*u_patternscale_b_x/floorwidth,normal.y*u_patternscale_b_y+(float(dasharray_to.y)+0.5)/u_lineatlas_height);v_width2=vec2(outset,inset);}"),
-	layerComposite: prepare("uniform sampler2D u_image;uniform float u_opacity;\n#ifdef LAYER_BLEND\nuniform sampler2D u_backdrop;uniform highp vec2 u_backdrop_offset;\n#ifdef LAYER_BLEND_NONSEPARABLE\nfloat lum(vec3 c) {return dot(c,vec3(0.3,0.59,0.11));}vec3 clipColor(vec3 c) {float l=lum(c);float n=min(min(c.r,c.g),c.b);float x=max(max(c.r,c.g),c.b);if (n < 0.0) c=l+(c-l)*l/(l-n);if (x > 1.0) c=l+(c-l)*(1.0-l)/(x-l);return c;}vec3 setLum(vec3 c,float l) {return clipColor(c+(l-lum(c)));}\n#endif\nvec4 composite(vec4 src,vec4 dst) {vec3 co=vec3(0.0);float invDstA=1.0-dst.a;float invSrcA=1.0-src.a;\n#ifdef LAYER_BLEND_MULTIPLY\nco=invDstA*src.rgb+invSrcA*dst.rgb+src.rgb*dst.rgb;\n#endif\n#ifdef LAYER_BLEND_OVERLAY\nvec3 cond=step(dst.a,2.0*dst.rgb);vec3 case1=invDstA*src.rgb+invSrcA*dst.rgb+2.0*dst.rgb*src.rgb;vec3 case2=src.rgb+dst.rgb+dst.a*src.rgb+src.a*dst.rgb-vec3(src.a*dst.a)-2.0*dst.rgb*src.rgb;co=mix(case1,case2,cond);\n#endif\n#ifdef LAYER_BLEND_NONSEPARABLE\nvec3 cs=src.rgb/src.a;vec3 cb=dst.a > 0.0 ? dst.rgb/dst.a : vec3(0.0);\n#ifdef LAYER_BLEND_COLOR\nvec3 blended=setLum(cs,lum(cb));\n#else\nvec3 blended=setLum(cb,lum(cs));\n#endif\nco=invDstA*src.rgb+invSrcA*dst.rgb+src.a*dst.a*blended;\n#endif\nreturn vec4(co,src.a+dst.a*invSrcA);}\n#endif\nvoid main() {ivec2 texel=ivec2(gl_FragCoord.xy);\n#ifdef OVERDRAW_INSPECTOR\nfragColor=texelFetch(u_image,texel,0);\n#else\nvec4 src=texelFetch(u_image,texel,0)*u_opacity;if (src.a==0.0) {discard;}\n#ifdef LAYER_BLEND\nvec4 dst=texelFetch(u_backdrop,texel-ivec2(u_backdrop_offset),0);fragColor=composite(src,dst);\n#else\nfragColor=src;\n#endif\n#endif\n}", "layout(location=0) in vec2 a_pos;void main() {gl_Position=vec4(a_pos.x*2.0-1.0,1.0-a_pos.y*2.0,0.0,1.0);}"),
+	lineSDF: prepare("uniform lowp float u_lineatlas_width;uniform sampler2D u_image;uniform float u_mix;in vec2 v_normal;in vec2 v_width2;in vec2 v_tex_a;in vec2 v_tex_b;in float v_gamma_scale;\n#ifdef GLOBE\nin float v_depth;\n#endif\n#pragma maplibre: define highp vec4 color\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define mediump float width\n#pragma maplibre: define lowp float floorwidth\n#pragma maplibre: define mediump vec4 dasharray_from\n#pragma maplibre: define mediump vec4 dasharray_to\n#ifdef LINE_ELEVATION\nin highp vec2 v_tile_pos;in float v_lift;\n#endif\nvoid main() {\n#ifdef LINE_ELEVATION\nelevated_line_fragment(v_tile_pos,v_lift);\n#endif\n#pragma maplibre: initialize highp vec4 color\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize mediump float width\n#pragma maplibre: initialize lowp float floorwidth\n#pragma maplibre: initialize mediump vec4 dasharray_from\n#pragma maplibre: initialize mediump vec4 dasharray_to\nclipAntimeridian();float dist=length(v_normal)*v_width2.s;float blur2=(blur+1.0/u_device_pixel_ratio)*v_gamma_scale;float alpha=clamp(min(dist-(v_width2.t-blur2),v_width2.s-dist)/blur2,0.0,1.0);float sdfdist_a=texture(u_image,v_tex_a).a;float sdfdist_b=texture(u_image,v_tex_b).a;float sdfdist=mix(sdfdist_a,sdfdist_b,u_mix);float sdfgamma=(u_lineatlas_width/256.0/u_device_pixel_ratio)/min(dasharray_from.w,dasharray_to.w);alpha*=smoothstep(0.5-sdfgamma/floorwidth,0.5+sdfgamma/floorwidth,sdfdist);fragColor=color*(alpha*opacity);\n#ifdef GLOBE\nif (v_depth > 1.0) {discard;}\n#endif\n#ifdef HORIZON_FADE\nfragColor*=horizon_fade(1.0/gl_FragCoord.w);\n#endif\n#ifdef TILE_FADE\nfragColor*=u_tile_fade;\n#endif\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}", "\n#define scale 0.015873016\n#define LINE_DISTANCE_SCALE 2.0\nlayout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;layout(location=3) in float a_offset_distance;uniform vec2 u_translation;uniform mediump float u_ratio;uniform float u_tileratio;uniform float u_crossfade_from;uniform float u_crossfade_to;uniform float u_lineatlas_height;out vec2 v_normal;out vec2 v_width2;out vec2 v_tex_a;out vec2 v_tex_b;out float v_gamma_scale;\n#ifdef LINE_ELEVATION\nin vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;\n#ifdef GLOBE\n#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)\n#else\n#define ELEVATION_DEPTH_BIAS 2.0\n#endif\n#endif\n#ifdef GLOBE\nout float v_depth;\n#endif\n#pragma maplibre: define highp vec4 color\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define mediump float gapwidth\n#pragma maplibre: define lowp float offset\n#pragma maplibre: define mediump float width\n#pragma maplibre: define lowp float floorwidth\n#pragma maplibre: define mediump vec4 dasharray_from\n#pragma maplibre: define mediump vec4 dasharray_to\n#ifdef LINE_VIEWPORT\nvec4 viewport_extrusion(vec2 centre,float elevation,vec2 tangent,vec2 v,vec4 projected) {vec2 normal=vec2(-tangent.y,tangent.x);vec4 ahead=projectTileFor3D(centre+tangent*8.0,elevation);vec4 beside=projectTileFor3D(centre+normal*8.0,elevation);vec2 at=projected.xy/projected.w;vec2 along=normalize((ahead.xy/ahead.w-at)*u_viewport_size);vec2 across=vec2(-along.y,along.x);across*=sign(dot(across,(beside.xy/beside.w-at)*u_viewport_size));vec2 pixels=dot(v,normal)*across+dot(v,tangent)*along;return vec4(pixels*2.0/u_viewport_size*projected.w,0.0,0.0);}\n#endif\nvoid main() {\n#pragma maplibre: initialize highp vec4 color\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize mediump float gapwidth\n#pragma maplibre: initialize lowp float offset\n#pragma maplibre: initialize mediump float width\n#pragma maplibre: initialize lowp float floorwidth\n#pragma maplibre: initialize mediump vec4 dasharray_from\n#pragma maplibre: initialize mediump vec4 dasharray_to\nif (opacity < 0.01) {gl_Position=vec4(-2.0,-2.0,-2.0,1.0);return;}float ANTIALIASING=1.0/u_device_pixel_ratio/2.0;vec2 a_extrude=vec2(ivec2(a_data.xy)-128);float a_linesofar=float((a_data.z >> 2u)+a_data.w*64u)*LINE_DISTANCE_SCALE;vec2 pos=vec2(a_pos_normal >> 1);mediump vec2 normal=vec2(a_pos_normal & 1);normal.y=normal.y*2.0-1.0;v_normal=normal;gapwidth=gapwidth/2.0;float halfwidth=width/2.0;offset=-1.0*offset;float inset=gapwidth+(gapwidth > 0.0 ? ANTIALIASING : 0.0);float outset=gapwidth+halfwidth*(gapwidth > 0.0 ? 2.0 : 1.0)+(halfwidth==0.0 ? 0.0 : ANTIALIASING);mediump vec2 dist=outset*a_extrude*scale;mediump vec2 offset2=offset*a_offset_normal*scale*normal.y;float adjustedThickness=projectLineThickness(pos.y);float linesofar=a_linesofar-offset/u_ratio*adjustedThickness*a_offset_distance;vec2 line_pos=pos+offset2/u_ratio*adjustedThickness+u_translation;vec2 edge_pos=line_pos+dist/u_ratio*adjustedThickness;\n#ifdef LINE_ELEVATION\nfloat ground=get_elevation(pos);float elevation=a_elevation.x*u_terrain_exaggeration+a_elevation.y*ground;\n#ifdef LINE_VIEWPORT\nvec2 centre=pos+u_translation;vec4 projected_no_extrude=projectTileFor3D(centre,elevation);vec4 projected_with_extrude=projected_no_extrude+viewport_extrusion(centre,elevation,a_elevation.zw,offset2+dist,projected_no_extrude);vec4 depth_at=projectTileFor3D(centre,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=centre;\n#else\nvec4 projected_no_extrude=projectTileFor3D(line_pos,elevation);vec4 projected_with_extrude=projectTileFor3D(edge_pos,elevation);vec4 depth_at=projectTileFor3D(edge_pos,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=edge_pos;\n#endif\ngl_Position=vec4(projected_with_extrude.xy,depth_at.z/depth_at.w*projected_with_extrude.w,projected_with_extrude.w);v_lift=elevation-ground;\n#else\nvec4 projected_no_extrude=projectTile(line_pos);vec4 projected_with_extrude=projectTile(edge_pos);gl_Position=projected_with_extrude;\n#endif\n#ifdef GLOBE\nv_depth=gl_Position.z/gl_Position.w;\n#endif\n#if (!defined(LINE_ELEVATION) && defined TERRAIN3D) || defined LINE_VIEWPORT\nv_gamma_scale=1.0;\n#else\nfloat extrude_length_without_perspective=length(dist);float extrude_length_with_perspective=length((projected_with_extrude.xy-projected_no_extrude.xy)/projected_with_extrude.w*u_units_to_pixels);v_gamma_scale=extrude_length_without_perspective/extrude_length_with_perspective;\n#endif\nfloat u_patternscale_a_x=u_tileratio/dasharray_from.w/u_crossfade_from;float u_patternscale_a_y=-dasharray_from.z/2.0/u_lineatlas_height;float u_patternscale_b_x=u_tileratio/dasharray_to.w/u_crossfade_to;float u_patternscale_b_y=-dasharray_to.z/2.0/u_lineatlas_height;v_tex_a=vec2(linesofar*u_patternscale_a_x/floorwidth,normal.y*u_patternscale_a_y+(float(dasharray_from.y)+0.5)/u_lineatlas_height);v_tex_b=vec2(linesofar*u_patternscale_b_x/floorwidth,normal.y*u_patternscale_b_y+(float(dasharray_to.y)+0.5)/u_lineatlas_height);v_width2=vec2(outset,inset);}"),
+	lineGradientSDF: prepare("uniform sampler2D u_image;uniform sampler2D u_image_dash;uniform float u_mix;uniform lowp float u_lineatlas_width;in vec2 v_normal;in vec2 v_width2;in vec2 v_tex_a;in vec2 v_tex_b;in float v_gamma_scale;in highp vec2 v_uv;\n#ifdef GLOBE\nin float v_depth;\n#endif\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define mediump float width\n#pragma maplibre: define lowp float floorwidth\n#pragma maplibre: define mediump vec4 dasharray_from\n#pragma maplibre: define mediump vec4 dasharray_to\n#ifdef LINE_ELEVATION\nin highp vec2 v_tile_pos;in float v_lift;\n#endif\nvoid main() {\n#ifdef LINE_ELEVATION\nelevated_line_fragment(v_tile_pos,v_lift);\n#endif\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize mediump float width\n#pragma maplibre: initialize lowp float floorwidth\n#pragma maplibre: initialize mediump vec4 dasharray_from\n#pragma maplibre: initialize mediump vec4 dasharray_to\nclipAntimeridian();float dist=length(v_normal)*v_width2.s;float blur2=(blur+1.0/u_device_pixel_ratio)*v_gamma_scale;float alpha=clamp(min(dist-(v_width2.t-blur2),v_width2.s-dist)/blur2,0.0,1.0);vec4 color=texture(u_image,v_uv);float sdfdist_a=texture(u_image_dash,v_tex_a).a;float sdfdist_b=texture(u_image_dash,v_tex_b).a;float sdfdist=mix(sdfdist_a,sdfdist_b,u_mix);float sdfgamma=(u_lineatlas_width/256.0)/min(dasharray_from.w,dasharray_to.w);float dash_alpha=smoothstep(0.5-sdfgamma/floorwidth,0.5+sdfgamma/floorwidth,sdfdist);fragColor=color*(alpha*dash_alpha*opacity);\n#ifdef GLOBE\nif (v_depth > 1.0) {discard;}\n#endif\n#ifdef HORIZON_FADE\nfragColor*=horizon_fade(1.0/gl_FragCoord.w);\n#endif\n#ifdef TILE_FADE\nfragColor*=u_tile_fade;\n#endif\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}", "\n#define scale 0.015873016\n#define LINE_DISTANCE_SCALE 2.0\nlayout(location=0) in ivec2 a_pos_normal;layout(location=1) in uvec4 a_data;layout(location=2) in vec2 a_offset_normal;layout(location=3) in float a_uv_x;layout(location=4) in float a_split_index;layout(location=5) in float a_offset_distance;uniform vec2 u_translation;uniform mediump float u_ratio;uniform float u_image_height;uniform float u_tileratio;uniform float u_crossfade_from;uniform float u_crossfade_to;uniform float u_lineatlas_height;out vec2 v_normal;out vec2 v_width2;out float v_gamma_scale;\n#ifdef LINE_ELEVATION\nin vec4 a_elevation;out highp vec2 v_tile_pos;out float v_lift;\n#ifdef GLOBE\n#define ELEVATION_DEPTH_BIAS (2.0+10000.0*u_projection_transition)\n#else\n#define ELEVATION_DEPTH_BIAS 2.0\n#endif\n#endif\nout highp vec2 v_uv;out vec2 v_tex_a;out vec2 v_tex_b;\n#ifdef GLOBE\nout float v_depth;\n#endif\n#pragma maplibre: define lowp float blur\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define mediump float gapwidth\n#pragma maplibre: define lowp float offset\n#pragma maplibre: define mediump float width\n#pragma maplibre: define lowp float floorwidth\n#pragma maplibre: define mediump vec4 dasharray_from\n#pragma maplibre: define mediump vec4 dasharray_to\n#ifdef LINE_VIEWPORT\nvec4 viewport_extrusion(vec2 centre,float elevation,vec2 tangent,vec2 v,vec4 projected) {vec2 normal=vec2(-tangent.y,tangent.x);vec4 ahead=projectTileFor3D(centre+tangent*8.0,elevation);vec4 beside=projectTileFor3D(centre+normal*8.0,elevation);vec2 at=projected.xy/projected.w;vec2 along=normalize((ahead.xy/ahead.w-at)*u_viewport_size);vec2 across=vec2(-along.y,along.x);across*=sign(dot(across,(beside.xy/beside.w-at)*u_viewport_size));vec2 pixels=dot(v,normal)*across+dot(v,tangent)*along;return vec4(pixels*2.0/u_viewport_size*projected.w,0.0,0.0);}\n#endif\nvoid main() {\n#pragma maplibre: initialize lowp float blur\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize mediump float gapwidth\n#pragma maplibre: initialize lowp float offset\n#pragma maplibre: initialize mediump float width\n#pragma maplibre: initialize lowp float floorwidth\n#pragma maplibre: initialize mediump vec4 dasharray_from\n#pragma maplibre: initialize mediump vec4 dasharray_to\nif (opacity < 0.01) {gl_Position=vec4(-2.0,-2.0,-2.0,1.0);return;}float ANTIALIASING=1.0/u_device_pixel_ratio/2.0;vec2 a_extrude=vec2(ivec2(a_data.xy)-128);float a_linesofar=float((a_data.z >> 2u)+a_data.w*64u)*LINE_DISTANCE_SCALE;float texel_height=1.0/u_image_height;float half_texel_height=0.5*texel_height;v_uv=vec2(a_uv_x,a_split_index*texel_height-half_texel_height);vec2 pos=vec2(a_pos_normal >> 1);mediump vec2 normal=vec2(a_pos_normal & 1);normal.y=normal.y*2.0-1.0;v_normal=normal;gapwidth=gapwidth/2.0;float halfwidth=width/2.0;offset=-1.0*offset;float inset=gapwidth+(gapwidth > 0.0 ? ANTIALIASING : 0.0);float outset=gapwidth+halfwidth*(gapwidth > 0.0 ? 2.0 : 1.0)+(halfwidth==0.0 ? 0.0 : ANTIALIASING);mediump vec2 dist=outset*a_extrude*scale;mediump vec2 offset2=offset*a_offset_normal*scale*normal.y;float adjustedThickness=projectLineThickness(pos.y);float linesofar=a_linesofar-offset/u_ratio*adjustedThickness*a_offset_distance;vec2 line_pos=pos+offset2/u_ratio*adjustedThickness+u_translation;vec2 edge_pos=line_pos+dist/u_ratio*adjustedThickness;\n#ifdef LINE_ELEVATION\nfloat ground=get_elevation(pos);float elevation=a_elevation.x*u_terrain_exaggeration+a_elevation.y*ground;\n#ifdef LINE_VIEWPORT\nvec2 centre=pos+u_translation;vec4 projected_no_extrude=projectTileFor3D(centre,elevation);vec4 projected_with_extrude=projected_no_extrude+viewport_extrusion(centre,elevation,a_elevation.zw,offset2+dist,projected_no_extrude);vec4 depth_at=projectTileFor3D(centre,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=centre;\n#else\nvec4 projected_no_extrude=projectTileFor3D(line_pos,elevation);vec4 projected_with_extrude=projectTileFor3D(edge_pos,elevation);vec4 depth_at=projectTileFor3D(edge_pos,elevation+ELEVATION_DEPTH_BIAS);v_tile_pos=edge_pos;\n#endif\ngl_Position=vec4(projected_with_extrude.xy,depth_at.z/depth_at.w*projected_with_extrude.w,projected_with_extrude.w);v_lift=elevation-ground;\n#else\nvec4 projected_no_extrude=projectTile(line_pos);vec4 projected_with_extrude=projectTile(edge_pos);gl_Position=projected_with_extrude;\n#endif\n#ifdef GLOBE\nv_depth=gl_Position.z/gl_Position.w;\n#endif\n#if (!defined(LINE_ELEVATION) && defined TERRAIN3D) || defined LINE_VIEWPORT\nv_gamma_scale=1.0;\n#else\nfloat extrude_length_without_perspective=length(dist);float extrude_length_with_perspective=length((projected_with_extrude.xy-projected_no_extrude.xy)/projected_with_extrude.w*u_units_to_pixels);v_gamma_scale=extrude_length_without_perspective/extrude_length_with_perspective;\n#endif\nfloat u_patternscale_a_x=u_tileratio/dasharray_from.w/u_crossfade_from;float u_patternscale_a_y=-dasharray_from.z/2.0/u_lineatlas_height;float u_patternscale_b_x=u_tileratio/dasharray_to.w/u_crossfade_to;float u_patternscale_b_y=-dasharray_to.z/2.0/u_lineatlas_height;v_tex_a=vec2(linesofar*u_patternscale_a_x/floorwidth,normal.y*u_patternscale_a_y+(float(dasharray_from.y)+0.5)/u_lineatlas_height);v_tex_b=vec2(linesofar*u_patternscale_b_x/floorwidth,normal.y*u_patternscale_b_y+(float(dasharray_to.y)+0.5)/u_lineatlas_height);v_width2=vec2(outset,inset);}"),
+	layerComposite: prepare("uniform sampler2D u_image;uniform float u_opacity;\n#ifdef LAYER_BLEND\nuniform sampler2D u_backdrop;uniform highp vec2 u_backdrop_offset;\n#ifdef LAYER_BLEND_NONSEPARABLE\nfloat lum(vec3 c) {return dot(c,vec3(0.3,0.59,0.11));}vec3 clipColor(vec3 c) {float l=lum(c);float n=min(min(c.r,c.g),c.b);float x=max(max(c.r,c.g),c.b);if (n < 0.0) c=l+(c-l)*l/(l-n);if (x > 1.0) c=l+(c-l)*(1.0-l)/(x-l);return c;}vec3 setLum(vec3 c,float l) {return clipColor(c+(l-lum(c)));}float sat(vec3 c) {return max(max(c.r,c.g),c.b)-min(min(c.r,c.g),c.b);}vec3 setSat(vec3 c,float s) {float n=min(min(c.r,c.g),c.b);float x=max(max(c.r,c.g),c.b);return x > n ? (c-n)*s/(x-n) : vec3(0.0);}\n#endif\n#ifdef LAYER_BLEND_SOFT_LIGHT\nvec3 softLight(vec3 cs,vec3 cb) {vec3 d=mix(sqrt(cb),((16.0*cb-12.0)*cb+4.0)*cb,step(cb,vec3(0.25)));vec3 darkened=cb-(1.0-2.0*cs)*cb*(1.0-cb);vec3 lightened=cb+(2.0*cs-1.0)*(d-cb);return mix(darkened,lightened,step(0.5,cs));}\n#endif\n#ifdef LAYER_BLEND_COLOR_DODGE\nvec3 colorDodge(vec3 cs,vec3 cb) {return min(vec3(1.0),cb/max(1.0-cs,1e-3));}\n#endif\n#ifdef LAYER_BLEND_COLOR_BURN\nvec3 colorBurn(vec3 cs,vec3 cb) {return 1.0-min(vec3(1.0),(1.0-cb)/max(cs,1e-3));}\n#endif\nvec4 composite(vec4 src,vec4 dst) {vec3 co=vec3(0.0);float invDstA=1.0-dst.a;float invSrcA=1.0-src.a;\n#ifdef LAYER_BLEND_MULTIPLY\nco=invDstA*src.rgb+invSrcA*dst.rgb+src.rgb*dst.rgb;\n#endif\n#if defined(LAYER_BLEND_OVERLAY) || defined(LAYER_BLEND_HARD_LIGHT)\n#ifdef LAYER_BLEND_OVERLAY\nvec3 cond=step(dst.a,2.0*dst.rgb);\n#else\nvec3 cond=step(src.a,2.0*src.rgb);\n#endif\nvec3 case1=invDstA*src.rgb+invSrcA*dst.rgb+2.0*dst.rgb*src.rgb;vec3 case2=src.rgb+dst.rgb+dst.a*src.rgb+src.a*dst.rgb-vec3(src.a*dst.a)-2.0*dst.rgb*src.rgb;co=mix(case1,case2,cond);\n#endif\n#ifdef LAYER_BLEND_DIFFERENCE\nco=src.rgb+dst.rgb-2.0*min(src.rgb*dst.a,dst.rgb*src.a);\n#endif\n#ifdef LAYER_BLEND_EXCLUSION\nco=src.rgb+dst.rgb-2.0*src.rgb*dst.rgb;\n#endif\n#ifdef LAYER_BLEND_DARKEN\nco=src.rgb+dst.rgb-max(src.rgb*dst.a,dst.rgb*src.a);\n#endif\n#ifdef LAYER_BLEND_LIGHTEN\nco=src.rgb+dst.rgb-min(src.rgb*dst.a,dst.rgb*src.a);\n#endif\n#ifdef LAYER_BLEND_UNPREMULTIPLIED\nvec3 cs=src.rgb/src.a;vec3 cb=dst.a > 0.0 ? dst.rgb/dst.a : vec3(0.0);vec3 blended=vec3(0.0);\n#ifdef LAYER_BLEND_SOFT_LIGHT\nblended=softLight(cs,cb);\n#endif\n#ifdef LAYER_BLEND_COLOR_DODGE\nblended=colorDodge(cs,cb);\n#endif\n#ifdef LAYER_BLEND_COLOR_BURN\nblended=colorBurn(cs,cb);\n#endif\n#ifdef LAYER_BLEND_HUE\nblended=setLum(setSat(cs,sat(cb)),lum(cb));\n#endif\n#ifdef LAYER_BLEND_SATURATION\nblended=setLum(setSat(cb,sat(cs)),lum(cb));\n#endif\n#ifdef LAYER_BLEND_COLOR\nblended=setLum(cs,lum(cb));\n#endif\n#ifdef LAYER_BLEND_LUMINOSITY\nblended=setLum(cb,lum(cs));\n#endif\nco=invDstA*src.rgb+invSrcA*dst.rgb+src.a*dst.a*blended;\n#endif\nreturn vec4(co,src.a+dst.a*invSrcA);}\n#endif\nvoid main() {ivec2 texel=ivec2(gl_FragCoord.xy);\n#ifdef OVERDRAW_INSPECTOR\nfragColor=texelFetch(u_image,texel,0);\n#else\nvec4 src=texelFetch(u_image,texel,0)*u_opacity;if (src.a==0.0) {discard;}\n#ifdef LAYER_BLEND\nvec4 dst=texelFetch(u_backdrop,texel-ivec2(u_backdrop_offset),0);fragColor=composite(src,dst);\n#else\nfragColor=src;\n#endif\n#endif\n}", "layout(location=0) in vec2 a_pos;void main() {gl_Position=vec4(a_pos.x*2.0-1.0,1.0-a_pos.y*2.0,0.0,1.0);}"),
 	raster: prepare("uniform float u_fade_t;uniform float u_opacity;uniform sampler2D u_image0;uniform sampler2D u_image1;in vec3 v_pos0;in vec3 v_pos1;uniform float u_brightness_low;uniform float u_brightness_high;uniform float u_saturation_factor;uniform float u_contrast_factor;uniform vec3 u_spin_weights;void main() {vec4 color0=texture(u_image0,v_pos0.xy/v_pos0.z);vec4 color1=texture(u_image1,v_pos1.xy/v_pos1.z);if (color0.a > 0.0) {color0.rgb=color0.rgb/color0.a;}if (color1.a > 0.0) {color1.rgb=color1.rgb/color1.a;}vec4 color=mix(color0,color1,u_fade_t);color.a*=u_opacity;vec3 rgb=color.rgb;rgb=vec3(dot(rgb,u_spin_weights.xyz),dot(rgb,u_spin_weights.zxy),dot(rgb,u_spin_weights.yzx));float average=(color.r+color.g+color.b)/3.0;rgb+=(average-rgb)*u_saturation_factor;rgb=(rgb-0.5)*u_contrast_factor+0.5;vec3 u_high_vec=vec3(u_brightness_low,u_brightness_low,u_brightness_low);vec3 u_low_vec=vec3(u_brightness_high,u_brightness_high,u_brightness_high);fragColor=vec4(mix(u_high_vec,u_low_vec,rgb)*color.a,color.a);\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}", "uniform vec2 u_tl_parent;uniform float u_scale_parent;uniform float u_buffer_scale;uniform vec3 u_image_warp;uniform vec4 u_coords_top;uniform vec4 u_coords_bottom;layout(location=0) in vec2 a_pos;out vec3 v_pos0;out vec3 v_pos1;void main() {vec2 fractionalPos=a_pos/8192.0;vec2 topLeft=u_coords_top.xy;vec2 topRight=u_coords_top.zw;vec2 bottomLeft=u_coords_bottom.xy;vec2 bottomRight=u_coords_bottom.zw;vec2 bilinearPos=mix(mix(topLeft,topRight,fractionalPos.x),mix(bottomLeft,bottomRight,fractionalPos.x),fractionalPos.y);float denominator=dot(u_image_warp.xy,fractionalPos)+1.0;vec2 acrossTop=topRight-topLeft+u_image_warp.x*topRight;vec2 downLeft=bottomLeft-topLeft+u_image_warp.y*bottomLeft;vec2 projectivePos=(acrossTop*fractionalPos.x+downLeft*fractionalPos.y+topLeft)/denominator;vec2 position=mix(projectivePos,bilinearPos,u_image_warp.z);gl_Position=projectTile(position,position);vec2 texturePos=((fractionalPos-0.5)/u_buffer_scale)+0.5;\n#ifdef GLOBE\nif (a_pos.y <-32767.5) {texturePos.y=0.0;}if (a_pos.y > 32766.5) {texturePos.y=1.0;}\n#endif\nfloat perspectiveRatio=mix(1.0/denominator,1.0,u_image_warp.z);v_pos0=vec3(texturePos*perspectiveRatio,perspectiveRatio);vec2 parentPos=(texturePos*u_scale_parent)+u_tl_parent;v_pos1=vec3(parentPos*perspectiveRatio,perspectiveRatio);}"),
 	symbolIcon: prepare("uniform sampler2D u_texture;in vec2 v_tex;in float v_total_opacity;void main() {fragColor=texture(u_texture,v_tex)*v_total_opacity;\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}", "layout(location=0) in vec4 a_pos_offset;layout(location=1) in uvec4 a_data;layout(location=2) in vec4 a_pixeloffset;layout(location=3) in vec3 a_projected_pos;layout(location=4) in uint a_fade_opacity;layout(location=5) in vec2 a_height_offset;layout(location=6) in vec2 a_anchoroffset;uniform bool u_is_size_zoom_constant;uniform bool u_is_size_feature_constant;uniform highp float u_size_t;uniform highp float u_size;uniform bool u_rotate_symbol;uniform mat4 u_label_plane_matrix;uniform mat4 u_coord_matrix;uniform bool u_is_text;uniform bool u_pitch_with_map;uniform vec2 u_texsize;uniform bool u_is_along_line;uniform bool u_is_variable_anchor;uniform vec2 u_translation;uniform float u_pitched_scale;uniform bool u_is_offset;uniform bool u_anchor_offset_is_map;out vec2 v_tex;out float v_total_opacity;\n#pragma maplibre: define lowp float opacity\nvoid main() {\n#pragma maplibre: initialize lowp float opacity\nvec2 a_pos=a_pos_offset.xy;vec2 a_offset=a_pos_offset.zw;vec2 a_tex=vec2(a_data.xy);vec2 a_size=vec2(a_data.zw);float a_size_min=float(a_data.z >> 1u);vec2 a_pxoffset=a_pixeloffset.xy;vec2 a_minFontScale=a_pixeloffset.zw/256.0;float ground_ele=get_elevation(a_pos);float ele=a_height_offset.x+a_height_offset.y*ground_ele;highp float segment_angle=-a_projected_pos[2];float size;if (!u_is_size_zoom_constant && !u_is_size_feature_constant) {size=mix(a_size_min,a_size[1],u_size_t)/128.0;} else if (u_is_size_zoom_constant && !u_is_size_feature_constant) {size=a_size_min/128.0;} else {size=u_size;}vec2 translated_a_pos=a_pos+u_translation;vec4 projectedPoint=projectTileWithElevation(translated_a_pos,ele);vec2 fade_opacity=unpack_opacity(a_fade_opacity);float fade_change=mix(-u_symbol_fade_change,u_symbol_fade_change,fade_opacity[1]);float visibility=calculate_visibility(ele < ground_ele ? projectTileWithElevation(translated_a_pos,ground_ele) : projectedPoint);v_total_opacity=opacity*max(0.0,min(visibility,fade_opacity[0]+fade_change));\n#ifdef HORIZON_FADE\nv_total_opacity*=horizon_fade(projectedPoint.w);\n#endif\nif (v_total_opacity < 0.1){gl_Position=vec4(-2.,-2.,-2.,1.);return;}highp float camera_to_anchor_distance=projectedPoint.w;highp float distance_ratio=u_pitch_with_map ?\ncamera_to_anchor_distance/u_camera_to_center_distance :\nu_camera_to_center_distance/camera_to_anchor_distance;highp float perspective_ratio=clamp(0.5+0.5*distance_ratio,0.0,4.0);if (!u_is_offset) {size*=perspective_ratio;}float fontScale=u_is_text ? size/24.0 : size;highp float symbol_rotation=0.0;if (u_rotate_symbol) {vec4 offsetProjectedPoint=projectTileWithElevation(translated_a_pos+vec2(1,0),ele);vec2 a=projectedPoint.xy/projectedPoint.w;vec2 b=offsetProjectedPoint.xy/offsetProjectedPoint.w;symbol_rotation=atan((b.y-a.y)/u_aspect_ratio,b.x-a.x);}highp float angle_sin=sin(segment_angle+symbol_rotation);highp float angle_cos=cos(segment_angle+symbol_rotation);mat2 rotation_matrix=mat2(angle_cos,-1.0*angle_sin,angle_sin,angle_cos);vec4 projected_pos;if (u_is_along_line || u_is_variable_anchor) {projected_pos=vec4(a_projected_pos.xy,ele,1.0);} else if (u_pitch_with_map) {projected_pos=u_label_plane_matrix*vec4(a_projected_pos.xy+u_translation,ele,1.0);} else {projected_pos=u_label_plane_matrix*projectTileWithElevation(a_projected_pos.xy+u_translation,ele);}float z=float(u_pitch_with_map)*projected_pos.z/projected_pos.w;float projectionScaling=1.0;\n#ifdef GLOBE\nif(u_pitch_with_map) {float anchor_pos_tile_y=(u_coord_matrix*vec4(projected_pos.xy/projected_pos.w,z,1.0)).y;projectionScaling=mix(projectionScaling,1.0/circumferenceRatioAtTileY(anchor_pos_tile_y)*u_pitched_scale,u_projection_transition);}\n#endif\nvec2 anchor_shift=a_anchoroffset/16.0;if (u_anchor_offset_is_map && !u_pitch_with_map) {highp float anchor_shift_len=length(anchor_shift);if (anchor_shift_len > 0.0) {vec4 anchorOffsetProjectedPoint=projectTileWithElevation(translated_a_pos+anchor_shift/anchor_shift_len,ele);vec2 sa=projectedPoint.xy/projectedPoint.w;vec2 sb=anchorOffsetProjectedPoint.xy/anchorOffsetProjectedPoint.w;highp float anchor_shift_angle=atan((sb.y-sa.y)/u_aspect_ratio,sb.x-sa.x);anchor_shift=vec2(cos(anchor_shift_angle),-sin(anchor_shift_angle))*anchor_shift_len;}}vec4 finalPos=u_coord_matrix*vec4(projected_pos.xy/projected_pos.w+rotation_matrix*(a_offset/32.0*max(a_minFontScale,fontScale)+a_pxoffset/16.0)*projectionScaling+anchor_shift,z,1.0);if(u_pitch_with_map) {finalPos=projectTileWithElevation(finalPos.xy,finalPos.z);}gl_Position=finalPos;v_tex=a_tex/u_texsize;}"),
 	symbolSDF: prepare("#define SDF_PX 8.0\nuniform bool u_is_halo;uniform bool u_is_plain;uniform sampler2D u_texture;uniform highp float u_gamma_scale;uniform bool u_is_text;in vec2 v_data0;in highp vec3 v_data1;\n#pragma maplibre: define highp vec4 fill_color\n#pragma maplibre: define highp vec4 halo_color\n#pragma maplibre: define lowp float halo_width\n#pragma maplibre: define lowp float halo_blur\nvoid main() {\n#pragma maplibre: initialize highp vec4 fill_color\n#pragma maplibre: initialize highp vec4 halo_color\n#pragma maplibre: initialize lowp float halo_width\n#pragma maplibre: initialize lowp float halo_blur\nfloat EDGE_GAMMA=0.105/u_device_pixel_ratio;vec2 tex=v_data0.xy;highp float gamma_scale=v_data1.x;float size=v_data1.y;float total_opacity=v_data1[2];float fontScale=u_is_text ? size/24.0 : size;highp float gamma=EDGE_GAMMA/(fontScale*u_gamma_scale);lowp float inner_edge=(256.0-64.0)/256.0;lowp float dist=texture(u_texture,tex).a;lowp vec4 color_alpha_out_text,color_alpha_out_halo;if (u_is_plain){highp float gamma_scaled=gamma*gamma_scale;highp float alpha=smoothstep(inner_edge-gamma_scaled,inner_edge+gamma_scaled,dist);color_alpha_out_text=total_opacity*alpha*fill_color;}if (u_is_halo) {highp float gamma_halo=(halo_blur*1.19/SDF_PX+EDGE_GAMMA)/(fontScale*u_gamma_scale);highp float inner_edge_halo=inner_edge+gamma_halo*gamma_scale;highp float gamma_scaled_halo=gamma_halo*gamma_scale;highp float alpha_halo=smoothstep(inner_edge_halo-gamma_scaled_halo,inner_edge_halo+gamma_scaled_halo,dist);highp float halo_edge=(6.0-halo_width/fontScale)/SDF_PX;alpha_halo= min(smoothstep(halo_edge-gamma_scaled_halo,halo_edge+gamma_scaled_halo,dist),1.0-alpha_halo);color_alpha_out_halo=total_opacity*alpha_halo*halo_color;}if (u_is_plain && u_is_halo) {fragColor=color_alpha_out_text+(1.-color_alpha_out_text.a)*color_alpha_out_halo;} else if (u_is_halo){fragColor=color_alpha_out_halo;} else {fragColor=color_alpha_out_text;}\n#ifdef OVERDRAW_INSPECTOR\nfragColor=vec4(1.0);\n#endif\n}", "layout(location=0) in vec4 a_pos_offset;layout(location=1) in uvec4 a_data;layout(location=2) in vec4 a_pixeloffset;layout(location=3) in vec3 a_projected_pos;layout(location=4) in uint a_fade_opacity;layout(location=5) in vec2 a_height_offset;layout(location=6) in vec2 a_anchoroffset;uniform bool u_is_size_zoom_constant;uniform bool u_is_size_feature_constant;uniform highp float u_size_t;uniform highp float u_size;uniform mat4 u_label_plane_matrix;uniform mat4 u_coord_matrix;uniform bool u_is_text;uniform bool u_pitch_with_map;uniform bool u_is_along_line;uniform bool u_is_variable_anchor;uniform bool u_rotate_symbol;uniform vec2 u_texsize;uniform vec2 u_translation;uniform float u_pitched_scale;uniform bool u_is_offset;uniform bool u_anchor_offset_is_map;out vec2 v_data0;out highp vec3 v_data1;\n#pragma maplibre: define highp vec4 fill_color\n#pragma maplibre: define highp vec4 halo_color\n#pragma maplibre: define lowp float opacity\n#pragma maplibre: define lowp float halo_width\n#pragma maplibre: define lowp float halo_blur\nvoid main() {\n#pragma maplibre: initialize highp vec4 fill_color\n#pragma maplibre: initialize highp vec4 halo_color\n#pragma maplibre: initialize lowp float opacity\n#pragma maplibre: initialize lowp float halo_width\n#pragma maplibre: initialize lowp float halo_blur\nvec2 a_pos=a_pos_offset.xy;vec2 a_offset=a_pos_offset.zw;vec2 a_tex=vec2(a_data.xy);vec2 a_size=vec2(a_data.zw);float a_size_min=float(a_data.z >> 1u);vec2 a_pxoffset=a_pixeloffset.xy/16.0;vec2 a_minFontScale=a_pixeloffset.zw/256.0;float ground_ele=get_elevation(a_pos);float ele=a_height_offset.x+a_height_offset.y*ground_ele;highp float segment_angle=-a_projected_pos[2];float size;if (!u_is_size_zoom_constant && !u_is_size_feature_constant) {size=mix(a_size_min,a_size[1],u_size_t)/128.0;} else if (u_is_size_zoom_constant && !u_is_size_feature_constant) {size=a_size_min/128.0;} else {size=u_size;}vec2 translated_a_pos=a_pos+u_translation;vec4 projectedPoint=projectTileWithElevation(translated_a_pos,ele);vec2 fade_opacity=unpack_opacity(a_fade_opacity);float visibility=calculate_visibility(ele < ground_ele ? projectTileWithElevation(translated_a_pos,ground_ele) : projectedPoint);float fade_change=mix(-u_symbol_fade_change,u_symbol_fade_change,fade_opacity[1]);float interpolated_fade_opacity=max(0.0,min(visibility,fade_opacity[0]+fade_change));float total_opacity=opacity*interpolated_fade_opacity;\n#ifdef HORIZON_FADE\ntotal_opacity*=horizon_fade(projectedPoint.w);\n#endif\nif (total_opacity < 0.1){gl_Position=vec4(-2.,-2.,-2.,1.);return;}highp float camera_to_anchor_distance=projectedPoint.w;highp float distance_ratio=u_pitch_with_map ?\ncamera_to_anchor_distance/u_camera_to_center_distance :\nu_camera_to_center_distance/camera_to_anchor_distance;highp float perspective_ratio=clamp(0.5+0.5*distance_ratio,0.0,4.0);if (!u_is_offset) {size*=perspective_ratio;}float fontScale=u_is_text ? size/24.0 : size;highp float symbol_rotation=0.0;if (u_rotate_symbol) {vec4 offsetProjectedPoint=projectTileWithElevation(translated_a_pos+vec2(1,0),ele);vec2 a=projectedPoint.xy/projectedPoint.w;vec2 b=offsetProjectedPoint.xy/offsetProjectedPoint.w;symbol_rotation=atan((b.y-a.y)/u_aspect_ratio,b.x-a.x);}highp float angle_sin=sin(segment_angle+symbol_rotation);highp float angle_cos=cos(segment_angle+symbol_rotation);mat2 rotation_matrix=mat2(angle_cos,-1.0*angle_sin,angle_sin,angle_cos);vec4 projected_pos;if (u_is_along_line || u_is_variable_anchor) {projected_pos=vec4(a_projected_pos.xy,ele,1.0);} else if (u_pitch_with_map) {projected_pos=u_label_plane_matrix*vec4(a_projected_pos.xy+u_translation,ele,1.0);} else {projected_pos=u_label_plane_matrix*projectTileWithElevation(a_projected_pos.xy+u_translation,ele);}float z=float(u_pitch_with_map)*projected_pos.z/projected_pos.w;float projectionScaling=1.0;\n#ifdef GLOBE\nif(u_pitch_with_map) {float anchor_pos_tile_y=(u_coord_matrix*vec4(projected_pos.xy/projected_pos.w,z,1.0)).y;projectionScaling=mix(projectionScaling,1.0/circumferenceRatioAtTileY(anchor_pos_tile_y)*u_pitched_scale,u_projection_transition);}\n#endif\nvec2 anchor_shift=a_anchoroffset/16.0;if (u_anchor_offset_is_map && !u_pitch_with_map) {highp float anchor_shift_len=length(anchor_shift);if (anchor_shift_len > 0.0) {vec4 anchorOffsetProjectedPoint=projectTileWithElevation(translated_a_pos+anchor_shift/anchor_shift_len,ele);vec2 sa=projectedPoint.xy/projectedPoint.w;vec2 sb=anchorOffsetProjectedPoint.xy/anchorOffsetProjectedPoint.w;highp float anchor_shift_angle=atan((sb.y-sa.y)/u_aspect_ratio,sb.x-sa.x);anchor_shift=vec2(cos(anchor_shift_angle),-sin(anchor_shift_angle))*anchor_shift_len;}}vec4 finalPos=u_coord_matrix*vec4(projected_pos.xy/projected_pos.w+rotation_matrix*(a_offset/32.0*max(a_minFontScale,fontScale)+a_pxoffset)*projectionScaling+anchor_shift,z,1.0);if(u_pitch_with_map) {finalPos=projectTileWithElevation(finalPos.xy,finalPos.z);}float gamma_scale=finalPos.w;gl_Position=finalPos;v_data0=a_tex/u_texsize;v_data1=vec3(gamma_scale,size,total_opacity);}"),
@@ -46633,6 +47104,8 @@ function findRegisteredProjectionName(expression) {
 const empty = emptyStyle();
 /** How many times longer a placement is kept while the camera pans or turns than at rest. */
 const MOVING_PLACEMENT_STRETCH = 2;
+/** Milliseconds between placements while the camera moves, at the least: the default fade duration. */
+const MOVING_PLACEMENT_INTERVAL = 300;
 /**
 * The Style base class
 */
@@ -46685,7 +47158,7 @@ var Style = class extends Evented {
 	_setInitialValues() {
 		this._layers = {};
 		this._order = [];
-		this.tileManagers = {};
+		this.tileManagers = Object.create(null);
 		this.zoomHistory = new ZoomHistory();
 		this._imagesListDirty = false;
 		this._initialGlobalState = {};
@@ -46973,7 +47446,9 @@ var Style = class extends Evented {
 		for (const layerId of this._order) {
 			const layer = this._layers[layerId];
 			layer.recalculate(parameters, availableImages);
-			if (!layer.isHidden(parameters.zoom) && layer.source) this.tileManagers[layer.source].used = true;
+			if (layer.isHidden(parameters.zoom) || !layer.source) continue;
+			const tileManager = this.tileManagers[layer.source];
+			if (tileManager) tileManager.used = true;
 		}
 		for (const id in managersUsedBefore) {
 			const tileManager = this.tileManagers[id];
@@ -47555,14 +48030,15 @@ var Style = class extends Evented {
 		return tileManager.getFeatureState(sourceLayer, target.id);
 	}
 	getTransition() {
-		return extend({
+		return {
 			duration: 300,
-			delay: 0
-		}, this.stylesheet?.transition);
+			delay: 0,
+			...this.stylesheet?.transition
+		};
 	}
 	serialize() {
 		if (!this._loaded) return;
-		const sources = mapObject(this.tileManagers, (source) => source.serialize());
+		const sources = Object.fromEntries(Object.entries(this.tileManagers).map(([id, tileManager]) => [id, tileManager.serialize()]));
 		const layers = this._serializeByIds(this._order, true);
 		const terrain = this.map.getTerrain() || void 0;
 		const myStyleSheet = this.stylesheet;
@@ -47686,10 +48162,11 @@ var Style = class extends Evented {
 		if (!_update) return;
 		const parameters = {
 			now: now(),
-			transition: extend({
+			transition: {
 				duration: 300,
-				delay: 0
-			}, this.stylesheet.transition)
+				delay: 0,
+				...this.stylesheet.transition
+			}
 		};
 		this.light.setLight(lightOptions, options);
 		this.light.updateTransitions(parameters);
@@ -47725,10 +48202,11 @@ var Style = class extends Evented {
 		if (!update) return;
 		const parameters = {
 			now: now(),
-			transition: extend({
+			transition: {
 				duration: 300,
-				delay: 0
-			}, this.stylesheet.transition)
+				delay: 0,
+				...this.stylesheet.transition
+			}
 		};
 		if (!this.sky.setSky(skyOptions, options)) return;
 		this.stylesheet.sky = skyOptions;
@@ -47788,7 +48266,8 @@ var Style = class extends Evented {
 		this.tileManagers[id].relayout();
 	}
 	_updateSources(projectedCamera, worldCoordinateHelper) {
-		for (const id in this.tileManagers) this.tileManagers[id].update(projectedCamera, worldCoordinateHelper, this.map.terrain);
+		const covers = {};
+		for (const id in this.tileManagers) this.tileManagers[id].update(projectedCamera, worldCoordinateHelper, this.map.terrain, covers);
 	}
 	_generateCollisionBoxes() {
 		for (const id in this.tileManagers) this._reloadSource(id);
@@ -47830,7 +48309,7 @@ var Style = class extends Evented {
 		this.crossTileSymbolIndex.pruneUnusedLayers(this._order);
 		forceFullPlacement ||= this._layerOrderChanged || fadeDuration === 0;
 		const placementInputsChanged = symbolBucketsChanged || this._placementInputsChanged(projectedCamera, showCollisionBoxes, crossSourceCollisions);
-		const stretch = this.map.isMoving() && !this.map.isZooming() ? MOVING_PLACEMENT_STRETCH : 1;
+		const stretch = !this.map.isMoving() ? 1 : Math.max(this.map.isZooming() ? 1 : MOVING_PLACEMENT_STRETCH, fadeDuration > 0 ? MOVING_PLACEMENT_INTERVAL / fadeDuration : 1);
 		const placementSettled = this.pauseablePlacement?.isDone() && !this.placement.stillRecent(now(), projectedCamera.zoom, stretch);
 		if (forceFullPlacement || !this.pauseablePlacement || placementSettled && (placementInputsChanged || this.placement.stale)) {
 			this._symbolPlacementTriggered = false;
@@ -47985,7 +48464,7 @@ var Style = class extends Evented {
 			tileManager.setEventedParent(null);
 			tileManager.onRemove(this.map);
 		}
-		this.tileManagers = {};
+		this.tileManagers = Object.create(null);
 		if (this.imageManager) {
 			this.imageManager.setEventedParent(null);
 			this.imageManager.destroy();
@@ -48712,6 +49191,14 @@ const layout$2 = std140Layout([
 		type: "vec4"
 	},
 	{
+		name: "u_projection_tile_origin",
+		type: "vec4"
+	},
+	{
+		name: "u_projection_tile_origin_position",
+		type: "vec2"
+	},
+	{
 		name: "u_projection_transition",
 		type: "float"
 	},
@@ -48734,6 +49221,8 @@ function updateProjectionUniformBuffer(buffer, projectionData) {
 	f32.set(projectionData.fallbackMatrix, offsets$2.u_projection_fallback_matrix);
 	f32.set(projectionData.tileMercatorCoords, offsets$2.u_projection_tile_mercator_coords);
 	f32.set(projectionData.clippingPlane, offsets$2.u_projection_clipping_plane);
+	f32.set(projectionData.tileOrigin, offsets$2.u_projection_tile_origin);
+	f32.set(projectionData.tileOriginPosition, offsets$2.u_projection_tile_origin_position);
 	f32[offsets$2.u_projection_transition] = projectionData.projectionTransition;
 	buffer.pendingWords[offsets$2.u_projection_clip_antimeridian] = projectionData.clipAntimeridian ? 1 : 0;
 	buffer.upload();
@@ -49560,7 +50049,6 @@ const fillExtrusionUniforms = (context, locations) => ({
 	"u_lightintensity": new Uniform1f(context, locations.u_lightintensity),
 	"u_lightcolor": new Uniform3f(context, locations.u_lightcolor),
 	"u_vertical_gradient": new Uniform1f(context, locations.u_vertical_gradient),
-	"u_opacity": new Uniform1f(context, locations.u_opacity),
 	"u_fill_translate": new Uniform2f(context, locations.u_fill_translate),
 	...locations.u_shade_band ? shadedExtrusionUniforms(context, locations) : {}
 });
@@ -49571,7 +50059,6 @@ const fillExtrusionPatternUniforms = (context, locations) => ({
 	"u_lightcolor": new Uniform3f(context, locations.u_lightcolor),
 	"u_vertical_gradient": new Uniform1f(context, locations.u_vertical_gradient),
 	"u_height_factor": new Uniform1f(context, locations.u_height_factor),
-	"u_opacity": new Uniform1f(context, locations.u_opacity),
 	"u_fill_translate": new Uniform2f(context, locations.u_fill_translate),
 	"u_image": new Uniform1i(context, locations.u_image),
 	"u_texsize": new Uniform2f(context, locations.u_texsize),
@@ -49580,7 +50067,7 @@ const fillExtrusionPatternUniforms = (context, locations) => ({
 	"u_scale": new Uniform3f(context, locations.u_scale),
 	"u_fade": new Uniform1f(context, locations.u_fade)
 });
-const fillExtrusionUniformValues = (projectedCamera, light, shouldUseVerticalGradient, opacity, translate) => {
+const fillExtrusionUniformValues = (projectedCamera, light, shouldUseVerticalGradient, translate) => {
 	const lightPos = sphericalToCartesian(light.position);
 	const lightMat = create$7();
 	if (light.anchor === "viewport") fromRotation$2(lightMat, projectedCamera.bearingInRadians);
@@ -49597,12 +50084,15 @@ const fillExtrusionUniformValues = (projectedCamera, light, shouldUseVerticalGra
 			lightColor.b
 		],
 		"u_vertical_gradient": +shouldUseVerticalGradient,
-		"u_opacity": opacity,
 		"u_fill_translate": translate
 	};
 };
-const fillExtrusionPatternUniformValues = (projectedCamera, light, shouldUseVerticalGradient, opacity, translate, coord, crossfade, tile) => {
-	return extend(fillExtrusionUniformValues(projectedCamera, light, shouldUseVerticalGradient, opacity, translate), patternUniformValues(crossfade, projectedCamera, tile), { "u_height_factor": -Math.pow(2, coord.overscaledZ) / tile.tileSize / 8 });
+const fillExtrusionPatternUniformValues = (projectedCamera, light, shouldUseVerticalGradient, translate, coord, crossfade, tile) => {
+	return {
+		...fillExtrusionUniformValues(projectedCamera, light, shouldUseVerticalGradient, translate),
+		...patternUniformValues(crossfade, projectedCamera, tile),
+		"u_height_factor": -Math.pow(2, coord.overscaledZ) / tile.tileSize / 8
+	};
 };
 // src/webgl/program/fill_program.ts
 const fillUniforms = (context, locations) => ({ "u_fill_translate": new Uniform2f(context, locations.u_fill_translate) });
@@ -49627,7 +50117,8 @@ const fillOutlinePatternUniforms = (context, locations) => ({
 	"u_sdf_pattern": new Uniform1i(context, locations.u_sdf_pattern),
 	"u_fill_translate": new Uniform2f(context, locations.u_fill_translate)
 });
-const fillPatternUniformValues = (projectedCamera, crossfade, tile, translate, isSdfPattern) => extend(patternUniformValues(crossfade, projectedCamera, tile), {
+const fillPatternUniformValues = (projectedCamera, crossfade, tile, translate, isSdfPattern) => ({
+	...patternUniformValues(crossfade, projectedCamera, tile),
 	"u_fill_translate": translate,
 	"u_sdf_pattern": isSdfPattern ? 1 : 0
 });
@@ -49865,10 +50356,11 @@ const lineUniformValues = (projectedCamera, tile, layer, ratioScale) => {
 	};
 };
 const lineGradientUniformValues = (projectedCamera, tile, layer, ratioScale, imageHeight) => {
-	return extend(lineUniformValues(projectedCamera, tile, layer, ratioScale), {
+	return {
+		...lineUniformValues(projectedCamera, tile, layer, ratioScale),
 		"u_image": 0,
 		"u_image_height": imageHeight
-	});
+	};
 };
 const linePatternUniformValues = (projectedCamera, tile, layer, ratioScale, crossfade) => {
 	const tileZoomRatio = calculateTileRatio(tile, projectedCamera);
@@ -49887,7 +50379,8 @@ const linePatternUniformValues = (projectedCamera, tile, layer, ratioScale, cros
 };
 const lineSDFUniformValues = (projectedCamera, lineAtlas, tile, layer, ratioScale, crossfade) => {
 	const tileRatio = calculateTileRatio(tile, projectedCamera);
-	return extend(lineUniformValues(projectedCamera, tile, layer, ratioScale), {
+	return {
+		...lineUniformValues(projectedCamera, tile, layer, ratioScale),
 		"u_tileratio": tileRatio,
 		"u_crossfade_from": crossfade.fromScale,
 		"u_crossfade_to": crossfade.toScale,
@@ -49895,11 +50388,12 @@ const lineSDFUniformValues = (projectedCamera, lineAtlas, tile, layer, ratioScal
 		"u_mix": crossfade.t,
 		"u_lineatlas_width": lineAtlas.width,
 		"u_lineatlas_height": lineAtlas.height
-	});
+	};
 };
 const lineGradientSDFUniformValues = (projectedCamera, lineAtlas, tile, layer, ratioScale, crossfade, imageHeight) => {
 	const tileRatio = calculateTileRatio(tile, projectedCamera);
-	return extend(lineUniformValues(projectedCamera, tile, layer, ratioScale), {
+	return {
+		...lineUniformValues(projectedCamera, tile, layer, ratioScale),
 		"u_image": 0,
 		"u_image_height": imageHeight,
 		"u_tileratio": tileRatio,
@@ -49909,7 +50403,7 @@ const lineGradientSDFUniformValues = (projectedCamera, lineAtlas, tile, layer, r
 		"u_mix": crossfade.t,
 		"u_lineatlas_width": lineAtlas.width,
 		"u_lineatlas_height": lineAtlas.height
-	});
+	};
 };
 function calculateTileRatio(tile, projectedCamera) {
 	return 1 / pixelsToTileUnits(tile, 1, projectedCamera.tileZoom);
@@ -50017,17 +50511,19 @@ const symbolIconUniformValues = (functionType, size, rotateInShader, pitchWithMa
 	};
 };
 const symbolSDFUniformValues = (functionType, size, rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, projectedCamera, labelPlaneMatrix, glCoordMatrix, translation, isText, texSize, isHalo, pitchedScale, isOffset, anchorOffsetIsMap = false) => {
-	return extend(symbolIconUniformValues(functionType, size, rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, labelPlaneMatrix, glCoordMatrix, translation, isText, texSize, pitchedScale, isOffset, anchorOffsetIsMap), {
+	return {
+		...symbolIconUniformValues(functionType, size, rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, labelPlaneMatrix, glCoordMatrix, translation, isText, texSize, pitchedScale, isOffset, anchorOffsetIsMap),
 		"u_gamma_scale": pitchWithMap ? Math.cos(projectedCamera.pitch * Math.PI / 180) * projectedCamera.cameraToCenterDistance : 1,
 		"u_is_halo": isHalo ? 1 : 0,
 		"u_is_plain": 1
-	});
+	};
 };
 const symbolTextAndIconUniformValues = (functionType, size, rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, projectedCamera, labelPlaneMatrix, glCoordMatrix, translation, texSizeSDF, texSizeIcon, pitchedScale, isOffset, anchorOffsetIsMap = false) => {
-	return extend(symbolSDFUniformValues(functionType, size, rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, projectedCamera, labelPlaneMatrix, glCoordMatrix, translation, true, texSizeSDF, true, pitchedScale, isOffset, anchorOffsetIsMap), {
+	return {
+		...symbolSDFUniformValues(functionType, size, rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, projectedCamera, labelPlaneMatrix, glCoordMatrix, translation, true, texSizeSDF, true, pitchedScale, isOffset, anchorOffsetIsMap),
 		"u_texsize_icon": texSizeIcon,
 		"u_texture_icon": 1
-	});
+	};
 };
 // src/webgl/program/background_program.ts
 const backgroundUniforms = (context, locations) => ({
@@ -50055,7 +50551,10 @@ const backgroundUniformValues = (opacity, color) => ({
 	"u_opacity": opacity,
 	"u_color": color
 });
-const backgroundPatternUniformValues = (opacity, patternAtlas, projectedCamera, image, tile, crossfade) => extend(bgPatternUniformValues(image, crossfade, patternAtlas, projectedCamera, tile), { "u_opacity": opacity });
+const backgroundPatternUniformValues = (opacity, patternAtlas, projectedCamera, image, tile, crossfade) => ({
+	...bgPatternUniformValues(image, crossfade, patternAtlas, projectedCamera, tile),
+	"u_opacity": opacity
+});
 // src/webgl/program/atmosphere_program.ts
 const atmosphereUniforms = (context, locations) => ({
 	"u_sun_pos": new Uniform3f(context, locations.u_sun_pos),
@@ -50192,27 +50691,53 @@ function chunkId(source) {
 */
 var ProgramCache = class {
 	constructor(context) {
-		this.programs = {};
+		this.compiled = [];
+		this.programs = /* @__PURE__ */ new Map();
 		this.context = context;
 	}
 	/**
 	* Returns the program for a shader variant, compiling it if the cache doesn't hold it yet.
+	* A lookup builds no string unless the variant has defines or a fragment chunk, since it runs for every draw.
 	*/
 	getProgram(variant) {
+		let name = variant.name;
+		if (variant.defines?.length) name += `/${variant.defines.join("/")}`;
+		if (variant.fragmentChunk) name += `/chunk${chunkId(variant.fragmentChunk)}`;
+		let byConfiguration = this.programs.get(name);
+		if (!byConfiguration) {
+			byConfiguration = /* @__PURE__ */ new Map();
+			this.programs.set(name, byConfiguration);
+		}
 		const configurationKey = variant.programConfiguration ? variant.programConfiguration.cacheKey : "";
-		const projectionKey = `/${variant.projectionShaderVariant.name}`;
-		const overdrawKey = variant.showOverdrawInspector ? "/overdraw" : "";
-		const terrainKey = variant.useTerrain ? "/terrain" : "";
-		const definesKey = (variant.defines ? `/${variant.defines.join("/")}` : "") + (variant.fragmentChunk ? `/${chunkId(variant.fragmentChunk)}` : "");
-		const key = variant.name + configurationKey + projectionKey + overdrawKey + terrainKey + definesKey;
-		this.programs[key] ||= new Program(this.context, shaders[variant.name], variant.programConfiguration, programUniforms[variant.name], variant.showOverdrawInspector, variant.useTerrain, variant.projectionShaderVariant.prelude, variant.projectionShaderVariant.define, variant.defines, variant.fragmentChunk, DEFERRED_PROGRAMS.has(variant.name));
-		return this.programs[key];
+		let byProjection = byConfiguration.get(configurationKey);
+		if (!byProjection) {
+			byProjection = /* @__PURE__ */ new Map();
+			byConfiguration.set(configurationKey, byProjection);
+		}
+		let byFlags = byProjection.get(variant.projectionShaderVariant.name);
+		if (!byFlags) {
+			byFlags = [];
+			byProjection.set(variant.projectionShaderVariant.name, byFlags);
+		}
+		const flags = variantFlags(variant);
+		let program = byFlags[flags];
+		if (!program) {
+			program = new Program(this.context, shaders[variant.name], variant.programConfiguration, programUniforms[variant.name], variant.showOverdrawInspector, variant.useTerrain, variant.projectionShaderVariant.prelude, variant.projectionShaderVariant.define, variant.defines, variant.fragmentChunk, DEFERRED_PROGRAMS.has(variant.name));
+			byFlags[flags] = program;
+			this.compiled.push(program);
+		}
+		return program;
 	}
 	destroy() {
-		for (const program of Object.values(this.programs)) if (program.program) this.context.gl.deleteProgram(program.program);
-		this.programs = {};
+		for (const program of this.compiled) if (program.program) this.context.gl.deleteProgram(program.program);
+		this.compiled = [];
+		this.programs = /* @__PURE__ */ new Map();
 	}
 };
+/** The overdraw and terrain switches of a variant as an array index. */
+function variantFlags(variant) {
+	return (variant.showOverdrawInspector ? 1 : 0) + (variant.useTerrain ? 2 : 0);
+}
 // src/webgl/stencil_mode.ts
 const ALWAYS$1 = 519;
 const KEEP = 7680;
@@ -50360,8 +50885,7 @@ function updateVariableAnchors(coords, layer, tileManager, rotationAlignment, pi
 		const tile = tileManager.getTile(coord);
 		const bucket = tile.getBucket(layer);
 		if (!bucket?.text?.segments.get().length) continue;
-		const sizeData = bucket.textSizeData;
-		const size = evaluateSizeForZoom(sizeData, projectedCamera.zoom);
+		const size = evaluateSizeForZoom(bucket.textSizeData, projectedCamera.zoom);
 		const pitchedLabelPlaneMatrix = getPitchedLabelPlaneMatrix(rotateWithMap, projectedCamera, pixelsToTileUnits(tile, 1, projectedCamera.zoom));
 		const updateTextFitIcon = layer.layout.get("icon-text-fit") !== "none" && bucket.hasIconData();
 		if (size) {
@@ -50520,7 +51044,7 @@ function drawLayerSymbols(painter, tileManager, layer, coords, isText, translate
 		const anchorOffsetIsMap = layer.layout.get("symbol-anchor-offset-alignment") === "map";
 		let uniformValues;
 		if (isSDF) {
-			if (!bucket.iconsInText) uniformValues = symbolSDFUniformValues(sizeData.kind, size, rotateInShader, pitchWithMap, alongLine, shaderVariableAnchor, projectedCamera, uLabelPlaneMatrix, glCoordMatrixForShader, translation, isText, texSize, hasHalo, pitchedTextRescaling, isOffset, anchorOffsetIsMap);
+			if (!(isText && bucket.iconsInText)) uniformValues = symbolSDFUniformValues(sizeData.kind, size, rotateInShader, pitchWithMap, alongLine, shaderVariableAnchor, projectedCamera, uLabelPlaneMatrix, glCoordMatrixForShader, translation, isText, texSize, hasHalo, pitchedTextRescaling, isOffset, anchorOffsetIsMap);
 			else uniformValues = symbolTextAndIconUniformValues(sizeData.kind, size, rotateInShader, pitchWithMap, alongLine, shaderVariableAnchor, projectedCamera, uLabelPlaneMatrix, glCoordMatrixForShader, translation, texSize, texSizeIcon, pitchedTextRescaling, isOffset, anchorOffsetIsMap);
 		} else uniformValues = symbolIconUniformValues(sizeData.kind, size, rotateInShader, pitchWithMap, alongLine, shaderVariableAnchor, uLabelPlaneMatrix, glCoordMatrixForShader, translation, isText, texSize, pitchedTextRescaling, isOffset, anchorOffsetIsMap);
 		const state = {
@@ -50792,12 +51316,50 @@ function getColorRampTexture(context, layer) {
 const shaderBlendDefines = {
 	multiply: ["#define LAYER_BLEND;", "#define LAYER_BLEND_MULTIPLY;"],
 	overlay: ["#define LAYER_BLEND;", "#define LAYER_BLEND_OVERLAY;"],
+	"hard-light": ["#define LAYER_BLEND;", "#define LAYER_BLEND_HARD_LIGHT;"],
+	difference: ["#define LAYER_BLEND;", "#define LAYER_BLEND_DIFFERENCE;"],
+	exclusion: ["#define LAYER_BLEND;", "#define LAYER_BLEND_EXCLUSION;"],
+	darken: ["#define LAYER_BLEND;", "#define LAYER_BLEND_DARKEN;"],
+	lighten: ["#define LAYER_BLEND;", "#define LAYER_BLEND_LIGHTEN;"],
+	"soft-light": [
+		"#define LAYER_BLEND;",
+		"#define LAYER_BLEND_UNPREMULTIPLIED;",
+		"#define LAYER_BLEND_SOFT_LIGHT;"
+	],
+	"color-dodge": [
+		"#define LAYER_BLEND;",
+		"#define LAYER_BLEND_UNPREMULTIPLIED;",
+		"#define LAYER_BLEND_COLOR_DODGE;"
+	],
+	"color-burn": [
+		"#define LAYER_BLEND;",
+		"#define LAYER_BLEND_UNPREMULTIPLIED;",
+		"#define LAYER_BLEND_COLOR_BURN;"
+	],
 	color: [
 		"#define LAYER_BLEND;",
+		"#define LAYER_BLEND_UNPREMULTIPLIED;",
 		"#define LAYER_BLEND_NONSEPARABLE;",
 		"#define LAYER_BLEND_COLOR;"
 	],
-	luminosity: ["#define LAYER_BLEND;", "#define LAYER_BLEND_NONSEPARABLE;"]
+	luminosity: [
+		"#define LAYER_BLEND;",
+		"#define LAYER_BLEND_UNPREMULTIPLIED;",
+		"#define LAYER_BLEND_NONSEPARABLE;",
+		"#define LAYER_BLEND_LUMINOSITY;"
+	],
+	hue: [
+		"#define LAYER_BLEND;",
+		"#define LAYER_BLEND_UNPREMULTIPLIED;",
+		"#define LAYER_BLEND_NONSEPARABLE;",
+		"#define LAYER_BLEND_HUE;"
+	],
+	saturation: [
+		"#define LAYER_BLEND;",
+		"#define LAYER_BLEND_UNPREMULTIPLIED;",
+		"#define LAYER_BLEND_NONSEPARABLE;",
+		"#define LAYER_BLEND_SATURATION;"
+	]
 };
 function isShaderBlend(blend) {
 	return blend in shaderBlendDefines;
@@ -51232,7 +51794,7 @@ function drawLineTiles(painter, tileManager, layer, coords, frameRenderContext, 
 			bindGradientTextures(tileManager, context, gl, layer, bucket, coord, frameRenderContext);
 		} else uniformValues = lineUniformValues(projectedCamera, tile, layer, pixelRatio);
 		const stencil = elevated ? StencilMode.disabled : frameRenderContext.stencilModeForClipping(coord);
-		program.draw(context, gl.TRIANGLES, depthMode, stencil, colorMode, CullFaceMode.disabled, uniformValues, terrainData, projectionData, layer.id, bucket.layoutVertexBuffer, bucket.indexBuffer, bucket.segments, layer.paint, frameRenderContext.projectedCamera.zoom, programConfiguration, bucket.layoutVertexBuffer2);
+		program.draw(context, gl.TRIANGLES, depthMode, stencil, colorMode, CullFaceMode.disabled, uniformValues, terrainData, projectionData, layer.id, bucket.layoutVertexBuffer, bucket.indexBuffer, bucket.segments, layer.paint, frameRenderContext.projectedCamera.zoom, programConfiguration, bucket.layoutVertexBuffer2, bucket.offsetDistanceBuffer);
 		firstTile = false;
 	}
 }
@@ -51361,12 +51923,18 @@ function drawFillTiles(fades, tileManager, layer, coords, depthMode, colorMode, 
 	}
 }
 // src/webgl/draw/draw_fill_extrusion.ts
+/**
+* Draws a fill-extrusion layer.
+* Extrusions at a constant opacity of 1 without a pattern are drawn in one pass. Otherwise they are drawn in two passes, so that only the closest surface is drawn.
+* The first pass writes only the depth buffer. The second colors the fragments with the same depth as the closest one,
+* and uses the stencil buffer to skip coincident polygons.
+*/
 function drawFillExtrusion(tileManager, layer, coords, frameRenderContext) {
 	const opacity = layer.paint.get("fill-extrusion-opacity");
-	if (opacity === 0) return;
+	if (opacity.constantOr(1) === 0) return;
 	if (frameRenderContext.currentPass === "translucent") {
 		const depthMode = new DepthMode(frameRenderContext.context.gl.LEQUAL, DepthMode.ReadWrite, frameRenderContext.depthRangeFor3D);
-		if (opacity === 1 && !layer.paint.get("fill-extrusion-pattern").constantOr(1)) {
+		if (opacity.constantOr(0) === 1 && !layer.paint.get("fill-extrusion-pattern").constantOr(1)) {
 			const colorMode = frameRenderContext.colorModeForRenderPass();
 			drawExtrusionTiles(tileManager, layer, coords, depthMode, StencilMode.disabled, colorMode, frameRenderContext);
 		} else {
@@ -51382,7 +51950,6 @@ function drawExtrusionTiles(tileManager, layer, coords, depthMode, stencilMode, 
 	const patternProperty = layer.paint.get(fillPropertyName);
 	const image = patternProperty.constantOr(1);
 	const crossfade = layer.getCrossfadeParameters();
-	const opacity = layer.paint.get("fill-extrusion-opacity");
 	const constantPattern = patternProperty.constantOr(null);
 	const projectedCamera = frameRenderContext.projectedCamera;
 	const shading = !image && frameRenderContext.shading?.shades(layer) ? frameRenderContext.shading : null;
@@ -51407,9 +51974,12 @@ function drawExtrusionTiles(tileManager, layer, coords, depthMode, stencilMode, 
 		updatePatternPositionsInProgram(programConfiguration, fillPropertyName, constantPattern, tile, layer);
 		const translate = translatePosition(projectedCamera, tile, layer.paint.get("fill-extrusion-translate"), layer.paint.get("fill-extrusion-translate-anchor"));
 		const shouldUseVerticalGradient = layer.paint.get("fill-extrusion-vertical-gradient");
-		const uniformValues = image ? fillExtrusionPatternUniformValues(projectedCamera, frameRenderContext.data.light, shouldUseVerticalGradient, opacity, translate, coord, crossfade, tile) : fillExtrusionUniformValues(projectedCamera, frameRenderContext.data.light, shouldUseVerticalGradient, opacity, translate);
+		let uniformValues = image ? fillExtrusionPatternUniformValues(projectedCamera, frameRenderContext.data.light, shouldUseVerticalGradient, translate, coord, crossfade, tile) : fillExtrusionUniformValues(projectedCamera, frameRenderContext.data.light, shouldUseVerticalGradient, translate);
 		if (shading && program.isReady()) {
-			extend(uniformValues, shading.extrusionUniforms(coord));
+			uniformValues = {
+				...uniformValues,
+				...shading.extrusionUniforms(coord)
+			};
 			context.program.set(program.program);
 			shading.setWallUniforms(program.program);
 		}
@@ -51911,11 +52481,13 @@ function drawTerrain(painter, terrain, tiles, frameRenderContext) {
 		const eleDelta = terrain.getSkirtLength(projectedCamera.zoom);
 		const fogMatrix = getCameraMath(projectedCamera).calculateFogMatrix(projectedCamera, tile.tileID.toUnwrapped());
 		const relief = terrainRelief(frameRenderContext.data.light, projectedCamera.bearingInRadians, terrain.shading, tile.tileID.canonical);
-		const uniformValues = terrainUniformValues(eleDelta, fogMatrix, frameRenderContext.data.sky, projectedCamera.pitch, isRenderingGlobe, relief);
-		if (shading) extend(uniformValues, shade, {
+		const terrainValues = terrainUniformValues(eleDelta, fogMatrix, frameRenderContext.data.sky, projectedCamera.pitch, isRenderingGlobe, relief);
+		const uniformValues = shading ? {
+			...terrainValues,
+			...shade,
 			"u_sun_matrix": shading.sunMatrix(tile.tileID),
 			"u_occlusion_matrix": shading.occlusionMatrix(tile.tileID)
-		});
+		} : terrainValues;
 		const projectionData = frameRenderContext.getProjectionDataForTile(tile.tileID, { applyTerrainMatrix: false });
 		program.draw(context, gl.TRIANGLES, depthMode, StencilMode.disabled, colorMode, CullFaceMode.backCCW, uniformValues, terrainData, projectionData, "terrain", mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
 	}
@@ -54074,8 +54646,7 @@ var MercatorCameraMotions = class {
 			if (options.around) return setLocationAtPointKeepingZoom(frame, frameContext, options.around, options.aroundPoint);
 			const scale = zoomScale(frame.zoom - startZoom);
 			const speedup = Math.pow(endZoom > startZoom ? Math.min(2, finalScale) : Math.max(.5, finalScale), 1 - k);
-			const worldSize = getCameraMetrics(frame, worldCoordinateHelper).worldSize;
-			let newCenter = unprojectFromWorldCoordinates(worldSize, from.add(delta.mult(k * speedup)).mult(scale), worldCoordinateHelper);
+			let newCenter = unprojectFromWorldCoordinates(getCameraMetrics(frame, worldCoordinateHelper).worldSize, from.add(delta.mult(k * speedup)).mult(scale), worldCoordinateHelper);
 			if (frame.renderWorldCopies && worldCoordinateHelper.wraps) newCenter = newCenter.wrap();
 			const pointAtOffset = getCenterPoint(frame).add(options.offsetAsPoint);
 			return setLocationAtPointKeepingZoom(frame, frameContext, newCenter, pointAtOffset);
@@ -54102,8 +54673,7 @@ var MercatorCameraMotions = class {
 		const scaleOfZoom = zoomScale(targetZoom - startZoom);
 		const requestedMinZoom = options.minZoom !== void 0 ? +options.minZoom : view.minZoom;
 		const effectiveMinZoom = Math.max(requestedMinZoom, view.minZoom);
-		const minZoom = applyConstrain(view, context, constrainedCenter, Math.min(effectiveMinZoom, startZoom, targetZoom)).zoom;
-		const scaleOfMinZoom = zoomScale(minZoom - startZoom);
+		const scaleOfMinZoom = zoomScale(applyConstrain(view, context, constrainedCenter, Math.min(effectiveMinZoom, startZoom, targetZoom)).zoom - startZoom);
 		const easeFunc = (frame, frameContext, k, scale, centerFactor, pointAtOffset) => {
 			frame = setZoom(frame, frameContext, k === 1 ? targetZoom : startZoom + scaleZoom(scale));
 			let newCenter = k === 1 ? constrainedCenter : unprojectFromWorldCoordinates(startWorldSize, from.add(delta.mult(centerFactor)), worldCoordinateHelper);
@@ -54470,22 +55040,26 @@ const defaultInertiaOptions = {
 	linearity: .3,
 	easing: bezier(0, 0, .3, 1)
 };
-const defaultPanInertiaOptions = extend({
+const defaultPanInertiaOptions = {
 	deceleration: 2500,
-	maxSpeed: 1400
-}, defaultInertiaOptions);
-const defaultZoomInertiaOptions = extend({
+	maxSpeed: 1400,
+	...defaultInertiaOptions
+};
+const defaultZoomInertiaOptions = {
 	deceleration: 20,
-	maxSpeed: 1400
-}, defaultInertiaOptions);
-const defaultPitchInertiaOptions = extend({
+	maxSpeed: 1400,
+	...defaultInertiaOptions
+};
+const defaultPitchInertiaOptions = {
 	deceleration: 1e3,
-	maxSpeed: 90
-}, defaultInertiaOptions);
-const defaultRollInertiaOptions = extend({
+	maxSpeed: 90,
+	...defaultInertiaOptions
+};
+const defaultRollInertiaOptions = {
 	deceleration: 1e3,
-	maxSpeed: 360
-}, defaultInertiaOptions);
+	maxSpeed: 360,
+	...defaultInertiaOptions
+};
 /**
 * The friction the bearing turns on with, the same as MapLibre Native's rotation momentum.
 */
@@ -54582,7 +55156,10 @@ var HandlerInertia = class {
 		const duration = now() - entries[0].time;
 		const easeOptions = {};
 		if (deltas.pan.mag()) {
-			const result = calculateEasing(deltas.pan.mag(), duration, extend({}, defaultPanInertiaOptions, panInertiaOptions || {}));
+			const result = calculateEasing(deltas.pan.mag(), duration, {
+				...defaultPanInertiaOptions,
+				...typeof panInertiaOptions === "object" ? panInertiaOptions : {}
+			});
 			const finalPan = deltas.pan.mult(result.amount / deltas.pan.mag());
 			const computedEaseOptions = getCameraMotions(this._camera.context).panInertia(this._camera.projectedCamera, finalPan);
 			easeOptions.center = computedEaseOptions.easingCenter;
@@ -54618,7 +55195,10 @@ var HandlerInertia = class {
 			easeOptions.around = last ? this._camera.unproject(last) : this._camera.getCenter();
 		}
 		this.clear();
-		return extend(easeOptions, { noMoveStart: true });
+		return {
+			...easeOptions,
+			noMoveStart: true
+		};
 	}
 };
 function extendDuration(easeOptions, result) {
@@ -54706,7 +55286,7 @@ var HandlerManager = class extends Evented {
 			}
 			this._updatingCamera = true;
 			const inputEvent = e.type === "renderFrame" ? void 0 : e;
-			const mergedHandlerResult = { needsRenderFrame: false };
+			let mergedHandlerResult = { needsRenderFrame: false };
 			const eventsInProgress = {};
 			const activeHandlers = {};
 			for (const { handlerName, handler, allowed } of this._handlers) {
@@ -54723,7 +55303,7 @@ var HandlerManager = class extends Evented {
 						const points = DOM.touchPos(this._canvas, mapTouches);
 						data = handler[eventName || e.type](e, points, mapTouches);
 					} else if (!isTouchableOrPointableType(eventName || e.type)) data = handler[eventName || e.type](e);
-					this.mergeHandlerResult(mergedHandlerResult, eventsInProgress, data, handlerName, inputEvent);
+					mergedHandlerResult = this.mergeHandlerResult(mergedHandlerResult, eventsInProgress, data, handlerName, inputEvent);
 					if (data?.needsRenderFrame) this._triggerRenderFrame();
 					if (data?.timeout) this._startTimeout(handler, data.timeout);
 				}
@@ -54908,8 +55488,7 @@ var HandlerManager = class extends Evented {
 		return mapTouches;
 	}
 	mergeHandlerResult(mergedHandlerResult, eventsInProgress, handlerResult, name, e) {
-		if (!handlerResult) return;
-		extend(mergedHandlerResult, handlerResult);
+		if (!handlerResult) return mergedHandlerResult;
 		const eventData = {
 			handlerName: name,
 			originalEvent: handlerResult.originalEvent || e
@@ -54919,11 +55498,15 @@ var HandlerManager = class extends Evented {
 		if (handlerResult.rollDelta !== void 0) eventsInProgress.roll = eventData;
 		if (handlerResult.pitchDelta !== void 0) eventsInProgress.pitch = eventData;
 		if (handlerResult.bearingDelta !== void 0) eventsInProgress.rotate = eventData;
+		return {
+			...mergedHandlerResult,
+			...handlerResult
+		};
 	}
 	_applyChanges() {
 		const combined = {};
-		const combinedEventsInProgress = {};
-		const combinedDeactivatedHandlers = {};
+		let combinedEventsInProgress = {};
+		let combinedDeactivatedHandlers = {};
 		for (const [change, eventsInProgress, deactivatedHandlers] of this._changes) {
 			if (change.panDelta) combined.panDelta = (combined.panDelta || new Point(0, 0))._add(change.panDelta);
 			if (change.zoomDelta) combined.zoomDelta = (combined.zoomDelta || 0) + change.zoomDelta;
@@ -54933,8 +55516,14 @@ var HandlerManager = class extends Evented {
 			if (change.around !== void 0) combined.around = change.around;
 			if (change.pinchAround !== void 0) combined.pinchAround = change.pinchAround;
 			if (change.noInertia) combined.noInertia = change.noInertia;
-			extend(combinedEventsInProgress, eventsInProgress);
-			extend(combinedDeactivatedHandlers, deactivatedHandlers);
+			combinedEventsInProgress = {
+				...combinedEventsInProgress,
+				...eventsInProgress
+			};
+			combinedDeactivatedHandlers = {
+				...combinedDeactivatedHandlers,
+				...deactivatedHandlers
+			};
 		}
 		this._updateMapCamera(combined, combinedEventsInProgress, combinedDeactivatedHandlers);
 		this._changes = [];
@@ -55899,8 +56488,8 @@ var TouchPanHandler = class {
 	_shouldBePrevented(touchesCount) {
 		return touchesCount < (this._cooperativeGestures.isEnabled() ? 2 : 1);
 	}
-	touchstart(e, points, mapTouches) {
-		return this._calculateTransform(e, points, mapTouches);
+	touchstart(_e, points, mapTouches) {
+		return this._calculateTransform(points, mapTouches);
 	}
 	touchmove(e, points, mapTouches) {
 		if (!this._active) return;
@@ -55908,17 +56497,18 @@ var TouchPanHandler = class {
 			this._cooperativeGestures.notifyGestureBlocked("touch_pan", e);
 			return;
 		}
-		e.preventDefault();
-		return this._calculateTransform(e, points, mapTouches);
+		const transform = this._calculateTransform(points, mapTouches);
+		if (transform) e.preventDefault();
+		return transform;
 	}
-	touchend(e, points, mapTouches) {
-		this._calculateTransform(e, points, mapTouches);
+	touchend(_e, points, mapTouches) {
+		this._calculateTransform(points, mapTouches);
 		if (this._active && this._shouldBePrevented(mapTouches.length)) this.reset();
 	}
 	touchcancel() {
 		this.reset();
 	}
-	_calculateTransform(e, points, mapTouches) {
+	_calculateTransform(points, mapTouches) {
 		if (mapTouches.length > 0) this._active = true;
 		const touches = indexTouches(mapTouches, points);
 		const touchPointSum = new Point(0, 0);
@@ -57807,10 +58397,16 @@ var Camera = class extends Evented {
 	}
 	panBy(offset, options, eventData) {
 		offset = Point.convert(offset).mult(-1);
-		return this.panTo(this.renderedState.center, extend({ offset }, options), eventData);
+		return this.panTo(this.renderedState.center, {
+			offset,
+			...options
+		}, eventData);
 	}
 	panTo(lnglat, options, eventData) {
-		return this.easeTo(extend({ center: lnglat }, options), eventData);
+		return this.easeTo({
+			center: lnglat,
+			...options
+		}, eventData);
 	}
 	getZoom() {
 		return this.renderedState.zoom;
@@ -57820,7 +58416,10 @@ var Camera = class extends Evented {
 		return this;
 	}
 	zoomTo(zoom, options, eventData) {
-		return this.easeTo(extend({ zoom }, options), eventData);
+		return this.easeTo({
+			zoom,
+			...options
+		}, eventData);
 	}
 	zoomIn(options, eventData) {
 		this.zoomTo(evaluateZoomSnap(this.getZoom() + 1, this._zoomSnap), options, eventData);
@@ -57862,19 +58461,26 @@ var Camera = class extends Evented {
 		return this;
 	}
 	rotateTo(bearing, options, eventData) {
-		return this.easeTo(extend({ bearing }, options), eventData);
+		return this.easeTo({
+			bearing,
+			...options
+		}, eventData);
 	}
 	resetNorth(options, eventData) {
-		this.rotateTo(0, extend({ duration: 1e3 }, options), eventData);
+		this.rotateTo(0, {
+			duration: 1e3,
+			...options
+		}, eventData);
 		return this;
 	}
 	resetNorthPitch(options, eventData) {
-		this.easeTo(extend({
+		this.easeTo({
 			bearing: 0,
 			pitch: 0,
 			roll: 0,
-			duration: 1e3
-		}, options), eventData);
+			duration: 1e3,
+			...options
+		}, eventData);
 		return this;
 	}
 	snapToNorth(options, eventData) {
@@ -57933,11 +58539,12 @@ var Camera = class extends Evented {
 			right: 0,
 			left: 0
 		};
-		options = extend({
+		options = {
 			padding: defaultPadding,
 			offset: [0, 0],
-			maxZoom: this.renderedState.maxZoom
-		}, options);
+			maxZoom: this.renderedState.maxZoom,
+			...options
+		};
 		if (typeof options.padding === "number") {
 			const p = options.padding;
 			options.padding = {
@@ -57947,7 +58554,10 @@ var Camera = class extends Evented {
 				left: p
 			};
 		}
-		const padding = extend(defaultPadding, options.padding);
+		const padding = {
+			...defaultPadding,
+			...options.padding
+		};
 		options.padding = padding;
 		const bounds = new LngLatBounds(p0, p1);
 		const noPadding = {
@@ -57957,7 +58567,10 @@ var Camera = class extends Evented {
 			left: 0
 		};
 		const fitPadding = options.absolutePadding ? noPadding : padding;
-		const mapPadding = options.absolutePadding ? padding : extend(noPadding, this.renderedState.padding);
+		const mapPadding = options.absolutePadding ? padding : {
+			...noPadding,
+			...this.renderedState.padding
+		};
 		const result = getCameraMotions(this.context).cameraForBoxAndBearing(options, fitPadding, mapPadding, bounds, bearing, this.renderedState, this.context);
 		if (!result) return void 0;
 		if (this._zoomSnap) result.zoom = evaluateZoomSnap(result.zoom, this._zoomSnap, -1);
@@ -57985,7 +58598,10 @@ var Camera = class extends Evented {
 	}
 	_fitInternal(calculatedOptions, options, eventData) {
 		if (!calculatedOptions) return this;
-		options = extend(calculatedOptions, options);
+		options = {
+			...calculatedOptions,
+			...options
+		};
 		if (options.absolutePadding) {
 			options.padding = calculatedOptions.padding;
 			delete options.absolutePadding;
@@ -58060,11 +58676,12 @@ var Camera = class extends Evented {
 	}
 	easeTo(options, eventData) {
 		if (!this._scheduler.isContinuedBy(options.easeId)) this._scheduler.interrupt();
-		options = extend({
+		options = {
 			offset: [0, 0],
 			duration: 500,
-			easing: defaultEasing
-		}, options);
+			easing: defaultEasing,
+			...options
+		};
 		if (options.zoom !== void 0 && this._zoomSnap) options.zoom = evaluateZoomSnap(options.zoom, this._zoomSnap);
 		if (options.animate === false || !options.essential && browser.prefersReducedMotion) options.duration = 0;
 		const view = this.getStateForUpdate();
@@ -58604,12 +59221,13 @@ var Camera = class extends Evented {
 	flyTo(options, eventData) {
 		if (!options.essential && browser.prefersReducedMotion) return this.easeTo(options, eventData);
 		this._scheduler.interrupt();
-		options = extend({
+		options = {
 			offset: [0, 0],
 			speed: 1.2,
 			curve: 1.42,
-			easing: defaultEasing
-		}, options);
+			easing: defaultEasing,
+			...options
+		};
 		if (options.zoom !== void 0 && this._zoomSnap) options.zoom = evaluateZoomSnap(options.zoom, this._zoomSnap);
 		const view = this.getStateForUpdate(), startBearing = getBearing(view), startPitch = getPitch(view), startRoll = getRoll(view), startPadding = view.padding;
 		const bearing = options.bearing !== void 0 ? this._normalizeBearing(options.bearing, startBearing) : startBearing;
@@ -60381,7 +60999,14 @@ function projectionOf(matrix) {
 			0
 		],
 		projectionTransition: 0,
-		clipAntimeridian: false
+		clipAntimeridian: false,
+		tileOrigin: [
+			0,
+			0,
+			0,
+			0
+		],
+		tileOriginPosition: [0, 0]
 	};
 }
 /**
@@ -60473,7 +61098,7 @@ var Shading = class {
 		this.frameContext = null;
 		this.wallUniforms = /* @__PURE__ */ new WeakMap();
 		this.painter = painter;
-		extend(this, options);
+		for (const key in options) this[key] = options[key];
 	}
 	/** The camera of the frame being drawn. */
 	get camera() {
@@ -60531,7 +61156,7 @@ var Shading = class {
 		if (this.fade <= 0) return;
 		const tiles = [];
 		for (const layer of layers) {
-			if (layer.paint.get("fill-extrusion-opacity") === 0) continue;
+			if (layer.paint.get("fill-extrusion-opacity").constantOr(1) === 0) continue;
 			const manager = style.tileManagers[layer.source];
 			if (!manager) continue;
 			for (const coord of manager.getVisibleCoordinates()) {
@@ -61375,7 +62000,10 @@ var Map$1 = class extends Evented {
 			});
 			if (resolvedOptions.bounds) {
 				this.resize();
-				this.fitBounds(resolvedOptions.bounds, extend({}, resolvedOptions.fitBoundsOptions, { duration: 0 }));
+				this.fitBounds(resolvedOptions.bounds, {
+					...resolvedOptions.fitBoundsOptions,
+					duration: 0
+				});
 			}
 		}
 		const styleProjectionType = typeof resolvedOptions.style === "string" ? void 0 : resolvedOptions.style?.projection?.type;
@@ -62946,12 +63574,13 @@ var Map$1 = class extends Evented {
 	* ```
 	*/
 	setStyle(style, options) {
-		options = extend({}, {
+		options = {
 			localIdeographFontFamily: this._localIdeographFontFamily,
 			validate: this._validateStyle,
 			globalState: this._initialGlobalState,
-			transformStyle: this._transformStyle
-		}, options);
+			transformStyle: this._transformStyle,
+			...options
+		};
 		this._styleUrl = typeof style === "string" ? style : null;
 		if (options.diff !== false && options.localIdeographFontFamily === this._localIdeographFontFamily && this.style && style) {
 			this._diffStyle(style, options);
@@ -64793,7 +65422,10 @@ var NavigationControl = class {
 			button.title = str;
 			button.setAttribute("aria-label", str);
 		};
-		this.options = extend({}, defaultOptions$3, options);
+		this.options = {
+			...defaultOptions$3,
+			...options
+		};
 		this._container = DOM.create("div", "maplibregl-ctrl maplibregl-ctrl-group");
 		this._container.addEventListener("contextmenu", (e) => e.preventDefault());
 		if (this.options.showZoom) {
@@ -64969,9 +65601,14 @@ async function checkGeolocationSupport(forceRecalculation = false) {
 * possible; they should avoid shifting large distances across the screen, even when the
 * map center changes by ±360° due to automatic wrapping, and when about to go off screen,
 * should wrap just enough to avoid doing so.
+*
+* A map without world copies has no copy to shift to: a location on its single world stays where it is, and one past
+* the world's edge is wrapped back onto it. A projection whose world does not wrap never shifts a location.
 */
 function smartWrap(lngLat, priorPos, projectedCamera, worldCoordinateHelper, useNormalWrap = false) {
 	if (useNormalWrap || !getCoveringTilesDetailsProvider(projectedCamera).allowWorldCopies()) return lngLat?.wrap();
+	if (!worldCoordinateHelper.wraps) return lngLat;
+	if (!projectedCamera.renderWorldCopies) return Math.abs(lngLat?.lng) <= 180 ? lngLat : lngLat?.wrap();
 	const originalLngLat = new LngLat(lngLat.lng, lngLat.lat);
 	lngLat = new LngLat(lngLat.lng, lngLat.lat);
 	if (priorPos) {
@@ -66011,17 +66648,21 @@ var GeolocateControl = class extends Evented {
 			const bearing = this._map.getBearing();
 			const eventData = { geolocateSource: true };
 			if (!this.options.zoomToUserAccuracy) {
-				const options = extend({}, this.options.fitBoundsOptions, {
+				const options = {
+					...this.options.fitBoundsOptions,
 					center,
 					bearing,
 					zoom: this._map.getZoom()
-				});
+				};
 				if (options.linear) this._map.easeTo(options, eventData);
 				else this._map.flyTo(options, eventData);
 				return;
 			}
 			const radius = position.coords.accuracy;
-			const options = extend({ bearing }, this.options.fitBoundsOptions);
+			const options = {
+				bearing,
+				...this.options.fitBoundsOptions
+			};
 			const newBounds = LngLatBounds.fromLngLat(center, radius);
 			this._map.fitBounds(newBounds, options, eventData);
 		};
@@ -66121,7 +66762,10 @@ var GeolocateControl = class extends Evented {
 			this._setup = true;
 			if (this.options.trackUserLocation) this._map.on("movestart", this._onMoveStart);
 		};
-		this.options = extend({}, defaultOptions$2, options);
+		this.options = {
+			...defaultOptions$2,
+			...options
+		};
 	}
 	/** {@inheritDoc IControl.onAdd} */
 	onAdd(map) {
@@ -66794,7 +67438,10 @@ var Popup = class extends Evented {
 		this._onClose = () => {
 			this.remove();
 		};
-		this.options = extend(Object.create(defaultOptions), options);
+		this.options = {
+			...defaultOptions,
+			...options
+		};
 	}
 	/**
 	* Adds the popup to a map.

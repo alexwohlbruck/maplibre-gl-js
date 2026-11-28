@@ -4,7 +4,6 @@ import {terrainRelief, terrainUniformValues, terrainDepthUniformValues, terrainH
 import {CullFaceMode} from '../cull_face_mode.ts';
 import {Color} from '@maplibre/maplibre-gl-style-spec';
 import {ColorMode} from '../color_mode.ts';
-import {extend} from '../../util/util.ts';
 import {getCameraMath} from '../../camera/camera_math_factory.ts';
 
 import type {FrameRenderContext} from '../../render/frame_render_context.ts';
@@ -63,8 +62,10 @@ function drawTerrain(painter: Painter, terrain: Terrain, tiles: Tile[], frameRen
         const eleDelta = terrain.getSkirtLength(projectedCamera.zoom);
         const fogMatrix = getCameraMath(projectedCamera).calculateFogMatrix(projectedCamera, tile.tileID.toUnwrapped());
         const relief = terrainRelief(frameRenderContext.data.light, projectedCamera.bearingInRadians, terrain.shading, tile.tileID.canonical);
-        const uniformValues = terrainUniformValues(eleDelta, fogMatrix, frameRenderContext.data.sky, projectedCamera.pitch, isRenderingGlobe, relief);
-        if (shading) extend(uniformValues, shade, {'u_sun_matrix': shading.sunMatrix(tile.tileID), 'u_occlusion_matrix': shading.occlusionMatrix(tile.tileID)});
+        const terrainValues = terrainUniformValues(eleDelta, fogMatrix, frameRenderContext.data.sky, projectedCamera.pitch, isRenderingGlobe, relief);
+        const uniformValues = shading ?
+            {...terrainValues, ...shade, 'u_sun_matrix': shading.sunMatrix(tile.tileID), 'u_occlusion_matrix': shading.occlusionMatrix(tile.tileID)} :
+            terrainValues;
         const projectionData = frameRenderContext.getProjectionDataForTile(tile.tileID, {applyTerrainMatrix: false});
         program.draw(context, gl.TRIANGLES, depthMode, StencilMode.disabled, colorMode, CullFaceMode.backCCW, uniformValues, terrainData, projectionData, 'terrain', mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
     }

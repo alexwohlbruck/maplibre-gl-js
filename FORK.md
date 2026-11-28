@@ -4,12 +4,32 @@ This document lists every behaviour change the fork makes on top of upstream Map
 
 ## Base, versioning and distribution
 
-- **Upstream base:** tag `v6.19.0`, merged into the fork in `653b492b5` (`v6.19.0-transit.1-terrain.1`). The fork started from `v6.11.2` (`acb7b722f`); the commit hashes below are the original fork commits on that base, and *Synced to v6.19.0* says where the code has since moved.
+- **Upstream base:** tag `v6.20.0`, merged into the fork in `58fbc7490` (`v6.20.0-transit.1-terrain.1`); before that `v6.19.0`, merged in `653b492b5` (`v6.19.0-transit.1-terrain.1`). The fork started from `v6.11.2` (`acb7b722f`); the commit hashes below are the original fork commits on that base, and *Synced to v6.20.0* and *Synced to v6.19.0* say where the code has since moved.
 - **Versions and tags:** `v<upstream>-transit.N-terrain.M`. `transit.N` counted the first round of features (transit lines, line elevation, symbol work, horizon fade; `transit.1` to `transit.18`). `terrain.M` counts the second round, built on `transit.18` (terrain haze, hiding without reload, terrain and extrusion performance, shading; `terrain.1` to `terrain.8`). `package.json` `version` matches the tag.
 - **`dist/` is committed.** Consumers install from a git tag without a build toolchain, so most features are followed by a "Build dist" or version-bump commit. Those commits carry no source change and are left out below. `package.json` also drops upstream's `prepare: npm run codegen` script for the same reason.
 - **Spec additions** live in `src/style-spec/fork_extensions.ts`. It adds entries to the style-spec `v8` reference object at import time and is imported first by `src/index.ts`, `src/source/worker.ts` and `build/generate-style-code.ts`, so validation, expression parsing and generated property classes all see the new properties. In Native the equivalent is likely editing the spec JSON that drives `scripts/generate-style-code.js` and regenerating the `*_layer_properties` files.
 - **Layer metadata keys** (`parchment:decal`, `parchment:horizon-fade`, `parchment:tile-fade`) are read from the layer's `metadata` object, not from the spec.
 - **Pulled in early from upstream:** `ce10d2208` (bidi support, deprecating the RTL plugin, upstream PR #8343) and `2da49917e` (`font-faces` style property, upstream PR #8237) are upstream commits already contained in `v6.11.2`. They are not fork features and are not documented here.
+
+## Synced to v6.20.0
+
+What upstream reworked under fork features, and where the fork's side of each now lives:
+
+- **`fill-extrusion-opacity` is data-driven (#9109).** The `u_opacity` uniform is gone from the fill-extrusion programs; `opacity` is a `#pragma` paint value, clamped to 0-1, and a feature at 0 is moved out of clip space.
+  - `fill_extrusion.vertex.glsl`: one early-out, `if (opacity <= 0.0 || height < 0.0)`, to upstream's `vec4(-2.0, -2.0, -2.0, 1.0)`. The `SHADING` branch writes the per-feature `opacity` as `v_color`'s alpha where it wrote `u_opacity`; the fragment shader still premultiplies by it.
+  - `fill_extrusion_pattern.vertex.glsl` has upstream's opacity early-out followed by the fork's `height < 0.0` one.
+  - `fill_extrusion_depth.vertex.glsl` declares `opacity` too and drops a feature at `opacity <= 0.0` with the negative-height ones, so an extrusion a feature's opacity hides casts no shadow and no lamplight.
+  - `Shading.prepare` skips a cast layer on `paint.get('fill-extrusion-opacity').constantOr(1) === 0`; `drawFillExtrusion` takes upstream's `constantOr` checks and uniform-value signatures (no `opacity` argument).
+- **`extend` is gone from `util.ts` (#9114)**, and the lint rules forbid `Object.assign`. Shading uniform values are spread into the extrusion's and the terrain's (`draw_fill_extrusion.ts`, `draw_terrain.ts`), `symbol_program.ts` spreads as upstream does, and `Shading`'s constructor copies its options in a loop.
+- **Dashes are measured along the offset line (#9094).** `lineSDF` and `lineGradientSDF` read `a_offset_distance` (locations 3 and 5) from `LineBucket.offsetDistanceBuffer`, a third vertex buffer filled only for a bucket with a dashed, offset layer. Both shaders compute upstream's `linesofar` first, then the fork's `LINE_ELEVATION` / `LINE_VIEWPORT` projection; `a_elevation` has no explicit location and takes the one after the shader's static inputs. `lineVariableOffset` draws no dashes and needs neither. Upstream's sharp-corner fix (#9092, `offsetNormalNearJoin`) is bucket code, so it reaches every line program, the variable-offset one and elevated lines included. A dashed line still ignores a `line-progress` offset, and its dash correction uses the paint `offset`.
+- **Program cache (#9087).** `ProgramCache` is nested maps: shader name with defines, then configuration key, then projection variant, then an array indexed by the overdraw and terrain flags. The fork's fragment chunk joins the first key as `/chunk<chunkId>`, built only when a variant has one, so a lookup without defines or a chunk still builds no string. `DEFERRED_PROGRAMS.has(name)` is passed to `Program` as before.
+- **Placement (#9148).** `placeLayerBucketPart`'s `placeSymbol` closure became the methods `_placeSymbol`, `_placeTextBox` and `_placeTextAtVariableAnchors`, which share a `SymbolPlacementContext` built once per bucket part. The fork's per-symbol values live on that context and `_placeSymbol` sets them before anything reads them:
+  - `clipped`, the bucket's symbol-clip tester (or null), checked right after the `seenCrossTileIDs` check;
+  - `translationText` / `translationIcon`, rewritten for each symbol from `translationTextBase` / `translationIconBase` plus its `symbol-anchor-offset`;
+  - `heightAnchorGround`, from `symbolInstance.heightGround`.
+  Isolated collision layers (`CollisionGroups`) and `stillRecent(now, zoom, stretch)` are unchanged.
+- **Globe tiles are drawn relative to a tile origin.** `ProjectionData` gained `tileOrigin` and `tileOriginPosition`; the shading's own projection (`projectionOf` in `shading.ts`) passes zeros, which is upstream's "relative to the planet centre". Fork shaders reach the sphere only through `projectTile` / `projectTileFor3D` and upstream's updated `projectToSphereOffset`.
+- `RasterDEMTileSource` keeps the fork's `onAdd` (starts the terrain worker) beside upstream's new `_applyTileJSON`.
 
 ## Synced to v6.19.0
 
@@ -57,7 +77,9 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Clipping-mask reuse | none | `f3cddca7d`, `5d70660cc` |
 | Tile cache kept through a layer change | internal `TileManager.relayout` | `a91513a81` |
 | Parse a tile's layers as read | none | `6278321dc` (part) |
-| Labels placed half as often while panning | none (`MOVING_PLACEMENT_STRETCH = 2`) | `f6bb4474e` (part) |
+| Labels placed less often while the camera moves | none (`MOVING_PLACEMENT_STRETCH = 2`, `MOVING_PLACEMENT_INTERVAL = 300`) | `f6bb4474e` (part), `fb9e96723` |
+| Covering tiles shared between sources | none (internal `TileManager.update(..., covers)`) | `8ad6b684c` |
+| Source features read a range at a time | internal `Tile.querySourceFeatures(result, {range})` returns the layer's length | `4c84caff4` |
 | Layer programs link without blocking | none (internal `Program.isReady`, `Context.programsPending`) | see below |
 | Muted layers | `Map#setLayerMuted(layerId, muted)`, runtime only | `d8ea3c430` |
 | Symbol clip | `Map#setSymbolClip(layerIds, Polygon \| MultiPolygon \| null)` | `d8ea3c430`, `e3cc0358d` (anchor only) |
@@ -270,7 +292,7 @@ Transit ribbons in Parchment are bundles of parallel lines that sit side by side
     ]
     ```
     `translatePosition` converts with `pixelsToTileUnits` and, for `viewport`, rotates by `bearingInRadians`. It is the same code as `text-translate-anchor`.
-  - In `placeSymbol`, a non-zero `(aox, aoy)` adds `aox*bx + aoy*by` to both `translationText` and `translationIcon`. Every downstream `placeCollisionBox` / circle placement then sees the shifted boxes.
+  - In `_placeSymbol`, a non-zero `(aox, aoy)` adds `aox*bx + aoy*by` to both `translationText` and `translationIcon` on the placement context (from `translationTextBase` / `translationIconBase`; a zero offset resets them). Every downstream `placeCollisionBox` / circle placement then sees the shifted boxes.
   - Caveat: the collision shift accounts for bearing but not pitch foreshortening. At steep pitch with `map` alignment, the boxes can differ slightly from what the shader draws.
 
 **Implementation in GL JS.**
@@ -674,7 +696,7 @@ the cost: `nearestOnRun` is O(vertices × run segments) per feature for unassign
   - Symbols at or above the surface behave as upstream.
 - **Placement and collision on the CPU.**
   - Each symbol instance's own flag replaces the layer-wide one wherever the elevation is computed:
-    - `Placement.placeLayerBucketPart`: `heightAnchorGround = symbolInstance.heightGround === 1`
+    - `Placement._placeSymbol`: `context.heightAnchorGround = symbolInstance.heightGround === 1`
     - `draw_symbol.ts` `updateVariableAnchorsForBucket`: `heightAnchorGround: symbol.heightGround === 1` on the `SymbolProjectionContext`
   - The flag then feeds upstream's unchanged `getSymbolElevation(getElevation, x, y, heightOffset, heightAnchorGround)`:
     - not ground: returns `heightOffset`
@@ -1453,7 +1475,7 @@ not force-parse every layer. If they do not, nothing needs porting.
 
 **Commits.** `6278321dc` (the parsing part).
 
-### Labels placed half as often while panning
+### Labels placed less often while the camera moves
 
 **Purpose.** While the camera pans or rotates without zooming, labels ride the map they were placed on, so
 placing them less often is not visible. The fork doubles the placement interval in that state, which halves the
@@ -1467,8 +1489,15 @@ cost of placement.
 - `Placement.stillRecent(now, zoom, stretch = 1)` returns `commitTime + fadeDuration * durationAdjustment *
   stretch > now`. The `durationAdjustment` term (the upstream `1 - zoomAdjustment(zoom)` once zoom has settled)
   is unchanged.
-- A new placement therefore starts at most once every `2 × fadeDuration` while panning or rotating, and once every
-  `fadeDuration` otherwise.
+- The stretch has a floor while the camera moves, zooming included: `MOVING_PLACEMENT_INTERVAL / fadeDuration`,
+  with `MOVING_PLACEMENT_INTERVAL = 300` (upstream's default `fadeDuration`). So
+  `stretch = !moving ? 1 : max(zooming ? 1 : 2, 300 / fadeDuration)` (no floor when `fadeDuration` is 0).
+  A map with a short fade, such as Parchment's 100 ms, otherwise placed three times as often mid-gesture as a
+  map with the default fade does; placement was 25-30% of the main thread's frame at a pitched, label-dense view.
+- A new placement therefore starts at most once every `max(2 × fadeDuration, 300 ms)` while panning or rotating,
+  once every `max(fadeDuration, 300 ms)` while zooming, and once every `fadeDuration` at rest.
+- `Placement.updateLayerOpacities` tracks the cross-tile ids it has seen in a `Set<number>`, not an object keyed by
+  large integers, which V8 keeps as a slow dictionary.
 - `forceFullPlacement` and a missing placement still bypass the check.
 - Pitch-only changes count as moving and not zooming, so they are stretched too.
 
@@ -1483,6 +1512,71 @@ commit time, together with the `TransformState` / `UpdateParameters` camera-movi
 recency. Multiply the window by 2 when the transform is moving and not zooming.
 
 **Commits.** `f6bb4474e` (the `style.ts` / `placement.ts` part only).
+
+### Covering tiles shared between sources
+
+**Purpose.** Every source works out the tiles that cover the view on every frame, with a frustum test per
+candidate tile. Sources with the same tile size and zoom range ask the same question of the same camera: a style
+with a dozen GeoJSON overlays computed the same cover a dozen times a frame. The fork computes each distinct cover
+once per frame.
+
+**API / style-spec surface.** None. Internal: `TileManager.update(projectedCamera, worldCoordinateHelper, terrain,
+covers?)`, where `covers` is a `Record<string, OverscaledTileID[]>` that lives for one `Style._updateSources` call.
+
+**Behaviour.**
+- `Style._updateSources` creates an empty `covers` and passes it to every tile manager's `update`.
+- The key is `tileSize/minzoom/maxzoom/roundZoom/reparseOverscaled/maxContentElevation`, with `maxzoom` after the
+  `zoomLevelsToOverscale` adjustment. A source with its own `calculateTileZoom` is never shared.
+- On a hit the array from the first source is used as it is. Nothing after `coveringTiles` changes it in place:
+  `hasTile` filters into a new array, and the terrain's ancestors are concatenated into a new one. The ids are
+  shared between the sources' tiles; only `TerrainTileManager` writes to an id (`terrainRttPosMatrix32f`), and it
+  makes its own.
+- `update` called without `covers` (tests, a reload outside the frame) computes as upstream does.
+
+**Implementation in GL JS.** `src/style/style.ts` (`_updateSources`), `src/tile/tile_manager.ts` (`update`).
+
+**Tests.** `src/tile/tile_manager.test.ts`: two like sources share one cover and load the same tiles; a source
+with another `maxzoom` gets its own.
+
+**Native porting notes.** Native computes the cover per `RenderSource` in `TilePyramid::update` via
+`util::tileCover`. Cache its result for the duration of one `RenderOrchestrator::createRenderTree` pass, keyed by
+the same parameters (tile size, zoom range, overscale behaviour).
+
+**Commits.** `8ad6b684c`.
+
+### Source features read a range at a time
+
+**Purpose.** An application that derives geometry from loaded tiles (trees, landmark footprints, label heights)
+reads a whole source layer of a tile at once. A dense layer of one tile is tens of thousands of features, and
+building them held the main thread for 100-200 ms, one dropped-frame burst per arriving tile. The fork lets the
+caller read a slice of the layer per call, and drops two per-feature costs from the loop.
+
+**API / style-spec surface.** Internal only: `Tile.querySourceFeatures(result, params)` takes
+`params.range?: [start, end]` and returns the number of features in the layer (0 without data or the layer).
+`QuerySourceFeatureOptionsStrict.worldCoordinateHelper` is optional.
+
+**Behaviour.**
+- With `range`, only features `start <= i < min(end, layer.length)` are read and appended. Without it the whole
+  layer is, as upstream.
+- The return value lets a caller loop `start += n` until it reaches the length.
+- One `EvaluationParameters` is built per call and reused for every feature's filter test; upstream built one per
+  feature.
+- `GeoJSONFeature`'s constructor registers a feature in its `worldCoordinateHelpers` WeakMap only for a helper that
+  is set and is not the mercator one. A call without a helper (which is how an application reaches the tile
+  directly) no longer writes one WeakMap entry per feature, and its geometry is mercator, as before.
+- `Map#querySourceFeatures` is unchanged.
+
+**Implementation in GL JS.** `src/tile/tile.ts`, `src/source/query_features.ts` (the option type),
+`src/util/vectortile_to_geojson.ts`.
+
+**Tests.** `src/tile/tile.test.ts`: an empty range reads nothing and still reports the length; a range past the
+end reads what there is.
+
+**Native porting notes.** Native's `GeometryTile::querySourceFeatures` / `RenderSource::querySourceFeatures` run
+off the render thread's data but are called synchronously. If the apps derive geometry from tiles the same way,
+give the per-tile query a start index and a count; otherwise nothing needs porting.
+
+**Commits.** `4c84caff4`.
 
 ### Layer programs link without blocking
 
@@ -1523,7 +1617,7 @@ the whole frame.
 `src/webgl/context.ts`, `src/webgl/render_to_texture.ts` (`_renderStack`), `src/webgl/draw/draw_fill_extrusion.ts`,
 `src/ui/map.ts` (`_render`).
 
-**Tests.** `src/webgl/program.test.ts`: a deferred layer program reads no uniform locations until the driver
+**Tests.** `src/webgl/program_cache.test.ts`: a program per fragment chunk. `src/webgl/program.test.ts`: a deferred layer program reads no uniform locations until the driver
 reports the link complete, and sets `programsPending` meanwhile; a clipping-mask program links at once.
 
 **Native porting notes.** Native compiles shaders through `gfx::ShaderProgramBase` / the backend's program cache
@@ -1602,7 +1696,7 @@ In upstream, three of the usual ways to hide features make tiles reload or get r
    - It keeps the polygons whose bbox overlaps that square, and returns `null` if none do.
    - The test converts each tile-unit point to mercator with `x0 + v * size/EXTENT` (and `y0` for y). The symbol counts as clipped when **any** nearby polygon "holds" the points.
 
-3. **The point tested for each symbol.** Its anchor, `[anchorX, anchorY]`, in `placeSymbol`. Before `terrain.8` the fork tested the whole line a label is placed along, which left every name whose line ran on past the area unclipped.
+3. **The point tested for each symbol.** Its anchor, `[anchorX, anchorY]`, in `_placeSymbol`, through the context's `clipped`. Before `terrain.8` the fork tested the whole line a label is placed along, which left every name whose line ran on past the area unclipped.
 
 4. **What "holds" means** (`holds`). This is the rule of the `within` expression:
    - **Every point is inside the polygon** (for the anchor, the one point). `contains` is an even-odd ray-casting test across all rings, so holes count. It starts with a quick bbox reject. A point exactly on an edge follows the usual half-open rule `(yi > y) !== (yj > y)`.
@@ -1620,7 +1714,7 @@ In upstream, three of the usual ways to hide features make tiles reload or get r
 
 **Implementation in GL JS.**
 - `src/symbol/symbol_clip.ts` (new): `createSymbolClip`, `contains`, `twoSided`, `crosses`, `holds`, `symbolClipTester`.
-- `src/symbol/placement.ts`: the `symbolClip` field and the early-out on the anchor in `placeSymbol`.
+- `src/symbol/placement.ts`: the `symbolClip` field, the tester on the placement context, and the early-out on the anchor in `_placeSymbol`.
 - `src/style/style.ts`: the `_symbolClip` field, `setSymbolClip`, and the copy into new placements.
 - `src/ui/map.ts`: the public method.
 - Everything runs on the main thread, where placement happens.
@@ -1660,10 +1754,12 @@ In upstream, three of the usual ways to hide features make tiles reload or get r
   if (height < 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
   ```
 
+  Since v6.20.0 `fill_extrusion.vertex.glsl` shares upstream's per-feature opacity early-out instead: `if (opacity <= 0.0 || height < 0.0) { gl_Position = vec4(-2.0, -2.0, -2.0, 1.0); return; }`. The pattern shader keeps the two checks apart.
+
   Every vertex of the feature is pushed outside clip space, so its triangles are culled and nothing reaches the fragment shader.
 - The check reads the interpolated, evaluated `height` paint value (zoom-interpolated, feature-state aware). A height of exactly `0` is still drawn.
 - The test runs per vertex. A height that varies within one feature only matters through the feature's single evaluated value, so in practice the whole feature is dropped.
-- The shadow and light-map depth shader the fork adds later (`fill_extrusion_depth.vertex.glsl`, see Shading) applies the same `height < 0.0` early-out. A hidden building therefore casts no shadow and gives off no lamplight.
+- The shadow and light-map depth shader the fork adds later (`fill_extrusion_depth.vertex.glsl`, see Shading) applies the same `height < 0.0` early-out, and since v6.20.0 an `opacity <= 0.0` one. A hidden building therefore casts no shadow and gives off no lamplight.
 - The fork's building ground-elevation buffer and the anchor changes are unaffected.
 
 **Implementation in GL JS.** Shader-only: two vertex shaders. No bucket or draw-call change. Feature-state updates already re-upload the paint-attribute buffers.
@@ -1781,7 +1877,7 @@ type WallShader = {source: string; uniforms?: {[name: string]: number | number[]
 1. Reset `frame`, `occlusion`, `lights`, `groundLayer`. Set `active = enabled && zoom >= minZoom`. If inactive, stop.
 2. Cast layers are the style-ordered fill-extrusion layers that are not muted, not hidden at this zoom, and have `fill-extrusion-cast-shadows`. `groundLayer` is the first of them (bottom-most).
 3. `fade` = `visibility` (or `visibility(pitch)`). If ≤ 0, stop.
-4. Tiles: for each cast layer whose `fill-extrusion-opacity` ≠ 0, every visible coordinate of its source with a bucket that has a `layoutVertexBuffer`. If there are no tiles and no casters, stop.
+4. Tiles: for each cast layer whose `fill-extrusion-opacity` is not the constant 0 (it is data-driven since v6.20.0; a feature at 0 is dropped in the depth shader), every visible coordinate of its source with a bucket that has a `layoutVertexBuffer`. If there are no tiles and no casters, stop.
 5. Run, in this order: `updateOcclusion` (if `groundOcclusion && aoIntensity > 0`), `updateSun` (if `sunShadows && shadowAlpha > 0.001`), then `updateLights` (if `lightIntensity > 0`). If any of them drew, mark context state dirty and rebind the default framebuffer and viewport.
 6. Hand frames to casters: `receiveSun(frame)`, `receiveOcclusion({uv, texture: blurred, strength, power})`, `receiveLights(...)`.
 
@@ -1876,7 +1972,7 @@ Vertex shader `SHADING` branch (replaces the stock lighting):
 - Foot darkening: `dark = (wall_ratio < 0 || wall_ratio >= band) ? 0 : (exp(−3·wall_ratio/band) − 0.0498) · 1.0524`, and `v_dark = strength · dark`.
 - Roofline edge in px: project the wall top and foot via `gl_Position + (h − elevation) * u_projection_matrix[2]`. `wall_px` is their screen distance × `0.5 · u_viewport_size · u_device_pixel_ratio`. `v_edge = (wall_ratio, min(edgeWidth / max(wall_px,1), 0.25), smoothstep(1.5, 4, wall_px / edgeWidth))`.
 - Colour: `surface = (!wall && roof_color.a > 0) ? roof_color : color`, then `+0.03`. `directional = mix(1 − I, max(1 − lum + I, 1), clamp(dot(n, u_lightpos), 0, 1))`, where I = `u_lightintensity` (the style's `light`). `v_facing = dot(n, normalize(u_lightpos))`. `rise = wall ? mix(1 − wallRise, 1, sqrt(wall_ratio)) : 1 + roofLift`.
-  - `v_color = clamp(surface · directional · mix(skyTint, sunTint, clamp(v_facing,0,1)) · rise)`, with alpha `u_opacity`.
+  - `v_color = clamp(surface · directional · mix(skyTint, sunTint, clamp(v_facing,0,1)) · rise)`, with alpha `opacity`: the feature's `fill-extrusion-opacity`, clamped to 0-1 (the `u_opacity` uniform before v6.20.0).
   - `v_ambient = clamp(surface · (1 − I) · skyTint · rise)`.
 - `v_sun = u_sun_matrix * vec4(posInTile, elevation, 1)` and `v_light = (u_occlusion_matrix * vec4(posInTile, 0, 1)).xy`.
 - The stock vertical gradient and light colour are not applied in this branch. The globe normal rotation is also not applied.
@@ -1902,7 +1998,7 @@ Faces turned away from the light (`facing ≤ 0`) take no shadow test; they are 
 
 *Globe.* Nothing in the shading is globe-aware. All matrices are mercator and the ground quad uses `getProjectionDataForCustomLayer(false)`. The `SHADING` extrusion branch drops the globe normal rotation, though `gl_Position` still uses the globe path. Expect shading to be wrong while globe projection is in effect. It only runs at z ≥ `minZoom` (default 14), which is above the zoom where upstream's globe-to-mercator transition normally completes; that is the only protection.
 
-*Program cache.* `Painter.useProgram` gains a `fragmentChunk` argument. It is inserted after the fragment preludes and before the shader's own source; the vertex source is unchanged. Its cache key adds `/<chunkId>`, a small integer per distinct source string. `Program` constructor gains the same parameter.
+*Program cache.* `Painter.useProgram` gains a `fragmentChunk` argument. It is inserted after the fragment preludes and before the shader's own source; the vertex source is unchanged. The cache's first-level key (shader name and defines) adds `/chunk<chunkId>`, a small integer per distinct source string. `Program` constructor gains the same parameter.
 
 **Implementation in GL JS.**
 - `src/render/shading/shading.ts`: `Shading` class (prepare, updateSun, updateOcclusion, updateLights, blur, drawLit, receive, drawGround, extrusionUniforms, sunMatrix, occlusionMatrix, wallSource, setWallUniforms, destroy).

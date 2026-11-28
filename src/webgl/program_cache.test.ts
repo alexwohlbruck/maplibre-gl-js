@@ -1,4 +1,4 @@
-import {describe, test, expect, beforeEach} from 'vitest';
+import {describe, test, expect, beforeEach, vi} from 'vitest';
 import {Context} from './context.ts';
 import {ProgramCache} from './program_cache.ts';
 import {shaders} from '../shaders/shaders.ts';
@@ -39,14 +39,38 @@ describe('ProgramCache', () => {
         expect(gl.createProgram).toHaveBeenCalledTimes(2);
     });
 
-    test('destroy deletes every program', () => {
+    test('compiles a program per shader, projection variant, overdraw switch and list of defines', () => {
+        const globeVariant = {name: 'globe', define: '#define GLOBE', prelude: shaders.projectionGlobe};
+        cache.getProgram(clippingMaskVariant);
+
+        cache.getProgram({...clippingMaskVariant, name: 'background'});
+        cache.getProgram({...clippingMaskVariant, projectionShaderVariant: globeVariant});
+        cache.getProgram({...clippingMaskVariant, showOverdrawInspector: true});
+        cache.getProgram({...clippingMaskVariant, defines: ['#define A']});
+
+        expect(gl.createProgram).toHaveBeenCalledTimes(5);
+    });
+
+    test('compiles a program per fragment chunk, with or without defines', () => {
         const program = cache.getProgram(clippingMaskVariant);
+
+        const chunkProgram = cache.getProgram({...clippingMaskVariant, fragmentChunk: 'float a() { return 1.0; }'});
+        const otherChunkProgram = cache.getProgram({...clippingMaskVariant, fragmentChunk: 'float a() { return 2.0; }'});
+        cache.getProgram({...clippingMaskVariant, defines: ['#define A'], fragmentChunk: 'float a() { return 1.0; }'});
+
+        expect(chunkProgram).not.toBe(program);
+        expect(otherChunkProgram).not.toBe(chunkProgram);
+        expect(cache.getProgram({...clippingMaskVariant, fragmentChunk: 'float a() { return 1.0; }'})).toBe(chunkProgram);
+        expect(gl.createProgram).toHaveBeenCalledTimes(4);
+    });
+
+    test('destroy deletes every program in the order they were compiled', () => {
         const terrainProgram = cache.getProgram({...clippingMaskVariant, useTerrain: true});
+        const backgroundProgram = cache.getProgram({...clippingMaskVariant, name: 'background'});
+        const program = cache.getProgram(clippingMaskVariant);
 
         cache.destroy();
 
-        expect(gl.deleteProgram).toHaveBeenCalledTimes(2);
-        expect(gl.deleteProgram).toHaveBeenCalledWith(program.program);
-        expect(gl.deleteProgram).toHaveBeenCalledWith(terrainProgram.program);
+        expect(vi.mocked(gl.deleteProgram).mock.calls).toEqual([[terrainProgram.program], [backgroundProgram.program], [program.program]]);
     });
 });

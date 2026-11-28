@@ -7,6 +7,7 @@ layout(location = 1) in ivec4 a_normal_ed;
 
 #pragma maplibre: define highp float base
 #pragma maplibre: define highp float height
+#pragma maplibre: define highp float opacity
 
 #ifdef LIGHT
 #pragma maplibre: define highp float facade_style
@@ -25,13 +26,14 @@ float shade_hash(vec2 p) {
 void main() {
     #pragma maplibre: initialize highp float base
     #pragma maplibre: initialize highp float height
+    #pragma maplibre: initialize highp float opacity
     #ifdef LIGHT
     #pragma maplibre: initialize highp float facade_style
     #pragma maplibre: initialize highp float facade_seed
     v_lit = vec3(facade_style, shade_hash(vec2(mod(facade_seed, 256.0), floor(facade_seed / 256.0)) + 0.5), max(0.0, height));
     #endif
 
-    if (height < 0.0) {
+    if (height < 0.0 || opacity <= 0.0) {
         gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
         return;
     }

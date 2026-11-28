@@ -1,5 +1,4 @@
 import {Uniform1i, Uniform1f, Uniform2f, UniformMatrix4f} from '../uniform_binding.ts';
-import {extend} from '../../util/util.ts';
 
 import type {mat4} from 'gl-matrix';
 import type {Context} from '../../webgl/context.ts';
@@ -201,13 +200,14 @@ const symbolSDFUniformValues = (
     isOffset: boolean,
     anchorOffsetIsMap: boolean = false
 ): UniformValues<SymbolSDFUniformsType> => {
-    return extend(symbolIconUniformValues(functionType, size,
-        rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, labelPlaneMatrix,
-        glCoordMatrix, translation, isText, texSize, pitchedScale, isOffset, anchorOffsetIsMap), {
+    return {
+        ...symbolIconUniformValues(functionType, size,
+            rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, labelPlaneMatrix,
+            glCoordMatrix, translation, isText, texSize, pitchedScale, isOffset, anchorOffsetIsMap),
         'u_gamma_scale': (pitchWithMap ? Math.cos(projectedCamera.pitch * Math.PI / 180.0) * projectedCamera.cameraToCenterDistance : 1),
         'u_is_halo': isHalo ? 1 : 0,
         'u_is_plain': 1
-    });
+    };
 };
 
 const symbolTextAndIconUniformValues = (
@@ -229,13 +229,14 @@ const symbolTextAndIconUniformValues = (
     pitchedScale: number,
     isOffset: boolean,
     anchorOffsetIsMap: boolean = false
-): UniformValues<SymbolIconUniformsType> => {
-    return extend(symbolSDFUniformValues(functionType, size,
-        rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, projectedCamera, labelPlaneMatrix,
-        glCoordMatrix, translation, true, texSizeSDF, true, pitchedScale, isOffset, anchorOffsetIsMap), {
+): UniformValues<symbolTextAndIconUniformsType> => {
+    return {
+        ...symbolSDFUniformValues(functionType, size,
+            rotateInShader, pitchWithMap, isAlongLine, isVariableAnchor, projectedCamera, labelPlaneMatrix,
+            glCoordMatrix, translation, true, texSizeSDF, true, pitchedScale, isOffset, anchorOffsetIsMap),
         'u_texsize_icon': texSizeIcon,
         'u_texture_icon': 1
-    });
+    };
 };
 
 export {symbolIconUniforms, symbolSDFUniforms, symbolIconUniformValues, symbolSDFUniformValues, symbolTextAndIconUniformValues, symbolTextAndIconUniforms};

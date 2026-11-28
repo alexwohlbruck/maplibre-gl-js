@@ -306,6 +306,8 @@ export class TileManager extends Evented<SourceEventType> {
 
         this._state.coalesceChanges(this._inViewTiles, this.style);
         for (const tile of this._inViewTiles.getAllTiles()) {
+            // Not yet admitted: its buffers go up in the frame that also places and draws it.
+            if (tile.awaitingUpload) continue;
             if (tile.firstUpload) {
                 // What this tile cost tells the next frame how many like it to admit.
                 tile.firstUpload = false;

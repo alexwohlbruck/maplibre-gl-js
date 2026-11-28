@@ -805,10 +805,21 @@ describe('TileManager.update', () => {
         expect(tiles.every(tile => tile.hasData() && tile.awaitingUpload)).toBe(true);
         expect(tileManager.getRenderableIds()).toEqual([]);
 
+        const uploads = tiles.map(tile => vi.spyOn(tile, 'upload').mockImplementation(() => {}));
+        for (const tile of tiles) vi.spyOn(tile, 'prepare').mockImplementation(() => {});
+        const style = {imageManager: {}} as any;
+        (tileManager.map as any).style = style;
+        tileManager.style = style;
+        tileManager._state.coalesceChanges = () => {};
+        tileManager.prepare({} as any);
+        expect(uploads.every(upload => upload.mock.calls.length === 0)).toBe(true);
+
         const heard = vi.fn();
         tileManager.on('data', e => { if (e.tile) heard(e.tile); });
         tileManager.update(camera, context.worldCoordinateHelper, undefined, budget(0));
         expect(tileManager.getRenderableIds()).toHaveLength(1);
+        tileManager.prepare({} as any);
+        expect(uploads.filter(upload => upload.mock.calls.length === 1)).toHaveLength(1);
         expect(tileManager.map._update).toHaveBeenCalled();
         expect(heard).not.toHaveBeenCalled();
 

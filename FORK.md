@@ -77,10 +77,10 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Clipping-mask reuse | none | `f3cddca7d`, `5d70660cc` |
 | Tile cache kept through a layer change | internal `TileManager.relayout` | `a91513a81` |
 | Parse a tile's layers as read | none | `6278321dc` (part) |
-| Labels placed less often while the camera moves | none (`MOVING_PLACEMENT_STRETCH = 2`, `MOVING_PLACEMENT_INTERVAL = 300`) | `f6bb4474e` (part), `0b2fd8aa9` |
-| Covering tiles shared between sources | none (internal `TileManager.update(..., frame)`) | `41be2a055` |
-| New tiles uploaded a frame's budget at a time | none (internal `Tile.awaitingUpload`, `TileManager._admitUploads`, `TILE_UPLOAD_BUDGET_MS`) | this release |
-| Source features read a range at a time | internal `Tile.querySourceFeatures(result, {range})` returns the layer's length | `c075309c1` |
+| Labels placed less often while the camera moves | none (`MOVING_PLACEMENT_STRETCH = 2`, `MOVING_PLACEMENT_INTERVAL = 300`) | `f6bb4474e` (part), `fb9e96723` |
+| Covering tiles shared between sources | none (internal `TileManager.update(..., frame)`) | `8ad6b684c` |
+| New tiles uploaded a frame's budget at a time | none (internal `Tile.awaitingUpload`, `TileManager._admitUploads`, `TILE_UPLOAD_BUDGET_MS`) | `afcc838ed`, `7918d97ae` |
+| Source features read a range at a time | internal `Tile.querySourceFeatures(result, {range})` returns the layer's length | `4c84caff4` |
 | Layer programs link without blocking | none (internal `Program.isReady`, `Context.programsPending`) | see below |
 | Muted layers | `Map#setLayerMuted(layerId, muted)`, runtime only | `d8ea3c430` |
 | Symbol clip | `Map#setSymbolClip(layerIds, Polygon \| MultiPolygon \| null)` | `d8ea3c430`, `e3cc0358d` (anchor only) |
@@ -1544,7 +1544,7 @@ with another `maxzoom` gets its own.
 `util::tileCover`. Cache its result for the duration of one `RenderOrchestrator::createRenderTree` pass, keyed by
 the same parameters (tile size, zoom range, overscale behaviour).
 
-**Commits.** `41be2a055`.
+**Commits.** `8ad6b684c`.
 
 ### New tiles uploaded a frame's budget at a time
 
@@ -1602,7 +1602,7 @@ and no parent tile was fetched meanwhile.
 millisecond budget and per-source running cost, and keep the pyramid's parent/child retention treating it as not
 yet loaded. Native's placement also runs before upload, so admit before `PlacementController` runs.
 
-**Commits.** see the `frame-cost` branch.
+**Commits.** `afcc838ed`, `7918d97ae`.
 
 ### Source features read a range at a time
 
@@ -1636,7 +1636,7 @@ end reads what there is.
 off the render thread's data but are called synchronously. If the apps derive geometry from tiles the same way,
 give the per-tile query a start index and a count; otherwise nothing needs porting.
 
-**Commits.** `c075309c1`.
+**Commits.** `4c84caff4`.
 
 ### Layer programs link without blocking
 

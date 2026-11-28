@@ -1234,7 +1234,7 @@ declare class GeoJSONFeature {
   _y: number;
   _z: number;
   _vectorTileFeature: VectorTileFeatureLike;
-  constructor(vectorTileFeature: VectorTileFeatureLike, z: number, x: number, y: number, id: string | number | undefined, worldCoordinateHelper: WorldCoordinateHelper);
+  constructor(vectorTileFeature: VectorTileFeatureLike, z: number, x: number, y: number, id: string | number | undefined, worldCoordinateHelper?: WorldCoordinateHelper);
   private projectPoint;
   private projectLine;
   get geometry(): GeoJSON.Geometry;
@@ -4411,7 +4411,7 @@ declare class TileManager extends Evented<SourceEventType> {
    * Removes tiles that are outside the viewport and adds new tiles that
    * are inside the viewport.
    */
-  update(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, terrain?: Terrain): void;
+  update(projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, terrain?: Terrain, covers?: Record<string, OverscaledTileID[]>): void;
   /**
    * Remove raster tiles that are no longer retained
    */
@@ -5406,7 +5406,7 @@ declare class Placement {
    * Marks the bucket's symbols whose label an earlier bucket already draws, and claims the rest in `seenCrossTileIDs`.
    * `changed` is false when the marks match the last call, which means the buffers are already up to date.
    */
-  _markDuplicates(bucket: SymbolBucket, seenCrossTileIDs: { [k in string | number]: boolean; }): {
+  _markDuplicates(bucket: SymbolBucket, seenCrossTileIDs: Set<number>): {
     duplicates: boolean[];
     changed: boolean;
   };
@@ -7155,7 +7155,11 @@ type QuerySourceFeatureOptionsStrict = QuerySourceFeatureOptions & {
   /**
    * The map projection's world-to-lng/lat mapping for the returned geometry.
    */
-  worldCoordinateHelper: WorldCoordinateHelper;
+  worldCoordinateHelper?: WorldCoordinateHelper;
+  /**
+   * The first feature of the layer to read and the one to stop before. Per tile; the whole layer when unset.
+   */
+  range?: [number, number];
 };
 type QueryRenderedFeaturesResults = {
   [key: string]: QueryRenderedFeaturesResultsItem[];
@@ -7367,7 +7371,12 @@ declare class Tile {
   }, serializedLayers: {
     [_: string]: any;
   }, sourceFeatureState: SourceFeatureState, queryGeometry: Point$1[], cameraQueryGeometry: Point$1[], scale: number, params: Pick<QueryRenderedFeaturesOptionsStrict, "filter" | "layers" | "availableImages"> | undefined, projectedCamera: ProjectedCamera, worldCoordinateHelper: WorldCoordinateHelper, maxPitchScaleFactor: number, getElevation: GetElevation | undefined): QueryResults;
-  querySourceFeatures(result: GeoJSONFeature[], params: QuerySourceFeatureOptionsStrict): void;
+  /**
+   * Appends the tile's features in a source layer to `result`, and returns how many the layer holds.
+   * With `params.range` only the features from its first index up to its second are read,
+   * so a caller can spread a large layer over several frames.
+   */
+  querySourceFeatures(result: GeoJSONFeature[], params: QuerySourceFeatureOptionsStrict): number;
   hasData(): boolean;
   patternsLoaded(): boolean;
   setExpiryData(data: ExpiryData): void;

@@ -36893,7 +36893,7 @@ var GeoJSONFeature = class GeoJSONFeature {
 		this._x = x;
 		this._y = y;
 		this._z = z;
-		if (worldCoordinateHelper !== mercatorWorldCoordinateHelper$1) GeoJSONFeature.worldCoordinateHelpers.set(this, worldCoordinateHelper);
+		if (worldCoordinateHelper && worldCoordinateHelper !== mercatorWorldCoordinateHelper$1) GeoJSONFeature.worldCoordinateHelpers.set(this, worldCoordinateHelper);
 		for (const key in vectorTileFeature.properties) {
 			if (typeof vectorTileFeature.properties[key] !== "string" || !vectorTileFeature.properties[key].startsWith("__$json__:")) continue;
 			vectorTileFeature.properties[key] = JSON.parse(vectorTileFeature.properties[key].slice(10));
@@ -41832,13 +41832,18 @@ var Tile = class {
 			getElevation
 		}, layers, serializedLayers, sourceFeatureState);
 	}
+	/**
+	* Appends the tile's features in a source layer to `result`, and returns how many the layer holds.
+	* With `params.range` only the features from its first index up to its second are read,
+	* so a caller can spread a large layer over several frames.
+	*/
 	querySourceFeatures(result, params) {
 		const featureIndex = this.latestFeatureIndex;
-		if (!featureIndex?.rawTileData) return;
+		if (!featureIndex?.rawTileData) return 0;
 		const vtLayers = featureIndex.loadVTLayers();
 		const sourceLayer = params.sourceLayer ? params.sourceLayer : "";
 		const layer = vtLayers["_geojsonTileLayer"] || vtLayers[sourceLayer];
-		if (!layer) return;
+		if (!layer) return 0;
 		const filter = featureFilter(params.filter, `querySourceFeatures[${sourceLayer}].filter`, params.globalState);
 		const { z, x, y } = this.tileID.canonical;
 		const coord = {
@@ -41846,16 +41851,20 @@ var Tile = class {
 			x,
 			y
 		};
-		for (let i = 0; i < layer.length; i++) {
+		const parameters = new EvaluationParameters(this.tileID.overscaledZ);
+		const start = params.range ? Math.max(0, params.range[0]) : 0;
+		const end = params.range ? Math.min(layer.length, params.range[1]) : layer.length;
+		for (let i = start; i < end; i++) {
 			const feature = layer.feature(i);
 			if (filter.needGeometry) {
 				const evaluationFeature = toEvaluationFeature(feature, true);
-				if (!filter.filter(new EvaluationParameters(this.tileID.overscaledZ), evaluationFeature, this.tileID.canonical)) continue;
-			} else if (!filter.filter(new EvaluationParameters(this.tileID.overscaledZ), feature)) continue;
+				if (!filter.filter(parameters, evaluationFeature, this.tileID.canonical)) continue;
+			} else if (!filter.filter(parameters, feature)) continue;
 			const geojsonFeature = new GeoJSONFeature(feature, z, x, y, featureIndex.getId(feature, sourceLayer), params.worldCoordinateHelper);
 			geojsonFeature.tile = coord;
 			result.push(geojsonFeature);
 		}
+		return layer.length;
 	}
 	hasData() {
 		return this.state === "loaded" || this.state === "reloading" || this.state === "expired";
@@ -43622,7 +43631,7 @@ var TileManager = class TileManager extends Evented {
 	* Removes tiles that are outside the viewport and adds new tiles that
 	* are inside the viewport.
 	*/
-	update(projectedCamera, worldCoordinateHelper, terrain) {
+	update(projectedCamera, worldCoordinateHelper, terrain, covers) {
 		if (!this._sourceLoaded || this._paused) return;
 		this.projectedCamera = projectedCamera;
 		this.worldCoordinateHelper = worldCoordinateHelper;
@@ -43633,16 +43642,25 @@ var TileManager = class TileManager extends Evented {
 		if (!this.used && !this.usedForTerrain) idealTileIDs = [];
 		else if (this._source.tileID) idealTileIDs = getCameraMath(projectedCamera).getVisibleUnwrappedCoordinates(projectedCamera, worldCoordinateHelper, this._source.tileID).map((unwrapped) => new OverscaledTileID(unwrapped.canonical.z, unwrapped.wrap, unwrapped.canonical.z, unwrapped.canonical.x, unwrapped.canonical.y));
 		else {
-			idealTileIDs = coveringTiles(projectedCamera, worldCoordinateHelper, {
-				tileSize: this.usedForTerrain ? this.tileSize : this._source.tileSize,
-				minzoom: this._source.minzoom,
-				maxzoom: this._source.type === "vector" && this.map._zoomLevelsToOverscale !== void 0 ? Math.max(this._source.maxzoom, projectedCamera.maxZoom - this.map._zoomLevelsToOverscale) : this._source.maxzoom,
-				roundZoom: this.usedForTerrain ? false : this._source.roundZoom,
-				reparseOverscaled: this._source.reparseOverscaled,
-				terrain,
-				calculateTileZoom: this._source.calculateTileZoom,
-				maxContentElevation: this._updateMaxContentElevation()
-			});
+			const tileSize = this.usedForTerrain ? this.tileSize : this._source.tileSize;
+			const maxzoom = this._source.type === "vector" && this.map._zoomLevelsToOverscale !== void 0 ? Math.max(this._source.maxzoom, projectedCamera.maxZoom - this.map._zoomLevelsToOverscale) : this._source.maxzoom;
+			const roundZoom = this.usedForTerrain ? false : this._source.roundZoom;
+			const maxContentElevation = this._updateMaxContentElevation();
+			const coverKey = covers && !this._source.calculateTileZoom ? `${tileSize}/${this._source.minzoom}/${maxzoom}/${+!!roundZoom}/${+!!this._source.reparseOverscaled}/${maxContentElevation}` : null;
+			idealTileIDs = coverKey !== null ? covers[coverKey] : void 0;
+			if (!idealTileIDs) {
+				idealTileIDs = coveringTiles(projectedCamera, worldCoordinateHelper, {
+					tileSize,
+					minzoom: this._source.minzoom,
+					maxzoom,
+					roundZoom,
+					reparseOverscaled: this._source.reparseOverscaled,
+					terrain,
+					calculateTileZoom: this._source.calculateTileZoom,
+					maxContentElevation
+				});
+				if (coverKey !== null) covers[coverKey] = idealTileIDs;
+			}
 			if (this._source.hasTile) idealTileIDs = idealTileIDs.filter((coord) => this._source.hasTile(coord));
 		}
 		if (this.usedForTerrain) idealTileIDs = this._addTerrainIdealTiles(idealTileIDs);
@@ -45794,7 +45812,7 @@ var Placement = class {
 	}
 	/** Writes the opacity buffers of `styleLayer`, skipping buckets a rewrite would leave as they are. */
 	updateLayerOpacities(styleLayer, tiles) {
-		const seenCrossTileIDs = {};
+		const seenCrossTileIDs = /* @__PURE__ */ new Set();
 		for (const tile of tiles) {
 			const symbolBucket = tile.getBucket(styleLayer);
 			if (!symbolBucket || !tile.latestFeatureIndex || styleLayer.id !== symbolBucket.layerIds[0]) continue;
@@ -45826,8 +45844,8 @@ var Placement = class {
 		const stride = bucket.symbolInstances.bytesPerElement / 4;
 		for (let s = 0; s < length; s++) {
 			const crossTileID = uint32[s * stride + CROSS_TILE_ID_UINT32_OFFSET];
-			const duplicate = Boolean(seenCrossTileIDs[crossTileID]);
-			seenCrossTileIDs[crossTileID] = true;
+			const duplicate = seenCrossTileIDs.has(crossTileID);
+			if (!duplicate) seenCrossTileIDs.add(crossTileID);
 			if (crossTileIDs[s] !== crossTileID || duplicates[s] !== duplicate) {
 				crossTileIDs[s] = crossTileID;
 				duplicates[s] = duplicate;
@@ -47086,6 +47104,8 @@ function findRegisteredProjectionName(expression) {
 const empty = emptyStyle();
 /** How many times longer a placement is kept while the camera pans or turns than at rest. */
 const MOVING_PLACEMENT_STRETCH = 2;
+/** Milliseconds between placements while the camera moves, at the least: the default fade duration. */
+const MOVING_PLACEMENT_INTERVAL = 300;
 /**
 * The Style base class
 */
@@ -48246,7 +48266,8 @@ var Style = class extends Evented {
 		this.tileManagers[id].relayout();
 	}
 	_updateSources(projectedCamera, worldCoordinateHelper) {
-		for (const id in this.tileManagers) this.tileManagers[id].update(projectedCamera, worldCoordinateHelper, this.map.terrain);
+		const covers = {};
+		for (const id in this.tileManagers) this.tileManagers[id].update(projectedCamera, worldCoordinateHelper, this.map.terrain, covers);
 	}
 	_generateCollisionBoxes() {
 		for (const id in this.tileManagers) this._reloadSource(id);
@@ -48288,7 +48309,7 @@ var Style = class extends Evented {
 		this.crossTileSymbolIndex.pruneUnusedLayers(this._order);
 		forceFullPlacement ||= this._layerOrderChanged || fadeDuration === 0;
 		const placementInputsChanged = symbolBucketsChanged || this._placementInputsChanged(projectedCamera, showCollisionBoxes, crossSourceCollisions);
-		const stretch = this.map.isMoving() && !this.map.isZooming() ? MOVING_PLACEMENT_STRETCH : 1;
+		const stretch = !this.map.isMoving() ? 1 : Math.max(this.map.isZooming() ? 1 : MOVING_PLACEMENT_STRETCH, fadeDuration > 0 ? MOVING_PLACEMENT_INTERVAL / fadeDuration : 1);
 		const placementSettled = this.pauseablePlacement?.isDone() && !this.placement.stillRecent(now(), projectedCamera.zoom, stretch);
 		if (forceFullPlacement || !this.pauseablePlacement || placementSettled && (placementInputsChanged || this.placement.stale)) {
 			this._symbolPlacementTriggered = false;

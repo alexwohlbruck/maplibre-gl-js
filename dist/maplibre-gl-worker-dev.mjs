@@ -31371,7 +31371,7 @@ var GeoJSONFeature = class GeoJSONFeature {
 		this._x = x;
 		this._y = y;
 		this._z = z;
-		if (worldCoordinateHelper !== mercatorWorldCoordinateHelper$1) GeoJSONFeature.worldCoordinateHelpers.set(this, worldCoordinateHelper);
+		if (worldCoordinateHelper && worldCoordinateHelper !== mercatorWorldCoordinateHelper$1) GeoJSONFeature.worldCoordinateHelpers.set(this, worldCoordinateHelper);
 		for (const key in vectorTileFeature.properties) {
 			if (typeof vectorTileFeature.properties[key] !== "string" || !vectorTileFeature.properties[key].startsWith("__$json__:")) continue;
 			vectorTileFeature.properties[key] = JSON.parse(vectorTileFeature.properties[key].slice(10));

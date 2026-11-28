@@ -78,7 +78,8 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Tile cache kept through a layer change | internal `TileManager.relayout` | `a91513a81` |
 | Parse a tile's layers as read | none | `6278321dc` (part) |
 | Labels placed less often while the camera moves | none (`MOVING_PLACEMENT_STRETCH = 2`, `MOVING_PLACEMENT_INTERVAL = 300`) | `f6bb4474e` (part), `0b2fd8aa9` |
-| Covering tiles shared between sources | none (internal `TileManager.update(..., covers)`) | `41be2a055` |
+| Covering tiles shared between sources | none (internal `TileManager.update(..., frame)`) | `41be2a055` |
+| New tiles uploaded a frame's budget at a time | none (internal `Tile.awaitingUpload`, `TileManager._admitUploads`, `TILE_UPLOAD_BUDGET_MS`) | this release |
 | Source features read a range at a time | internal `Tile.querySourceFeatures(result, {range})` returns the layer's length | `c075309c1` |
 | Layer programs link without blocking | none (internal `Program.isReady`, `Context.programsPending`) | see below |
 | Muted layers | `Map#setLayerMuted(layerId, muted)`, runtime only | `d8ea3c430` |
@@ -1521,17 +1522,18 @@ with a dozen GeoJSON overlays computed the same cover a dozen times a frame. The
 once per frame.
 
 **API / style-spec surface.** None. Internal: `TileManager.update(projectedCamera, worldCoordinateHelper, terrain,
-covers?)`, where `covers` is a `Record<string, OverscaledTileID[]>` that lives for one `Style._updateSources` call.
+frame?)`, where `frame.covers` is a `Record<string, OverscaledTileID[]>` that lives for one `Style._updateSources`
+call (`SourcesFrame`, which also carries the upload budget below).
 
 **Behaviour.**
-- `Style._updateSources` creates an empty `covers` and passes it to every tile manager's `update`.
+- `Style._updateSources` creates a `SourcesFrame` with empty `covers` and passes it to every tile manager's `update`.
 - The key is `tileSize/minzoom/maxzoom/roundZoom/reparseOverscaled/maxContentElevation`, with `maxzoom` after the
   `zoomLevelsToOverscale` adjustment. A source with its own `calculateTileZoom` is never shared.
 - On a hit the array from the first source is used as it is. Nothing after `coveringTiles` changes it in place:
   `hasTile` filters into a new array, and the terrain's ancestors are concatenated into a new one. The ids are
   shared between the sources' tiles; only `TerrainTileManager` writes to an id (`terrainRttPosMatrix32f`), and it
   makes its own.
-- `update` called without `covers` (tests, a reload outside the frame) computes as upstream does.
+- `update` called without a frame (tests, a reload outside the frame) computes as upstream does.
 
 **Implementation in GL JS.** `src/style/style.ts` (`_updateSources`), `src/tile/tile_manager.ts` (`update`).
 
@@ -1543,6 +1545,64 @@ with another `maxzoom` gets its own.
 the same parameters (tile size, zoom range, overscale behaviour).
 
 **Commits.** `41be2a055`.
+
+### New tiles uploaded a frame's budget at a time
+
+**Purpose.** Upstream uploads every newly loaded tile's buffers in the first frame after it loads. Several tiles
+landing together (a zoom, a fast pan, a flight) made single frames of 30-60 ms, 17-36 ms of it `bufferData`. The
+fork lets a frame take only as many new tiles as fit a few milliseconds; the rest behave as if still loading for
+a frame or two, with the parent or child tiles that stood in for them still drawn.
+
+**API / style-spec surface.** None. Internal: `Tile.awaitingUpload`, `Tile.uploadPassedOver`, `Tile.firstUpload`,
+`TileManager._admitUploads(frame)`, `SourcesFrame.uploadMs` / `uploads`, and the constants
+`TILE_UPLOAD_BUDGET_MS = 4` (camera moving) and `RESTING_TILE_UPLOAD_BUDGET_MS = 12`.
+
+**Behaviour.**
+- `TileManager._tileLoaded`: a tile that had no data before, of a source that is `used` and updated with a frame,
+  and with at least one bucket whose `uploadPending()` is true, gets `awaitingUpload = true` before its `data`
+  event fires. A reload of a tile already shown is never held: it would blink.
+- While `awaitingUpload` is set the tile has its data (`hasData()` is true, its features can be queried) but:
+  - `Tile.isRenderable` is false, so it is not drawn, not placed and not in `getRenderableIds`;
+  - `InViewTiles.getLoadedTile` does not return it, so it does not stand in for another tile;
+  - `_updateRetainedTiles` counts an ideal tile that is awaiting as without data and keeps its loaded children or
+    parents, and a parent that is awaiting does not end the ascent;
+  - the ascent does not fetch a parent for it: `parentWasRequested` is false for an awaiting tile, since nothing
+    failed;
+  - the tile-fade's `alreadyDrawn` ignores it as a child.
+- `Style._updateSources` gives the frame `uploadMs = 4` while `map.isMoving()` and `12` otherwise, and `uploads = 0`.
+- `TileManager.update` calls `_admitUploads(frame)` first. For each in-view tile that is awaiting, in the tile
+  manager's order: if the frame has admitted at least one tile and `uploadMs <= 0`, the tile is passed over
+  (`uploadPassedOver = true`); otherwise it is admitted: `uploads++`, `uploadMs -= _firstUploadMs`,
+  `awaitingUpload = false`, `firstUpload = true`. The budget is shared by all sources of the frame, in the order
+  the style holds them. One tile is always admitted, whatever it costs.
+- Admission happens at the start of the frame, before `_updatePlacement`, so placement writes the tile's symbol
+  opacities before the painter creates its buffers, as upstream's order guarantees. (Deciding at upload time
+  instead uploads a symbol bucket with an empty opacity array, and the next placement's `updateData` throws.)
+- `_firstUploadMs` is the source's running estimate of one first upload, starting at 1 ms:
+  `TileManager.prepare` times `tile.upload` for a tile with `firstUpload` and moves the estimate 30% of the way to
+  it. A GeoJSON overlay's tiles cost almost nothing and many are admitted; a dense basemap tile costs several
+  milliseconds and one or two are.
+- If any tile was passed over, `_admitUploads` calls `map._update()`, so the next frame updates the sources again.
+- A tile admitted after having been passed over fires a second `data` event (`{tile, coord}`), because listeners
+  that read its tile on the first one could not yet see it among the renderable tiles.
+- `update` without a frame admits everything at once and turns the holding off for that source
+  (`_budgetsUploads = false`), which is what unit tests and tile managers outside a map get.
+
+**Implementation in GL JS.** `src/tile/tile_manager.ts` (`_tileLoaded`, `_admitUploads`, `prepare`,
+`_updateRetainedTiles`), `src/tile/tile.ts`, `src/tile/tile_manager_in_view_tiles.ts`, `src/style/style.ts`
+(`_updateSources`), `src/webgl/draw/tile_fade.ts`.
+
+**Tests.** `src/tile/tile_manager.test.ts`: four tiles load under a spent budget and none is renderable; the next
+update admits one and asks for another frame; an unlimited one admits the rest, each with a second `data` event,
+and no parent tile was fetched meanwhile.
+
+**Native porting notes.** Native uploads in `RenderOrchestrator` / each `RenderLayer::upload` pass
+(`gfx::UploadPass`) for every tile with pending buckets. Hold a newly parsed `GeometryTile` out of
+`isRenderable()` until an admission step at the start of `createRenderTree` lets it through, with the same shared
+millisecond budget and per-source running cost, and keep the pyramid's parent/child retention treating it as not
+yet loaded. Native's placement also runs before upload, so admit before `PlacementController` runs.
+
+**Commits.** see the `frame-cost` branch.
 
 ### Source features read a range at a time
 

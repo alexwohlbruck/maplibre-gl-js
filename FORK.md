@@ -77,7 +77,9 @@ Render tests that differ from upstream's expected images because of fork behavio
 | Clipping-mask reuse | none | `f3cddca7d`, `5d70660cc` |
 | Tile cache kept through a layer change | internal `TileManager.relayout` | `a91513a81` |
 | Parse a tile's layers as read | none | `6278321dc` (part) |
-| Labels placed half as often while panning | none (`MOVING_PLACEMENT_STRETCH = 2`) | `f6bb4474e` (part) |
+| Labels placed less often while the camera moves | none (`MOVING_PLACEMENT_STRETCH = 2`, `MOVING_PLACEMENT_INTERVAL = 300`) | `f6bb4474e` (part), `0b2fd8aa9` |
+| Covering tiles shared between sources | none (internal `TileManager.update(..., covers)`) | `41be2a055` |
+| Source features read a range at a time | internal `Tile.querySourceFeatures(result, {range})` returns the layer's length | `c075309c1` |
 | Layer programs link without blocking | none (internal `Program.isReady`, `Context.programsPending`) | see below |
 | Muted layers | `Map#setLayerMuted(layerId, muted)`, runtime only | `d8ea3c430` |
 | Symbol clip | `Map#setSymbolClip(layerIds, Polygon \| MultiPolygon \| null)` | `d8ea3c430`, `e3cc0358d` (anchor only) |
@@ -1473,7 +1475,7 @@ not force-parse every layer. If they do not, nothing needs porting.
 
 **Commits.** `6278321dc` (the parsing part).
 
-### Labels placed half as often while panning
+### Labels placed less often while the camera moves
 
 **Purpose.** While the camera pans or rotates without zooming, labels ride the map they were placed on, so
 placing them less often is not visible. The fork doubles the placement interval in that state, which halves the
@@ -1487,8 +1489,15 @@ cost of placement.
 - `Placement.stillRecent(now, zoom, stretch = 1)` returns `commitTime + fadeDuration * durationAdjustment *
   stretch > now`. The `durationAdjustment` term (the upstream `1 - zoomAdjustment(zoom)` once zoom has settled)
   is unchanged.
-- A new placement therefore starts at most once every `2 × fadeDuration` while panning or rotating, and once every
-  `fadeDuration` otherwise.
+- The stretch has a floor while the camera moves, zooming included: `MOVING_PLACEMENT_INTERVAL / fadeDuration`,
+  with `MOVING_PLACEMENT_INTERVAL = 300` (upstream's default `fadeDuration`). So
+  `stretch = !moving ? 1 : max(zooming ? 1 : 2, 300 / fadeDuration)` (no floor when `fadeDuration` is 0).
+  A map with a short fade, such as Parchment's 100 ms, otherwise placed three times as often mid-gesture as a
+  map with the default fade does; placement was 25-30% of the main thread's frame at a pitched, label-dense view.
+- A new placement therefore starts at most once every `max(2 × fadeDuration, 300 ms)` while panning or rotating,
+  once every `max(fadeDuration, 300 ms)` while zooming, and once every `fadeDuration` at rest.
+- `Placement.updateLayerOpacities` tracks the cross-tile ids it has seen in a `Set<number>`, not an object keyed by
+  large integers, which V8 keeps as a slow dictionary.
 - `forceFullPlacement` and a missing placement still bypass the check.
 - Pitch-only changes count as moving and not zooming, so they are stretched too.
 
@@ -1503,6 +1512,71 @@ commit time, together with the `TransformState` / `UpdateParameters` camera-movi
 recency. Multiply the window by 2 when the transform is moving and not zooming.
 
 **Commits.** `f6bb4474e` (the `style.ts` / `placement.ts` part only).
+
+### Covering tiles shared between sources
+
+**Purpose.** Every source works out the tiles that cover the view on every frame, with a frustum test per
+candidate tile. Sources with the same tile size and zoom range ask the same question of the same camera: a style
+with a dozen GeoJSON overlays computed the same cover a dozen times a frame. The fork computes each distinct cover
+once per frame.
+
+**API / style-spec surface.** None. Internal: `TileManager.update(projectedCamera, worldCoordinateHelper, terrain,
+covers?)`, where `covers` is a `Record<string, OverscaledTileID[]>` that lives for one `Style._updateSources` call.
+
+**Behaviour.**
+- `Style._updateSources` creates an empty `covers` and passes it to every tile manager's `update`.
+- The key is `tileSize/minzoom/maxzoom/roundZoom/reparseOverscaled/maxContentElevation`, with `maxzoom` after the
+  `zoomLevelsToOverscale` adjustment. A source with its own `calculateTileZoom` is never shared.
+- On a hit the array from the first source is used as it is. Nothing after `coveringTiles` changes it in place:
+  `hasTile` filters into a new array, and the terrain's ancestors are concatenated into a new one. The ids are
+  shared between the sources' tiles; only `TerrainTileManager` writes to an id (`terrainRttPosMatrix32f`), and it
+  makes its own.
+- `update` called without `covers` (tests, a reload outside the frame) computes as upstream does.
+
+**Implementation in GL JS.** `src/style/style.ts` (`_updateSources`), `src/tile/tile_manager.ts` (`update`).
+
+**Tests.** `src/tile/tile_manager.test.ts`: two like sources share one cover and load the same tiles; a source
+with another `maxzoom` gets its own.
+
+**Native porting notes.** Native computes the cover per `RenderSource` in `TilePyramid::update` via
+`util::tileCover`. Cache its result for the duration of one `RenderOrchestrator::createRenderTree` pass, keyed by
+the same parameters (tile size, zoom range, overscale behaviour).
+
+**Commits.** `41be2a055`.
+
+### Source features read a range at a time
+
+**Purpose.** An application that derives geometry from loaded tiles (trees, landmark footprints, label heights)
+reads a whole source layer of a tile at once. A dense layer of one tile is tens of thousands of features, and
+building them held the main thread for 100-200 ms, one dropped-frame burst per arriving tile. The fork lets the
+caller read a slice of the layer per call, and drops two per-feature costs from the loop.
+
+**API / style-spec surface.** Internal only: `Tile.querySourceFeatures(result, params)` takes
+`params.range?: [start, end]` and returns the number of features in the layer (0 without data or the layer).
+`QuerySourceFeatureOptionsStrict.worldCoordinateHelper` is optional.
+
+**Behaviour.**
+- With `range`, only features `start <= i < min(end, layer.length)` are read and appended. Without it the whole
+  layer is, as upstream.
+- The return value lets a caller loop `start += n` until it reaches the length.
+- One `EvaluationParameters` is built per call and reused for every feature's filter test; upstream built one per
+  feature.
+- `GeoJSONFeature`'s constructor registers a feature in its `worldCoordinateHelpers` WeakMap only for a helper that
+  is set and is not the mercator one. A call without a helper (which is how an application reaches the tile
+  directly) no longer writes one WeakMap entry per feature, and its geometry is mercator, as before.
+- `Map#querySourceFeatures` is unchanged.
+
+**Implementation in GL JS.** `src/tile/tile.ts`, `src/source/query_features.ts` (the option type),
+`src/util/vectortile_to_geojson.ts`.
+
+**Tests.** `src/tile/tile.test.ts`: an empty range reads nothing and still reports the length; a range past the
+end reads what there is.
+
+**Native porting notes.** Native's `GeometryTile::querySourceFeatures` / `RenderSource::querySourceFeatures` run
+off the render thread's data but are called synchronously. If the apps derive geometry from tiles the same way,
+give the per-tile query a start index and a count; otherwise nothing needs porting.
+
+**Commits.** `c075309c1`.
 
 ### Layer programs link without blocking
 
